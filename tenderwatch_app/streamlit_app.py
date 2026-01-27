@@ -283,13 +283,16 @@ if page == "📊 Dashboard":
                     st.markdown(f"<span class='{score_class}'>{tender.score:.1f}%</span>", unsafe_allow_html=True)
                 
                 with col3:
-                    if st.button("View", key=f"view_recent_{tender.id}"):
-                        st.session_state['view_tender'] = tender.id
-                        st.rerun()
+                    st.link_button("View →", tender.link, use_container_width=True)
                 
                 st.markdown("---")
     else:
-        st.info("No tenders found. Run a scan to discover opportunities!")
+        st.info("📭 No tenders found yet.")
+        st.markdown("""\n**Get started:**
+1. Click **🔍 Scan & Results** in the sidebar
+2. Click **🔄 Run Scan Now** to find tenders
+3. Or add tender sources in **📁 Sources**
+        """)
 
 elif page == "🔍 Scan & Results":
     st.title("🔍 Tender Scanning")
@@ -320,14 +323,15 @@ elif page == "🔍 Scan & Results":
         min_score = st.slider("Minimum Score", 0, 100, 0, 5)
     
     with col2:
-        categories = ["All"] + list(set([t.category for t in get_tenders() if t.category]))
+        all_tenders = get_tenders()
+        categories = ["All"] + sorted(list(set([t.category for t in all_tenders if t.category]))) if all_tenders else ["All"]
         category = st.selectbox("Category", categories)
     
     with col3:
         sort_by = st.selectbox("Sort By", ["score", "date", "deadline"])
     
     with col4:
-        search = st.text_input("🔍 Search", placeholder="Keywords...")
+        search = st.text_input("🔍 Search", placeholder="Search titles & descriptions...", help="Search in tender titles and descriptions")
     
     # Get filtered tenders
     filters = {
@@ -371,14 +375,16 @@ elif page == "🔍 Scan & Results":
                 with col2:
                     st.markdown(f"**Score: <span style='color:{score_color};font-size:24px;'>{tender.score:.1f}%</span>**", unsafe_allow_html=True)
                     
-                    if st.button("⭐ Favorite" if not tender.favorite else "⭐ Unfavorite", 
-                                key=f"fav_{tender.id}"):
+                    fav_label = "❌ Remove Favorite" if tender.favorite else "⭐ Add to Favorites"
+                    if st.button(fav_label, key=f"fav_{tender.id}", use_container_width=True):
                         toggle_favorite(tender.id)
+                        st.success("✅ Updated!" if not tender.favorite else "❌ Removed from favorites")
                         st.rerun()
                     
-                    if st.button("💾 Save" if not tender.saved else "💾 Unsave", 
-                                key=f"save_{tender.id}"):
+                    save_label = "❌ Remove from Saved" if tender.saved else "💾 Save for Later"
+                    if st.button(save_label, key=f"save_{tender.id}", use_container_width=True):
                         toggle_saved(tender.id)
+                        st.success("✅ Saved!" if not tender.saved else "❌ Removed from saved")
                         st.rerun()
     else:
         st.info("No tenders match your filters. Try adjusting the criteria or run a new scan.")
@@ -403,8 +409,10 @@ elif page == "📁 Sources":
                         st.caption(source.url)
                     
                     with col2:
-                        if st.button("Toggle", key=f"toggle_{source.id}"):
+                        toggle_label = "⏸️ Disable" if source.active else "✅ Enable"
+                        if st.button(toggle_label, key=f"toggle_{source.id}", use_container_width=True):
                             toggle_source(source.id)
+                            st.success(f"✅ Source {'disabled' if source.active else 'enabled'}!")
                             st.rerun()
                     
                     with col3:
@@ -418,7 +426,8 @@ elif page == "📁 Sources":
                     
                     st.markdown("---")
         else:
-            st.warning("No sources configured. Add sources to start scanning!")
+            st.warning("⚠️ No sources configured yet!")
+            st.info("💡 **Tip:** Switch to the 'Add New Source' tab to add your first tender source.")
     
     with tab2:
         st.markdown("### Add New Tender Source")
@@ -431,11 +440,14 @@ elif page == "📁 Sources":
             
             if submitted:
                 if name and url:
-                    add_source(name, url)
-                    st.success(f"✅ Added source: {name}")
-                    st.rerun()
+                    if url.startswith('http://') or url.startswith('https://'):
+                        add_source(name, url)
+                        st.success(f"✅ Added source: {name}")
+                        st.rerun()
+                    else:
+                        st.error("❌ URL must start with http:// or https://")
                 else:
-                    st.error("Please provide both name and URL")
+                    st.error("❌ Please provide both name and URL")
 
 elif page == "⭐ Favorites":
     st.title("⭐ Favorite Tenders")
