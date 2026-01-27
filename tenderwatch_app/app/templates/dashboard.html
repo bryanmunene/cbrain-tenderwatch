@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - TenderWatch{% endblock %}
+
+{% block content %}
+
+<div class="page-header mb-4">
+    <h1><i class="fas fa-chart-line"></i> Dashboard</h1>
+    <p class="text-muted">Overview of your tender scanning activity</p>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-5">
+    <div class="col-md-3 mb-3">
+        <div class="card border-0">
+            <div class="card-body text-center">
+                <div style="font-size: 2.5rem; color: #3b82f6; margin-bottom: 0.5rem;">
+                    <i class="fas fa-file-contract"></i>
+                </div>
+                <h3 style="font-size: 2rem; margin: 0;">{{ total_tenders }}</h3>
+                <p class="text-muted mb-0">Total Tenders</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card border-0">
+            <div class="card-body text-center">
+                <div style="font-size: 2.5rem; color: #059669; margin-bottom: 0.5rem;">
+                    <i class="fas fa-arrow-up"></i>
+                </div>
+                <h3 style="font-size: 2rem; margin: 0;">{{ high_score_count }}</h3>
+                <p class="text-muted mb-0">High Score (70+)</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card border-0">
+            <div class="card-body text-center">
+                <div style="font-size: 2.5rem; color: #d97706; margin-bottom: 0.5rem;">
+                    <i class="fas fa-star"></i>
+                </div>
+                <h3 style="font-size: 2rem; margin: 0;">{{ favorite_count }}</h3>
+                <p class="text-muted mb-0">Favorites</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card border-0">
+            <div class="card-body text-center">
+                <div style="font-size: 2.5rem; color: #059669; margin-bottom: 0.5rem;">
+                    <i class="fas fa-bookmark"></i>
+                </div>
+                <h3 style="font-size: 2rem; margin: 0;">{{ saved_count }}</h3>
+                <p class="text-muted mb-0">Saved</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-5">
+    <div class="col-md-6">
+        <!-- Active Sources -->
+        <div class="card border-0 mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-link"></i> Active Sources
+                </h5>
+            </div>
+            <div class="card-body">
+                <div style="font-size: 2.5rem; color: #3b82f6; margin-bottom: 0.5rem;">
+                    {{ active_sources }}
+                </div>
+                <p class="text-muted mb-0">Sources currently being scanned</p>
+                <a href="{{ url_for('main.sources') }}" class="btn btn-sm btn-primary mt-3">
+                    <i class="fas fa-cog"></i> Manage Sources
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Breakdown -->
+    <div class="col-md-6">
+        <div class="card border-0 mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tags"></i> Categories
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if categories %}
+                <div class="list-group list-group-flush">
+                    {% for category_name, count in categories %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center ps-0 pe-0 border-0 pt-2 pb-2">
+                        <span>
+                            {% if category_name %}
+                                <i class="fas fa-folder"></i> {{ category_name }}
+                            {% else %}
+                                <i class="fas fa-question-circle"></i> Uncategorized
+                            {% endif %}
+                        </span>
+                        <span class="badge bg-primary">{{ count }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No categories yet. Run a scan to start.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Source Contribution Breakdown -->
+<div class="card border-0 mb-5">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-chart-pie"></i> Tenders by Source
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if source_contributions %}
+        <div class="list-group list-group-flush">
+            {% for source_name, count in source_contributions %}
+            <div class="list-group-item d-flex justify-content-between align-items-center ps-0 pe-0 border-0 pt-3 pb-3">
+                <div>
+                    <strong>{{ source_name }}</strong>
+                    {% if count == 0 %}
+                    <span class="badge bg-warning ms-2">No tenders found</span>
+                    {% endif %}
+                </div>
+                <span class="badge bg-primary" style="font-size: 0.9rem;">{{ count }} tender{% if count != 1 %}s{% endif %}</span>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="alert alert-info mt-3 mb-0">
+            <i class="fas fa-info-circle"></i> 
+            <strong>Troubleshooting:</strong> If a source shows "No tenders found", make sure it's active on the <a href="{{ url_for('main.sources') }}">Sources page</a> and check that the source URL is correctly formatted.
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">No tenders yet. <a href="{{ url_for('main.scan') }}">Run a scan</a> to get started.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Tenders -->
+<div class="card border-0">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-clock"></i> Recent Tenders
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if recent_tenders %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Score</th>
+                        <th>Category</th>
+                        <th>Added</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tender in recent_tenders %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('main.tender_detail', tid=tender.id) }}" class="text-decoration-none">
+                                {{ tender.title[:60] }}{% if tender.title|length > 60 %}...{% endif %}
+                            </a>
+                        </td>
+                        <td>
+                            {% set score = tender.score or 0 %}
+                            {% if score >= 70 %}
+                            <span class="score-badge score-high">{{ "%.1f"|format(score) }}%</span>
+                            {% elif score >= 40 %}
+                            <span class="score-badge score-medium">{{ "%.1f"|format(score) }}%</span>
+                            {% else %}
+                            <span class="score-badge score-low">{{ "%.1f"|format(score) }}%</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if tender.category %}
+                            <span class="badge bg-primary">{{ tender.category }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ tender.created_at.strftime('%b %d, %Y') }}</small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <a href="{{ url_for('main.scan') }}" class="btn btn-sm btn-primary mt-3">
+            <i class="fas fa-search"></i> View All Tenders
+        </a>
+        {% else %}
+        <p class="text-muted mb-0">No tenders yet. <a href="{{ url_for('main.scan') }}">Run a scan</a> to get started.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

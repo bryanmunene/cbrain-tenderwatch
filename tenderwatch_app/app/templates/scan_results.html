@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Results - TenderWatch{% endblock %}
+
+{% block content %}
+
+<div class="page-header mb-4">
+    <h1><i class="fas fa-list-check"></i> {{ title or 'Tender Scan Results' }}</h1>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4 border-0 bg-light">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" class="form-control" id="search" name="search" placeholder="Title, description..." value="{{ search }}">
+            </div>
+            <div class="col-md-2">
+                <label for="category" class="form-label">Category</label>
+                <select class="form-select" id="category" name="category">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}" {% if category == cat %}selected{% endif %}>{{ cat or 'Uncategorized' }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="min_score" class="form-label">Min Score</label>
+                <select class="form-select" id="min_score" name="min_score">
+                    <option value="0" {% if min_score == 0 %}selected{% endif %}>All</option>
+                    <option value="40" {% if min_score == 40 %}selected{% endif %}>40+</option>
+                    <option value="70" {% if min_score == 70 %}selected{% endif %}>70+</option>
+                    <option value="85" {% if min_score == 85 %}selected{% endif %}>85+</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="sort" class="form-label">Sort By</label>
+                <select class="form-select" id="sort" name="sort">
+                    <option value="score" {% if sort_by == 'score' %}selected{% endif %}>Score</option>
+                    <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest</option>
+                    <option value="deadline" {% if sort_by == 'deadline' %}selected{% endif %}>Deadline</option>
+                </select>
+            </div>
+            <div class="col-md-1 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+                <a href="{{ url_for('main.scan') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <form method="post" class="d-inline">
+            <button class="btn btn-primary btn-lg" type="submit">
+                <i class="fas fa-sync"></i> Run Scan
+            </button>
+        </form>
+    </div>
+    <div class="col-md-6 text-end">
+        {% if results %}
+        <small class="text-muted">Showing {{ results|length }} result{% if results|length != 1 %}s{% endif %}</small>
+        {% endif %}
+    </div>
+</div>
+
+{% if results %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Tender Opportunity</th>
+                <th>Source</th>
+                <th>Country</th>
+                <th>Deadline</th>
+                <th>Score</th>
+                <th>Category</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in results %}
+            <tr>
+                <td>
+                    <div class="d-flex align-items-start gap-2">
+                        <div style="flex: 1;">
+                            <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="text-decoration-none">
+                                <strong id="title-{{ r.id }}" class="tender-title">{{ r.title[:80] }}{% if r.title|length > 80 %}...{% endif %}</strong>
+                            </a>
+                            {% if r.keywords_matched %}
+                            <div>
+                                <small class="text-muted">
+                                    <i class="fas fa-tag"></i> {{ r.keywords_matched[:60] }}{% if r.keywords_matched|length > 60 %}...{% endif %}
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span title="{{ r.buyer }}">
+                        {{ r.buyer[:20] }}{% if r.buyer|length > 20 %}...{% endif %}
+                    </span>
+                </td>
+                <td>{{ r.country or '-' }}</td>
+                <td>
+                    {% if r.deadline %}
+                    <small>{{ r.deadline }}</small>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% set score = r.score or 0 %}
+                    {% if score >= 70 %}
+                    <span class="score-badge score-high">{{ "%.1f"|format(score) }}%</span>
+                    {% elif score >= 40 %}
+                    <span class="score-badge score-medium">{{ "%.1f"|format(score) }}%</span>
+                    {% else %}
+                    <span class="score-badge score-low">{{ "%.1f"|format(score) }}%</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge bg-info">{{ r.category or 'N/A' }}</span>
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <!-- Translate button removed: translation is now automatic -->
+                        <a href="{{ r.link }}" target="_blank" class="btn btn-outline-secondary" title="Open in new tab">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                        <form method="post" class="d-inline" title="View details">
+                            <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="btn btn-outline-info">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </form>
+                        {% if r.favorite %}
+                        <form method="post" action="{{ url_for('main.toggle_favorite', rid=r.id) }}" class="d-inline">
+                            <button class="btn btn-warning" type="submit" title="Remove from favorites">
+                                <i class="fas fa-star"></i>
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{{ url_for('main.toggle_favorite', rid=r.id) }}" class="d-inline">
+                            <button class="btn btn-outline-warning" type="submit" title="Add to favorites">
+                                <i class="far fa-star"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="row mt-4">
+    <!-- Translate JS removed: translation is now automatic -->
+    <!-- Removed leftover JS for translation. -->
+</div>
+{% else %}
+<div class="alert alert-info" role="alert">
+    <i class="fas fa-info-circle"></i> No tender results found. Try running a scan or adjusting your filters.
+</div>
+{% endif %}
+
+{% endblock %}

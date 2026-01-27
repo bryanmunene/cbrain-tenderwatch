@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - TenderWatch{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">
+    <i class="fas fa-cog"></i> Settings
+</h1>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="POST">
+            <!-- Autonomous Scanning Settings -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-robot"></i> Autonomous Scanning</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="auto_scan_enabled" 
+                               name="auto_scan_enabled" {% if settings.auto_scan_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="auto_scan_enabled">
+                            <strong>Enable Automatic Scanning</strong>
+                            <div class="text-muted small">Automatically scan for new tenders at regular intervals</div>
+                        </label>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="scan_interval_minutes" class="form-label">Scan Interval (minutes)</label>
+                        <input type="number" class="form-control" id="scan_interval_minutes" 
+                               name="scan_interval_minutes" value="{{ settings.scan_interval_minutes }}" 
+                               min="5" max="1440" required>
+                        <div class="form-text">How often to scan for new tenders (minimum: 5 minutes)</div>
+                    </div>
+                    
+                    {% if scheduler_status.running %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> Scheduler is running
+                        {% if scheduler_status.jobs %}
+                            {% for job in scheduler_status.jobs %}
+                                <div class="small mt-2">
+                                    Next scan: {{ job.next_run }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> Scheduler is not running. Enable automatic scanning above.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Notification Settings -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bell"></i> Notifications</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="notifications_enabled" 
+                               name="notifications_enabled" {% if settings.notifications_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="notifications_enabled">
+                            <strong>Enable Notifications</strong>
+                            <div class="text-muted small">Receive alerts when new tenders are found</div>
+                        </label>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="notify_desktop" 
+                               name="notify_desktop" {% if settings.notify_desktop %}checked{% endif %}>
+                        <label class="form-check-label" for="notify_desktop">
+                            <strong>Desktop Notifications</strong>
+                            <div class="text-muted small">Show desktop popup notifications</div>
+                        </label>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="notify_email" 
+                               name="notify_email" {% if settings.notify_email %}checked{% endif %}>
+                        <label class="form-check-label" for="notify_email">
+                            <strong>Email Notifications</strong>
+                            <div class="text-muted small">Send email alerts (configure email settings below)</div>
+                        </label>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="min_score_to_notify" class="form-label">Minimum Score to Notify</label>
+                        <input type="number" class="form-control" id="min_score_to_notify" 
+                               name="min_score_to_notify" value="{{ settings.min_score_to_notify }}" 
+                               min="0" max="100" step="0.1" required>
+                        <div class="form-text">Only notify about tenders with this score or higher</div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="testNotification">
+                        <i class="fas fa-vial"></i> Test Desktop Notification
+                    </button>
+                </div>
+            </div>
+
+            <!-- Email Settings -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-envelope"></i> Email Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Configure email settings to receive tender alerts via email.
+                        For Gmail, use an <a href="https://support.google.com/accounts/answer/185833" target="_blank">App Password</a>.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email_recipients" class="form-label">Recipients (comma-separated)</label>
+                        <input type="text" class="form-control" id="email_recipients" 
+                               name="email_recipients" value="{{ settings.email_recipients }}"
+                               placeholder="user1@example.com, user2@example.com">
+                        <div class="form-text">Email addresses to receive notifications</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="smtp_server" class="form-label">SMTP Server</label>
+                            <input type="text" class="form-control" id="smtp_server" 
+                                   name="smtp_server" value="{{ settings.smtp_server }}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="smtp_port" class="form-label">Port</label>
+                            <input type="number" class="form-control" id="smtp_port" 
+                                   name="smtp_port" value="{{ settings.smtp_port }}">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="smtp_username" class="form-label">SMTP Username (Email)</label>
+                        <input type="email" class="form-control" id="smtp_username" 
+                               name="smtp_username" value="{{ settings.smtp_username }}"
+                               placeholder="your.email@gmail.com">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="smtp_password" class="form-label">SMTP Password</label>
+                        <input type="password" class="form-control" id="smtp_password" 
+                               name="smtp_password" placeholder="Leave blank to keep current password">
+                        <div class="form-text">Your email password or app-specific password</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save"></i> Save Settings
+                </button>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> About</h5>
+            </div>
+            <div class="card-body">
+                <h6>Autonomous Scanning</h6>
+                <p class="small text-muted">
+                    When enabled, TenderWatch will automatically scan configured sources at regular intervals 
+                    without manual intervention.
+                </p>
+                
+                <h6 class="mt-3">Desktop Notifications</h6>
+                <p class="small text-muted">
+                    Get instant popup notifications on your desktop when new tenders are found. 
+                    Works on Windows, macOS, and Linux.
+                </p>
+                
+                <h6 class="mt-3">Email Alerts</h6>
+                <p class="small text-muted">
+                    Receive detailed email reports with tender information. Perfect for staying informed 
+                    when away from your desk.
+                </p>
+                
+                <h6 class="mt-3">Score Threshold</h6>
+                <p class="small text-muted">
+                    Control notification frequency by setting a minimum score. Higher thresholds mean 
+                    fewer but more relevant notifications.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('testNotification').addEventListener('click', function() {
+    fetch('{{ url_for("main.test_notification") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Test notification sent! Check your desktop.');
+        }
+    })
+    .catch(error => {
+        alert('Failed to send test notification. Make sure desktop notifications are enabled.');
+    });
+});
+</script>
+
+{% endblock %}

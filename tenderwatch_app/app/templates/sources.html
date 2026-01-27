@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Sources - TenderWatch{% endblock %}
+
+{% block content %}
+
+<div class="page-header mb-4">
+    <h1><i class="fas fa-link"></i> Tender Sources</h1>
+    <p class="text-muted">Manage your tender opportunity sources</p>
+</div>
+
+{% if error %}
+<div class="alert alert-info" role="alert">
+    <i class="fas fa-exclamation-circle"></i> {{ error }}
+</div>
+{% endif %}
+
+<!-- Add New Source -->
+<div class="card mb-4 border-0">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-plus-circle"></i> Add New Source
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            <div class="row">
+                <div class="col-md-5 mb-3">
+                    <label for="name" class="form-label">Source Name</label>
+                    <input type="text" class="form-control" id="name" name="name" placeholder="e.g., UNDP Kenya" required>
+                    <small class="text-muted">Name of the tender source or organization</small>
+                </div>
+                <div class="col-md-5 mb-3">
+                    <label for="url" class="form-label">Source URL</label>
+                    <input type="url" class="form-control" id="url" name="url" placeholder="https://example.com/tenders" required>
+                    <small class="text-muted">URL to the tender listing page</small>
+                </div>
+                <div class="col-md-2 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-plus"></i> Add Source
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Active Sources -->
+{% if active_sources %}
+<div class="card mb-4 border-0">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-check-circle"></i> Active Sources
+        </h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Source Name</th>
+                    <th>URL</th>
+                    <th>Added</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in active_sources %}
+                <tr>
+                    <td>
+                        <strong>{{ s.name }}</strong>
+                        {% if s.favorite %}
+                        <i class="fas fa-star" style="color: #d97706;" title="Favorite source"></i>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ s.url }}" target="_blank" class="text-decoration-none">
+                            <i class="fas fa-external-link-alt"></i> {{ s.url[:50] }}{% if s.url|length > 50 %}...{% endif %}
+                        </a>
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ s.created_at.strftime('%b %d, %Y') }}</small>
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <a href="{{ s.url }}" target="_blank" class="btn btn-outline-secondary" title="Visit source">
+                                <i class="fas fa-globe"></i>
+                            </a>
+                            {% if s.favorite %}
+                            <form method="post" action="{{ url_for('main.toggle_source_favorite', sid=s.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-warning" title="Remove from favorites">
+                                    <i class="fas fa-star"></i>
+                                </button>
+                            </form>
+                            {% else %}
+                            <form method="post" action="{{ url_for('main.toggle_source_favorite', sid=s.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-outline-warning" title="Add to favorites">
+                                    <i class="far fa-star"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            <form method="post" action="{{ url_for('main.toggle_source_active', sid=s.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-outline-secondary" title="Deactivate source">
+                                    <i class="fas fa-pause"></i>
+                                </button>
+                            </form>
+                            <form method="post" action="{{ url_for('main.delete_source', sid=s.id) }}" class="d-inline" onclick="return confirm('Are you sure?');">
+                                <button type="submit" class="btn btn-outline-danger" title="Delete source">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Inactive Sources -->
+{% if inactive_sources %}
+<div class="card mb-4 border-0">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-circle"></i> Inactive Sources
+        </h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Source Name</th>
+                    <th>URL</th>
+                    <th>Added</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in inactive_sources %}
+                <tr>
+                    <td>
+                        <strong class="text-muted">{{ s.name }}</strong>
+                    </td>
+                    <td>
+                        <a href="{{ s.url }}" target="_blank" class="text-muted text-decoration-none">
+                            <i class="fas fa-external-link-alt"></i> {{ s.url[:50] }}{% if s.url|length > 50 %}...{% endif %}
+                        </a>
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ s.created_at.strftime('%b %d, %Y') }}</small>
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <form method="post" action="{{ url_for('main.toggle_source_active', sid=s.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-outline-secondary" title="Activate source">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                            </form>
+                            <form method="post" action="{{ url_for('main.delete_source', sid=s.id) }}" class="d-inline" onclick="return confirm('Are you sure?');">
+                                <button type="submit" class="btn btn-outline-danger" title="Delete source">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if not active_sources and not inactive_sources %}
+<div class="alert alert-info" role="alert">
+    <i class="fas fa-info-circle"></i> No sources added yet. Add your first source above to get started.
+</div>
+{% endif %}
+
+<!-- Tips -->
+<div class="card border-0 mt-5">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-lightbulb"></i> Tips
+        </h5>
+    </div>
+    <div class="card-body">
+        <ul class="list-unstyled">
+            <li class="mb-2">
+                <strong><i class="fas fa-check"></i> Active sources</strong> are scanned when you run a tender scan
+            </li>
+            <li class="mb-2">
+                <strong><i class="fas fa-star"></i> Favorite sources</strong> are marked for quick reference
+            </li>
+            <li class="mb-2">
+                <strong><i class="fas fa-pause"></i> Pause</strong> sources you want to keep but not scan temporarily
+            </li>
+            <li>
+                <strong><i class="fas fa-trash"></i> Delete</strong> sources you no longer need
+            </li>
+        </ul>
+    </div>
+</div>
+
+{% endblock %}

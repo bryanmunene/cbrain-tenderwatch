@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>{% block title %}TenderWatch - cBrain F2 Platform{% endblock %}</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="application-name" content="TenderWatch">
+    <meta name="description" content="Intelligent tender scanning and monitoring for cBrain F2 platform">
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TenderWatch">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    
+    <!-- Icons for iOS -->
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.svg') }}">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icon.svg') }}">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --accent: #3b82f6;
+            --bg-dark: #ffffff;
+            --bg-card: #f9fafb;
+            --bg-hover: #f3f4f6;
+            --border: #e5e7eb;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+        }
+
+        * {
+            scrollbar-color: #d1d5db #f9fafb;
+            scrollbar-width: thin;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        .navbar {
+            background-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-bottom: none;
+        }
+
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #fff !important;
+            transition: opacity 0.3s ease;
+        }
+
+        .navbar-brand:hover {
+            opacity: 0.9;
+        }
+
+        .navbar-brand small {
+            font-size: 0.55rem;
+            display: block;
+            color: #bfdbfe;
+            letter-spacing: 1px;
+            margin-top: 0.2rem;
+            opacity: 0.8;
+        }
+
+        .nav-link {
+            color: #dbeafe !important;
+            transition: all 0.3s ease;
+            margin: 0 0.5rem;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            color: #fff !important;
+            opacity: 1;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            transition: all 0.3s ease;
+            font-weight: 600;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1e40af;
+            border-color: #1e40af;
+            opacity: 0.9;
+        }
+
+        .btn-secondary {
+            background-color: #6b7280;
+            border-color: #6b7280;
+            font-weight: 600;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #4b5563;
+            border-color: #4b5563;
+        }
+
+        .btn-outline-secondary {
+            color: var(--primary);
+            border-color: var(--border);
+        }
+
+        .btn-outline-secondary:hover {
+            background-color: var(--bg-hover);
+            border-color: var(--primary);
+        }
+
+        .btn-outline-secondary.active {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .btn-outline-warning {
+            color: #d97706;
+            border-color: var(--border);
+        }
+
+        .btn-outline-warning:hover {
+            background-color: #fef3c7;
+            border-color: #d97706;
+        }
+
+        .btn-warning {
+            background-color: #d97706;
+            border-color: #d97706;
+            color: white;
+            font-weight: 600;
+        }
+
+        .btn-warning:hover {
+            background-color: #b45309;
+            border-color: #b45309;
+        }
+
+        .btn-outline-info {
+            color: #059669;
+            border-color: var(--border);
+        }
+
+        .btn-outline-info:hover {
+            background-color: #d1fae5;
+            border-color: #059669;
+        }
+
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        /* Cards and Containers */
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .card-header {
+            background-color: var(--primary);
+            border-bottom: none;
+            font-weight: 600;
+            color: white;
+        }
+
+        .card-body {
+            color: var(--text-primary);
+        }
+
+        /* Tables */
+        .table {
+            border-collapse: collapse;
+            color: var(--text-primary);
+        }
+
+        .table thead {
+            background-color: #f3f4f6;
+            border-bottom: 2px solid var(--border);
+            font-weight: 600;
+        }
+
+        .table thead th {
+            color: var(--text-primary);
+            border: none;
+            padding: 0.75rem 1rem;
+        }
+
+        .table tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background-color 0.2s ease;
+        }
+
+        .table tbody tr:hover {
+            background-color: var(--bg-hover);
+        }
+
+        .table a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .table a:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+
+        /* Score badge */
+        .score-badge {
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-weight: 700;
+            display: inline-block;
+            font-size: 0.9rem;
+        }
+
+        .score-high {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .score-medium {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .score-low {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Alert */
+        .alert {
+            border-left: 4px solid;
+            background-color: var(--bg-card);
+            border-radius: 8px;
+            color: var(--text-primary);
+        }
+
+        .alert-info {
+            border-left-color: var(--accent);
+            background-color: #eff6ff;
+            color: #1e3a8a;
+        }
+
+        .alert-secondary {
+            border-left-color: var(--border);
+            background-color: var(--bg-hover);
+            color: var(--text-secondary);
+        }
+
+        /* Badges */
+        .badge {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background-color: #dbeafe;
+            color: #1e3a8a;
+        }
+
+        .bg-info {
+            background-color: #dbeafe !important;
+            color: #1e3a8a !important;
+        }
+
+        /* Links */
+        a {
+            color: var(--accent);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        a:hover {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+
+        /* Container padding */
+        .container {
+            max-width: 1200px;
+        }
+
+        /* Favorite star */
+        .btn-favorite {
+            color: #d97706;
+            font-size: 1.25rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            padding: 0;
+            margin-left: 0.5rem;
+        }
+
+        .btn-favorite:hover {
+            transform: scale(1.2);
+            color: #f59e0b;
+        }
+
+        /* Source status badge */
+        .source-active {
+            background-color: #d1fae5;
+            color: #065f46;
+            padding: 0.35rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .source-inactive {
+            background-color: #f3f4f6;
+            color: #6b7280;
+            padding: 0.35rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        /* Page header */
+        .page-header {
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .page-header h1 {
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            font-size: 2.5rem;
+        }
+
+        .page-header i {
+            color: var(--accent);
+            margin-right: 0.5rem;
+        }
+
+        /* Form controls */
+        .form-control, .form-select {
+            background-color: white;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background-color: white;
+            border-color: var(--accent);
+            color: var(--text-primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-label {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Button groups */
+        .btn-group .btn-outline-secondary.active {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--bg-card);
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        /* Tender detail specific */
+        .tender-title {
+            color: var(--text-primary);
+        }
+
+        /* Text utilities */
+        .text-muted {
+            color: var(--text-secondary) !important;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .page-header h1 {
+                font-size: 1.75rem;
+            }
+
+            .card {
+                margin-bottom: 1rem;
+            }
+        }
+
+        /* ===== ANIMATIONS ===== */
+
+        /* Keyframe animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -1000px 0;
+            }
+            100% {
+                background-position: 1000px 0;
+            }
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        @keyframes glow {
+            0%, 100% {
+                box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
+            }
+        }
+
+        /* Page element animations */
+        .page-header {
+            animation: slideInLeft 0.6s ease-out;
+        }
+
+        .page-header h1 {
+            animation: slideInLeft 0.7s ease-out;
+        }
+
+        .page-header i {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Card animations */
+        .card {
+            animation: fadeIn 0.5s ease-out backwards;
+        }
+
+        .card:nth-child(1) { animation-delay: 0.1s; }
+        .card:nth-child(2) { animation-delay: 0.2s; }
+        .card:nth-child(3) { animation-delay: 0.3s; }
+        .card:nth-child(4) { animation-delay: 0.4s; }
+
+        .card:hover {
+            animation: glow 0.6s ease-in-out;
+        }
+
+        /* Table row animations */
+        .table tbody tr {
+            animation: fadeIn 0.4s ease-out backwards;
+        }
+
+        .table tbody tr:hover {
+            animation: none;
+        }
+
+        .table tbody tr:nth-child(1) { animation-delay: 0.1s; }
+        .table tbody tr:nth-child(2) { animation-delay: 0.15s; }
+        .table tbody tr:nth-child(3) { animation-delay: 0.2s; }
+        .table tbody tr:nth-child(4) { animation-delay: 0.25s; }
+        .table tbody tr:nth-child(5) { animation-delay: 0.3s; }
+
+        /* Badge animations */
+        .badge {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .badge:hover {
+            animation: pulse 0.8s ease-in-out;
+        }
+
+        /* Button animations */
+        .btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .btn-primary:hover {
+            animation: none;
+        }
+
+        /* Icon animations */
+        i {
+            transition: all 0.3s ease;
+        }
+
+        .btn i:hover {
+            animation: bounce 0.6s ease-in-out;
+        }
+
+        /* Alert animations */
+        .alert {
+            animation: slideInLeft 0.5s ease-out;
+        }
+
+        /* Form control animations */
+        .form-control, .form-select {
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            animation: glow 0.4s ease-in-out;
+        }
+
+        /* Score badge animations */
+        .score-badge {
+            animation: fadeIn 0.5s ease-out;
+            transition: all 0.3s ease;
+        }
+
+        .score-badge:hover {
+            transform: scale(1.05);
+        }
+
+        /* Animated background gradient */
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                -45deg,
+                rgba(59, 130, 246, 0.03),
+                rgba(16, 185, 129, 0.03),
+                rgba(59, 130, 246, 0.03),
+                rgba(217, 119, 6, 0.02)
+            );
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Smooth page transitions */
+        * {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        /* List item animations */
+        .list-group-item {
+            animation: fadeIn 0.4s ease-out backwards;
+            transition: all 0.3s ease;
+        }
+
+        .list-group-item:nth-child(1) { animation-delay: 0.05s; }
+        .list-group-item:nth-child(2) { animation-delay: 0.1s; }
+        .list-group-item:nth-child(3) { animation-delay: 0.15s; }
+        .list-group-item:nth-child(4) { animation-delay: 0.2s; }
+        .list-group-item:nth-child(5) { animation-delay: 0.25s; }
+
+        .list-group-item:hover {
+            transform: translateX(5px);
+        }
+
+        /* Navbar animations */
+        .navbar {
+            animation: slideInLeft 0.5s ease-out;
+        }
+
+        .nav-link {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background-color: #f59e0b;
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        /* Table header animation */
+        .table thead {
+            animation: slideInLeft 0.5s ease-out;
+        }
+
+        /* Footer animation */
+        footer {
+            animation: slideInRight 0.5s ease-out 0.3s backwards;
+        }
+
+        /* PWA Specific Styles */
+        .pwa-installed .navbar {
+            padding-top: env(safe-area-inset-top);
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .navbar-brand {
+                font-size: 1.2rem;
+            }
+
+            .navbar-brand small {
+                font-size: 0.5rem;
+            }
+
+            .nav-link {
+                margin: 0.25rem 0;
+                padding: 0.5rem 1rem;
+            }
+
+            .container {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+            }
+
+            .card {
+                margin-bottom: 1rem;
+            }
+
+            .btn {
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+
+            .table {
+                font-size: 0.875rem;
+            }
+
+            h1 {
+                font-size: 1.75rem;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+
+        /* Touch-friendly tap targets */
+        @media (hover: none) and (pointer: coarse) {
+            .btn, .nav-link, a {
+                min-height: 44px;
+                min-width: 44px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+
+        /* Pull-to-refresh indicator */
+        @media (max-width: 768px) {
+            body {
+                overscroll-behavior-y: contain;
+            }
+        }
+
+        /* Safe area insets for notched devices */
+        @supports (padding: env(safe-area-inset-bottom)) {
+            body {
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+
+            .navbar {
+                padding-top: env(safe-area-inset-top);
+            }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{{ url_for('main.scan') }}">
+            <i class="fas fa-magnifying-glass"></i> TenderWatch
+            <small>cBrain F2 Platform</small>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.dashboard') }}">
+                        <i class="fas fa-chart-line"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.scan') }}">
+                        <i class="fas fa-search"></i> Scan
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.favorites') }}">
+                        <i class="fas fa-star"></i> Favorites
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.saved') }}">
+                        <i class="fas fa-bookmark"></i> Saved
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.sources') }}">
+                        <i class="fas fa-link"></i> Sources
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.settings') }}">
+                        <i class="fas fa-cog"></i> Settings
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-5 mb-5">
+    {% block content %}{% endblock %}
+</div>
+
+<footer class="text-center py-4 mt-5 border-top border-secondary">
+    <small class="text-secondary">
+        &copy; 2024 TenderWatch - cBrain F2 Platform | Tender Scanning & Opportunity Tracking
+    </small>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='pwa.js') }}"></script>
+
+</body>
+</html>

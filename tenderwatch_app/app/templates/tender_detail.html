@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tender.title[:50] }} - TenderWatch{% endblock %}
+
+{% block content %}
+
+<div class="page-header mb-4">
+    <a href="{{ url_for('main.scan') }}" class="text-secondary text-decoration-none">
+        <i class="fas fa-arrow-left"></i> Back to Results
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Tender Title & Main Info -->
+        <div class="card mb-4 border-0">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <h2 class="card-title mb-0">{{ tender.title }}</h2>
+                            <!-- Translate button removed: translation is now automatic -->
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-calendar"></i> 
+                            {{ tender.created_at.strftime('%B %d, %Y') }}
+                        </small>
+                        {% if tender.title_translated and tender.title_translated != tender.title %}
+                        <div class="mt-2">
+                            <p class="mb-0 text-info"><em>{{ tender.title_translated }}</em></p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        {% if tender.favorite %}
+                        <form method="post" action="{{ url_for('main.toggle_favorite', rid=tender.id) }}" class="d-inline">
+                            <button class="btn btn-warning btn-sm" type="submit" title="Remove from favorites">
+                                <i class="fas fa-star"></i> Favorite
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{{ url_for('main.toggle_favorite', rid=tender.id) }}" class="d-inline">
+                            <button class="btn btn-outline-warning btn-sm" type="submit" title="Add to favorites">
+                                <i class="far fa-star"></i> Favorite
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Tender Metadata -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <strong class="text-muted">Source:</strong>
+                            <p class="mb-0">{{ tender.buyer }}</p>
+                        </div>
+                        <div class="mb-3">
+                            <strong class="text-muted">Country:</strong>
+                            <p class="mb-0">{{ tender.country or 'Not specified' }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <strong class="text-muted">Deadline:</strong>
+                            <p class="mb-0">
+                                {% if tender.deadline %}
+                                {{ tender.deadline }}
+                                {% else %}
+                                <span class="text-muted">Not specified</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="mb-3">
+                            <strong class="text-muted">Category:</strong>
+                            <p class="mb-0">
+                                <span class="badge bg-info">{{ tender.category or 'Uncategorized' }}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Description Section -->
+                {% if tender.description %}
+                <div class="card bg-secondary bg-opacity-10 mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-file-alt"></i> Description
+                        </h5>
+                        <p class="card-text">{{ tender.description }}</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Keywords Matched -->
+                {% if tender.keywords_matched %}
+                <div class="card bg-secondary bg-opacity-10 mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-tags"></i> Matched Keywords
+                        </h5>
+                        <div>
+                            {% for keyword in tender.keywords_matched.split(', ') %}
+                            <span class="badge bg-primary me-2 mb-2">{{ keyword }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Direct Access Link -->
+                <div class="alert alert-info mb-4">
+                    <strong><i class="fas fa-link"></i> Direct Access Link:</strong>
+                    <div class="mt-2">
+                        <a href="{{ tender.link }}" target="_blank" class="btn btn-primary btn-sm">
+                            <i class="fas fa-external-link-alt"></i> Open Tender Opportunity
+                        </a>
+                        <small class="d-block mt-2 text-muted">{{ tender.link[:100] }}...</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar: Scoring Details -->
+    <div class="col-lg-4">
+        <!-- Overall Score -->
+        <div class="card mb-4 border-0">
+            <div class="card-header text-center">
+                <h5 class="card-title mb-0">Relevance Score</h5>
+            </div>
+            <div class="card-body text-center">
+                {% set score = tender.score or 0 %}
+                {% if score >= 70 %}
+                <div class="score-badge score-high" style="font-size: 2rem; padding: 1rem; border-radius: 8px;">
+                    {{ "%.1f"|format(score) }}%
+                </div>
+                <p class="mt-3 mb-0">
+                    <span class="badge bg-success">Highly Relevant</span>
+                </p>
+                {% elif score >= 40 %}
+                <div class="score-badge score-medium" style="font-size: 2rem; padding: 1rem; border-radius: 8px;">
+                    {{ "%.1f"|format(score) }}%
+                </div>
+                <p class="mt-3 mb-0">
+                    <span class="badge bg-warning">Moderately Relevant</span>
+                </p>
+                {% else %}
+                <div class="score-badge score-low" style="font-size: 2rem; padding: 1rem; border-radius: 8px;">
+                    {{ "%.1f"|format(score) }}%
+                </div>
+                <p class="mt-3 mb-0">
+                    <span class="badge bg-danger">Low Relevance</span>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Scoring Breakdown -->
+        {% if scoring_info %}
+        <div class="card mb-4 border-0">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie"></i> Scoring Breakdown
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong class="text-muted">Match Percentage:</strong>
+                    <p class="mb-0">{{ scoring_info.get('match_percentage', 0) }}%</p>
+                </div>
+
+                <div class="mb-3">
+                    <strong class="text-muted">Keywords Found:</strong>
+                    <p class="mb-0">{{ scoring_info.get('keywords_found', 0) }} / {{ scoring_info.get('total_keywords_in_system', 0) }}</p>
+                </div>
+
+                {% if scoring_info.get('matched_groups') %}
+                <div class="mb-0">
+                    <strong class="text-muted d-block mb-2">Matched Categories:</strong>
+                    {% for group in scoring_info.get('matched_groups', []) %}
+                    <div class="mb-2">
+                        <span class="badge bg-primary">{{ group.group }}</span>
+                        <small class="text-muted">
+                            ({{ group.count }} keyword{{ 's' if group.count > 1 else '' }})
+                        </small>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Category Info -->
+        <div class="card mb-4 border-0">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-folder"></i> Classification
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong class="text-muted">Category:</strong>
+                    <p class="mb-0">
+                        <span class="badge bg-info">{{ tender.category or 'Unclassified' }}</span>
+                    </p>
+                </div>
+                <div class="mb-0">
+                    <strong class="text-muted">Classification Confidence:</strong>
+                    {% set conf = tender.confidence or 0 %}
+                    {% set conf_percent = (conf * 100)|int %}
+                    <div class="progress" style="height: 1.5rem;">
+                        <div class="progress-bar bg-success" data-width="{{ conf_percent }}">
+                            {{ "%.1f"|format(conf * 100) }}%
+                        </div>
+                    </div>
+                </div>
+            </div>s
+        </div>
+
+        <script>
+            document.querySelectorAll('[data-width]').forEach(el => {
+                el.style.width = el.getAttribute('data-width') + '%';
+            });
+
+            // Translation toggle removed: translation is now automatic
+        </script>
+
+        <!-- Action Buttons -->
+        <div class="d-grid gap-2">
+            {% if tender.saved %}
+            <form method="post" action="{{ url_for('main.unsave', rid=tender.id) }}">
+                <button class="btn btn-warning w-100" type="submit">
+                    <i class="fas fa-bookmark"></i> Remove from Saved
+                </button>
+            </form>
+            {% else %}
+            <form method="post" action="{{ url_for('main.save', rid=tender.id) }}">
+                <button class="btn btn-outline-secondary w-100" type="submit">
+                    <i class="far fa-bookmark"></i> Save Tender
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}
