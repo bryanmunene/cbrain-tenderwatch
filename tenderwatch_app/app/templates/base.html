@@ -379,7 +379,7 @@
         .form-control, .form-select {
             background-color: white;
             border: 1px solid var(--border);
-            color: var(--text-primary);
+            color: #111827 !important;
             font-weight: 500;
             transition: all 0.3s ease;
         }
@@ -387,8 +387,13 @@
         .form-control:focus, .form-select:focus {
             background-color: white;
             border-color: var(--accent);
-            color: var(--text-primary);
+            color: #111827 !important;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-control::placeholder {
+            color: #9ca3af !important;
+            opacity: 1;
         }
 
         .form-label {
@@ -604,10 +609,12 @@
         /* Form control animations */
         .form-control, .form-select {
             transition: all 0.3s ease;
+            color: #111827 !important;
         }
 
         .form-control:focus, .form-select:focus {
             animation: glow 0.4s ease-in-out;
+            color: #111827 !important;
         }
 
         /* Score badge animations */
