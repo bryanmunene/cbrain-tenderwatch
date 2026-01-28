@@ -471,7 +471,18 @@ elif page == "🔍 Scan & Results":
                 Adjust your filters or run a fresh scan to discover new opportunities!
             </p>
         </div>
-        """, unsafe_allow_html=True)\n        \n        col1, col2, col3 = st.columns([1, 2, 1])\n        with col2:\n            if st.button(\"🔄 Run Scan Now\", type=\"primary\", use_container_width=True):\n                with st.spinner(\"🔍 Scanning tender sources...\"):\n                    new_tenders = run_tender_scan()\n                    if new_tenders:\n                        st.success(f\"✅ Found {len(new_tenders)} new tenders!\")\n                    else:\n                        st.info(\"No new tenders found.\")\n                    st.rerun()
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("🔄 Run Scan Now", type="primary", use_container_width=True):
+                with st.spinner("🔍 Scanning tender sources..."):
+                    new_tenders = run_tender_scan()
+                    if new_tenders:
+                        st.success(f"✅ Found {len(new_tenders)} new tenders!")
+                    else:
+                        st.info("No new tenders found.")
+                    st.rerun()
 
 elif page == "📁 Sources":
     st.title("📁 Tender Sources")
