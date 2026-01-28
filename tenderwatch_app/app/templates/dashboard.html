@@ -5,7 +5,7 @@
 {% block content %}
 
 <!-- Hero Header -->
-<div style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; border-radius: 15px; margin-bottom: 2rem; color: white;\">
+<div style="background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%); padding: 2rem; border-radius: 15px; margin-bottom: 2rem; color: white;">
     <h1 style=\"margin: 0; font-weight: 700;\"><i class=\"fas fa-chart-line\"></i> Welcome to TenderWatch</h1>
     <p style=\"margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 1.1rem;\">Your intelligent tender discovery dashboard</p>
 </div>
@@ -54,7 +54,7 @@
     <div class=\"col-md-6\">
         <!-- Active Sources -->
         <div class=\"card border-0 shadow-sm\" style=\"border-radius: 15px;\">
-            <div class=\"card-header\" style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\">
+            <div class="card-header" style="background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%);">
                 <h5 class=\"card-title mb-0\" style=\"color: white;\">
                     <i class=\"fas fa-link\"></i> Active Sources
                 </h5>
@@ -62,7 +62,7 @@
             <div class=\"card-body\">
                 <div style=\"font-size: 2.5rem; margin-bottom: 0.5rem;\">🔗 {{ active_sources }}</div>
                 <p class=\"text-muted mb-3\">Sources currently being scanned</p>
-                <a href=\"{{ url_for('main.sources') }}\" class=\"btn btn-primary\" style=\"border-radius: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;\">
+                <a href="{{ url_for('main.sources') }}" class="btn btn-primary" style="border-radius: 10px; background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%); border: none;">
                     <i class=\"fas fa-cog\"></i> Manage Sources
                 </a>
             </div>

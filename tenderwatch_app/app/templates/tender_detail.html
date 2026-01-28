@@ -15,7 +15,7 @@
         <!-- Tender Title & Main Info -->
         <div class="card shadow-sm mb-4" style="border-radius: 15px; overflow: hidden;">
             <!-- Header with gradient -->
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem;">
+            <div style="background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%); padding: 2rem;">
                 <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
                         {% if tender.title_translated and tender.title_translated != tender.title %}
@@ -94,7 +94,7 @@
                     </h5>
                     <div class=\"d-flex flex-wrap gap-2\">
                         {% for keyword in tender.keywords_matched.split(', ') %}
-                        <span class=\"badge\" style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.5rem 1rem; font-size: 0.9rem; border-radius: 20px;\">
+                        <span class="badge" style="background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%); padding: 0.5rem 1rem; font-size: 0.9rem; border-radius: 20px;">
                             {{ keyword }}
                         </span>
                         {% endfor %}
@@ -104,7 +104,7 @@
 
                 <!-- Action Button -->
                 <div class=\"d-grid gap-2\">
-                    <a href=\"{{ tender.link }}\" target=\"_blank\" class=\"btn btn-primary btn-lg\" style=\"border-radius: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;\">
+                    <a href="{{ tender.link }}" target="_blank" class="btn btn-primary btn-lg" style="border-radius: 12px; background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%); border: none;">
                         <i class=\"fas fa-external-link-alt\"></i> Open Full Tender Document
                     </a>
                 </div>

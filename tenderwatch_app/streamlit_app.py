@@ -28,7 +28,7 @@ st.set_page_config(
 st.markdown("""
 <style>
     .main {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%);
         background-attachment: fixed;
     }
     
@@ -44,7 +44,7 @@ st.markdown("""
     }
     
     .stButton>button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%);
         color: white;
         border-radius: 25px;
         padding: 0.6rem 1.5rem;
@@ -95,7 +95,7 @@ st.markdown("""
     
     /* Sidebar styling */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(180deg, #2d3e50 0%, #2ba8d8 100%);
     }
     
     [data-testid="stSidebar"] * {
@@ -422,7 +422,7 @@ elif page == "🔍 Scan & Results":
                     show_translation_btn = False
                 
                 st.markdown(f"""
-                <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                <div style='background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%); 
                             padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; 
                             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);'>
                     <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;'>
@@ -501,7 +501,7 @@ elif page == "🔍 Scan & Results":
         <div style='text-align: center; padding: 3rem; background: rgba(255,255,255,0.95); 
                     border-radius: 20px; margin: 2rem 0;'>
             <div style='font-size: 4rem; margin-bottom: 1rem;'>📭</div>
-            <h3 style='color: #667eea; margin-bottom: 1rem;'>No Tenders Found</h3>
+            <h3 style='color: #2ba8d8; margin-bottom: 1rem;'>No Tenders Found</h3>
             <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 2rem;'>
                 Adjust your filters or run a fresh scan to discover new opportunities!
             </p>
