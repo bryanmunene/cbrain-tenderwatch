@@ -1,7 +1,7 @@
 {
   "name": "TenderWatch - cBrain F2",
   "short_name": "TenderWatch",
-  "description": "Intelligent tender scanning and monitoring for cBrain F2 platform",
+  "description": "Intelligent tender scanning and monitoring for cBrain F2 Tenderwatch",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

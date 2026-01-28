@@ -249,7 +249,7 @@ init_db()
 # Sidebar
 with st.sidebar:
     st.title("🎯 TenderWatch")
-    st.markdown("**cBrain F2 Platform**")
+    st.markdown("**cBrain F2 Tenderwatch**")
     st.markdown("---")
     
     page = st.radio(
