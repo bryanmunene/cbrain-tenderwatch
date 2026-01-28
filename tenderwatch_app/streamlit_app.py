@@ -86,6 +86,11 @@ st.markdown("""
         border-radius: 10px;
         border: 2px solid rgba(255, 255, 255, 0.3);
         background: rgba(255, 255, 255, 0.9);
+        color: #1f2937 !important;
+    }
+    
+    .stTextInput>div>div>input::placeholder {
+        color: #9ca3af !important;
     }
     
     /* Sidebar styling */
