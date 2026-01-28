@@ -5,7 +5,7 @@ Simple, powerful tender scanning for cBrain F2 Platform
 
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 
 # Initialize database
@@ -113,9 +113,11 @@ def init_db():
             db.session.commit()
 
 def get_tenders(filters=None):
-    """Get tenders with optional filters"""
+    """Get tenders with optional filters - only from last month"""
     with app.app_context():
-        query = TenderResult.query
+        # Filter tenders from last month only
+        one_month_ago = datetime.utcnow() - timedelta(days=30)
+        query = TenderResult.query.filter(TenderResult.created_at >= one_month_ago)
         
         if filters:
             if filters.get('min_score'):
@@ -150,19 +152,28 @@ def get_sources():
         return TenderSource.query.all()
 
 def get_stats():
-    """Get dashboard statistics"""
+    """Get dashboard statistics - only from last month"""
     with app.app_context():
-        total = TenderResult.query.count()
-        high_score = TenderResult.query.filter(TenderResult.score >= 70).count()
-        saved = TenderResult.query.filter_by(saved=True).count()
-        favorites = TenderResult.query.filter_by(favorite=True).count()
+        one_month_ago = datetime.utcnow() - timedelta(days=30)
+        
+        total = TenderResult.query.filter(TenderResult.created_at >= one_month_ago).count()
+        high_score = TenderResult.query.filter(
+            TenderResult.score >= 70,
+            TenderResult.created_at >= one_month_ago
+        ).count()
+        saved = TenderResult.query.filter_by(saved=True).filter(
+            TenderResult.created_at >= one_month_ago
+        ).count()
+        favorites = TenderResult.query.filter_by(favorite=True).filter(
+            TenderResult.created_at >= one_month_ago
+        ).count()
         active_sources = TenderSource.query.filter_by(active=True).count()
         
-        # Get categories
+        # Get categories (last month only)
         categories = db.session.query(
             TenderResult.category,
             db.func.count(TenderResult.id).label('count')
-        ).group_by(TenderResult.category).all()
+        ).filter(TenderResult.created_at >= one_month_ago).group_by(TenderResult.category).all()
         
         return {
             'total': total,

@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify
 import json
+from datetime import datetime, timedelta
 
 from app.extensions import db
 from app.models import TenderSource, TenderResult, AppSettings
@@ -33,10 +34,20 @@ def source_status():
 @main.route("/")
 def dashboard():
     """Dashboard with statistics and overview"""
-    total_tenders = TenderResult.query.count()
-    high_score_count = TenderResult.query.filter(TenderResult.score >= 70).count()
-    saved_count = TenderResult.query.filter_by(saved=True).count()
-    favorite_count = TenderResult.query.filter_by(favorite=True).count()
+    # Filter tenders from last month only
+    one_month_ago = datetime.utcnow() - timedelta(days=30)
+    
+    total_tenders = TenderResult.query.filter(TenderResult.created_at >= one_month_ago).count()
+    high_score_count = TenderResult.query.filter(
+        TenderResult.score >= 70,
+        TenderResult.created_at >= one_month_ago
+    ).count()
+    saved_count = TenderResult.query.filter_by(saved=True).filter(
+        TenderResult.created_at >= one_month_ago
+    ).count()
+    favorite_count = TenderResult.query.filter_by(favorite=True).filter(
+        TenderResult.created_at >= one_month_ago
+    ).count()
     active_sources = TenderSource.query.filter_by(active=True).count()
     
     # Get source contribution breakdown
@@ -45,16 +56,16 @@ def dashboard():
         db.func.count(TenderResult.id).label('count')
     ).outerjoin(TenderResult).group_by(TenderSource.name).all()
     
-    # Get category breakdown
+    # Get category breakdown (last month only)
     categories = db.session.query(
         TenderResult.category,
         db.func.count(TenderResult.id).label('count')
-    ).group_by(TenderResult.category).all()
+    ).filter(TenderResult.created_at >= one_month_ago).group_by(TenderResult.category).all()
     
-    # Get recent tenders
-    recent_tenders = TenderResult.query.order_by(
-        TenderResult.created_at.desc()
-    ).limit(10).all()
+    # Get recent tenders (last month only)
+    recent_tenders = TenderResult.query.filter(
+        TenderResult.created_at >= one_month_ago
+    ).order_by(TenderResult.created_at.desc()).limit(10).all()
     
     return render_template(
         "dashboard.html",
@@ -101,8 +112,9 @@ def scan():
     except (ValueError, TypeError):
         min_score = 0
     
-    # Build query
-    query = TenderResult.query
+    # Build query - filter by date (last month only)
+    one_month_ago = datetime.utcnow() - timedelta(days=30)
+    query = TenderResult.query.filter(TenderResult.created_at >= one_month_ago)
     
     if category:
         query = query.filter_by(category=category)

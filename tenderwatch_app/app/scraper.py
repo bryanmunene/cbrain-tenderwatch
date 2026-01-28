@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+from datetime import datetime, timedelta
 
 from app.deadlines import parse_deadline
 from app.source_bias import SOURCE_BIAS
@@ -138,8 +139,26 @@ def scan_source(source: TenderSource):
 
 
 
+def cleanup_old_tenders():
+    """Remove tenders older than 1 month"""
+    one_month_ago = datetime.utcnow() - timedelta(days=30)
+    old_tenders = TenderResult.query.filter(TenderResult.created_at < one_month_ago).all()
+    
+    if old_tenders:
+        count = len(old_tenders)
+        for tender in old_tenders:
+            db.session.delete(tender)
+        db.session.commit()
+        print(f"🗑️  Removed {count} tender(s) older than 1 month")
+    else:
+        print("✅ No old tenders to remove")
+
+
 def run_scan():
     """Scan all active sources for tenders and return newly added tenders"""
+    # First, clean up old tenders
+    cleanup_old_tenders()
+    
     sources = TenderSource.query.filter_by(active=True).all()
     
     if not sources:
