@@ -48,7 +48,7 @@ def scan_source(source: TenderSource):
 
     existing = {r.link for r in TenderResult.query.all()}
 
-    # Find all links - be more generic to support multiple tender platforms
+    # Find all links - focus on specific tender/procurement pages
     links_to_process = []
     
     for a in soup.find_all("a", href=True):
@@ -61,11 +61,11 @@ def scan_source(source: TenderSource):
         # UNDP-specific links
         if "view_notice.cfm" in href:
             links_to_process.append((a, href, True))
-        # World Bank, AfDB, and other tender portals typically have these patterns
-        elif any(pattern in href.lower() for pattern in ["tender", "notice", "opportunity", "rfp", "rfq", "bid", "procurement"]):
+        # Look for procurement/tender pages (but will still need keyword validation)
+        elif any(pattern in href.lower() for pattern in ["tender", "procurement", "opportunity"]):
             links_to_process.append((a, href, True))
         # Generic links with substantive text (likely tender titles)
-        elif len(a.get_text(strip=True)) > 20:
+        elif len(a.get_text(strip=True)) > 30:  # Increased from 20 to 30 for more specificity
             links_to_process.append((a, href, False))
     
     for a, href, is_likely_tender in links_to_process:

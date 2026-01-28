@@ -1,12 +1,19 @@
 from app.keywords import ALL_KEYWORDS, KEYWORD_GROUPS
 import json
 
+# Generic keywords to exclude from scoring (too broad)
+GENERIC_KEYWORDS = {
+    "bid", "tender", "procurement", "rfp", "rfq", 
+    "invitation to bid", "request for proposal", "request for quotation",
+    "notice", "opportunity", "contract", "service", "services",
+    "system", "software", "platform", "solution"
+}
 
 def score_text(title: str, text: str = ""):
     """
-    Score text based on keyword matching.
+    Score text based on keyword matching with strict quality requirements.
     Returns: (score, matched_keywords, breakdown_dict)
-    Scoring: Based on match count and specificity, normalized to 5-100%
+    Scoring: Requires specific multi-word keywords, excludes generic terms
     """
     combined = f"{title} {text}".lower()
     matched = [kw for kw in ALL_KEYWORDS if kw in combined]
@@ -14,22 +21,34 @@ def score_text(title: str, text: str = ""):
     if not matched:
         return 0, "", {"keywords_found": 0, "total_keywords": len(ALL_KEYWORDS), "match_percentage": 0}
 
-    unique_matched = sorted(set(matched))
+    # Filter out generic keywords
+    specific_matched = [kw for kw in matched if kw not in GENERIC_KEYWORDS]
     
-    # Score calculation: count-based with multi-word keyword boost
-    score = len(unique_matched)  # Base score: number of unique keywords matched
+    # STRICT REQUIREMENT: Must have at least one specific multi-word keyword (3+ words)
+    multi_word_matches = [kw for kw in specific_matched if len(kw.split()) >= 3]
     
-    # Boost for multi-word keywords (more specific = better)
+    if not multi_word_matches:
+        # No specific multi-word keywords = not relevant
+        return 0, "", {"keywords_found": 0, "reason": "No specific keywords matched", "match_percentage": 0}
+    
+    unique_matched = sorted(set(specific_matched))
+    
+    # Score calculation: heavily favor multi-word specific keywords
+    score = 0
+    
     for kw in unique_matched:
         word_count = len(kw.split())
-        if word_count > 1:
-            score += word_count  # Extra points for specificity
+        if word_count >= 3:
+            score += word_count * 3  # 3+ words: 9+ points each
+        elif word_count == 2:
+            score += word_count * 2  # 2 words: 4 points each
+        else:
+            score += 1  # Single word: 1 point (minimal)
     
-    # Normalize: Expect 3-8 matches for most tenders, scale to 5-100%
-    # More aggressive scaling to show variation
-    # min_expected = 2 matches = 5%
-    # max_expected = 15 matches = 100%
-    normalized_score = ((score - 2) / (15 - 2)) * 95 + 5
+    # Normalize: Expect 10-30 points for relevant tenders, scale to 5-100%
+    # min_expected = 10 points = 5%
+    # max_expected = 40 points = 100%
+    normalized_score = ((score - 10) / (40 - 10)) * 95 + 5
     normalized_score = min(100, max(5, round(normalized_score, 2)))
     
     # Determine which groups matched
