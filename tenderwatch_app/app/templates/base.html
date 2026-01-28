@@ -171,12 +171,26 @@
         .card {
             background-color: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 12px;
             transition: all 0.3s ease;
+            overflow: hidden;
         }
 
         .card:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .tender-card {
+            border-radius: 15px;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        
+        .tender-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.15);
+            transform: translateY(-4px);
         }
 
         .card-header {
@@ -184,10 +198,12 @@
             border-bottom: none;
             font-weight: 600;
             color: white;
+            padding: 1rem 1.5rem;
         }
 
         .card-body {
             color: var(--text-primary);
+            padding: 1.5rem;
         }
 
         /* Tables */

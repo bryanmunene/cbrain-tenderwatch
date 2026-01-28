@@ -5,7 +5,7 @@
 {% block content %}
 
 <div class="page-header mb-4">
-    <a href="{{ url_for('main.scan') }}" class="text-secondary text-decoration-none">
+    <a href="{{ url_for('main.scan') }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left"></i> Back to Results
     </a>
 </div>
@@ -13,142 +13,112 @@
 <div class="row">
     <div class="col-lg-8">
         <!-- Tender Title & Main Info -->
-        <div class="card mb-4 border-0">
-            <div class="card-header">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <div class="d-flex align-items-center gap-2">
-                            <h2 class="card-title mb-0">{{ tender.title }}</h2>
-                            <!-- Translate button removed: translation is now automatic -->
+        <div class="card shadow-sm mb-4\" style=\"border-radius: 15px; overflow: hidden;\">
+            <!-- Header with gradient -->
+            <div style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem;\">
+                <div class=\"d-flex justify-content-between align-items-start\">
+                    <div class=\"flex-grow-1\">
+                        <h2 class=\"text-white mb-2\" style=\"font-weight: 700;\">{{ tender.title }}</h2>
+                        <div class=\"d-flex gap-3 text-white\" style=\"opacity: 0.9;\">
+                            <span><i class=\"fas fa-calendar\"></i> {{ tender.created_at.strftime('%B %d, %Y') }}</span>
+                            <span><i class=\"fas fa-globe\"></i> {{ tender.country or 'Global' }}</span>
                         </div>
-                        <small class="text-muted">
-                            <i class="fas fa-calendar"></i> 
-                            {{ tender.created_at.strftime('%B %d, %Y') }}
-                        </small>
-                        {% if tender.title_translated and tender.title_translated != tender.title %}
-                        <div class="mt-2">
-                            <p class="mb-0 text-info"><em>{{ tender.title_translated }}</em></p>
-                        </div>
-                        {% endif %}
                     </div>
                     <div>
                         {% if tender.favorite %}
-                        <form method="post" action="{{ url_for('main.toggle_favorite', rid=tender.id) }}" class="d-inline">
-                            <button class="btn btn-warning btn-sm" type="submit" title="Remove from favorites">
-                                <i class="fas fa-star"></i> Favorite
+                        <form method=\"post\" action=\"{{ url_for('main.toggle_favorite', rid=tender.id) }}\" class=\"d-inline\">
+                            <button class=\"btn btn-warning\" type=\"submit\" title=\"Remove from favorites\">
+                                <i class=\"fas fa-star\"></i> Favorited
                             </button>
                         </form>
                         {% else %}
-                        <form method="post" action="{{ url_for('main.toggle_favorite', rid=tender.id) }}" class="d-inline">
-                            <button class="btn btn-outline-warning btn-sm" type="submit" title="Add to favorites">
-                                <i class="far fa-star"></i> Favorite
+                        <form method=\"post\" action=\"{{ url_for('main.toggle_favorite', rid=tender.id) }}\" class=\"d-inline\">
+                            <button class=\"btn btn-light\" type=\"submit\" title=\"Add to favorites\">
+                                <i class=\"far fa-star\"></i> Add Favorite
                             </button>
                         </form>
                         {% endif %}
                     </div>
                 </div>
             </div>
-            <div class="card-body">
-                <!-- Tender Metadata -->
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <strong class="text-muted">Source:</strong>
-                            <p class="mb-0">{{ tender.buyer }}</p>
-                        </div>
-                        <div class="mb-3">
-                            <strong class="text-muted">Country:</strong>
-                            <p class="mb-0">{{ tender.country or 'Not specified' }}</p>
+            
+            <div class=\"card-body\" style=\"padding: 2rem;\">
+                <!-- Key Information Cards -->
+                <div class=\"row g-3 mb-4\">
+                    <div class=\"col-md-6\">
+                        <div style=\"background: #f8f9fa; padding: 1.5rem; border-radius: 12px; border-left: 4px solid #667eea;\">
+                            <h6 class=\"text-muted mb-2\"><i class=\"fas fa-building\"></i> Source Organization</h6>
+                            <p class=\"mb-0 fw-bold\">{{ tender.buyer }}</p>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <strong class="text-muted">Deadline:</strong>
-                            <p class="mb-0">
-                                {% if tender.deadline %}
-                                {{ tender.deadline }}
-                                {% else %}
-                                <span class="text-muted">Not specified</span>
-                                {% endif %}
-                            </p>
-                        </div>
-                        <div class="mb-3">
-                            <strong class="text-muted">Category:</strong>
-                            <p class="mb-0">
-                                <span class="badge bg-info">{{ tender.category or 'Uncategorized' }}</span>
-                            </p>
+                    <div class=\"col-md-6\">
+                        <div style=\"background: #f8f9fa; padding: 1.5rem; border-radius: 12px; border-left: 4px solid #f59e0b;\">
+                            <h6 class=\"text-muted mb-2\"><i class=\"fas fa-clock\"></i> Submission Deadline</h6>
+                            {% if tender.deadline %}
+                            <p class=\"mb-0 fw-bold text-danger\">{{ tender.deadline }}</p>
+                            {% else %}
+                            <p class=\"mb-0 text-muted\">No deadline specified</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
 
                 <!-- Description Section -->
                 {% if tender.description %}
-                <div class="card bg-secondary bg-opacity-10 mb-4">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="fas fa-file-alt"></i> Description
-                        </h5>
-                        <p class="card-text">{{ tender.description }}</p>
-                    </div>
+                <div class=\"mb-4\" style=\"background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); padding: 1.5rem; border-radius: 12px;\">
+                    <h5 class=\"mb-3\">
+                        <i class=\"fas fa-file-alt text-primary\"></i> Description
+                    </h5>
+                    <p class=\"mb-0\" style=\"line-height: 1.8;\">{{ tender.description }}</p>
                 </div>
                 {% endif %}
 
-                <!-- Keywords Matched -->
+                <!-- Keywords Section -->
                 {% if tender.keywords_matched %}
-                <div class="card bg-secondary bg-opacity-10 mb-4">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="fas fa-tags"></i> Matched Keywords
-                        </h5>
-                        <div>
-                            {% for keyword in tender.keywords_matched.split(', ') %}
-                            <span class="badge bg-primary me-2 mb-2">{{ keyword }}</span>
-                            {% endfor %}
-                        </div>
+                <div class=\"mb-4\">
+                    <h5 class=\"mb-3\">
+                        <i class=\"fas fa-tags text-success\"></i> Matched Keywords
+                    </h5>
+                    <div class=\"d-flex flex-wrap gap-2\">
+                        {% for keyword in tender.keywords_matched.split(', ') %}
+                        <span class=\"badge\" style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.5rem 1rem; font-size: 0.9rem; border-radius: 20px;\">
+                            {{ keyword }}
+                        </span>
+                        {% endfor %}
                     </div>
                 </div>
                 {% endif %}
 
-                <!-- Direct Access Link -->
-                <div class="alert alert-info mb-4">
-                    <strong><i class="fas fa-link"></i> Direct Access Link:</strong>
-                    <div class="mt-2">
-                        <a href="{{ tender.link }}" target="_blank" class="btn btn-primary btn-sm">
-                            <i class="fas fa-external-link-alt"></i> Open Tender Opportunity
-                        </a>
-                        <small class="d-block mt-2 text-muted">{{ tender.link[:100] }}...</small>
-                    </div>
+                <!-- Action Button -->
+                <div class=\"d-grid gap-2\">
+                    <a href=\"{{ tender.link }}\" target=\"_blank\" class=\"btn btn-primary btn-lg\" style=\"border-radius: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;\">
+                        <i class=\"fas fa-external-link-alt\"></i> Open Full Tender Document
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Sidebar: Scoring Details -->
-    <div class="col-lg-4">
-        <!-- Overall Score -->
-        <div class="card mb-4 border-0">
-            <div class="card-header text-center">
-                <h5 class="card-title mb-0">Relevance Score</h5>
-            </div>
-            <div class="card-body text-center">
+    <div class=\"col-lg-4\">
+        <!-- Overall Score -->\n        <div class=\"card shadow-sm mb-4\" style=\"border-radius: 15px; overflow: hidden;\">\n            <div class=\"card-header text-center\" style=\"background: #f8f9fa; border-bottom: 2px solid #e5e7eb;\">\n                <h5 class=\"card-title mb-0 mt-2\"><i class=\"fas fa-chart-line\"></i> Relevance Score</h5>\n            </div>
+            <div class=\"card-body text-center\" style=\"padding: 2rem;\">
                 {% set score = tender.score or 0 %}
                 {% if score >= 70 %}
-                <div class="score-badge score-high" style="font-size: 2rem; padding: 1rem; border-radius: 8px;">
-                    {{ "%.1f"|format(score) }}%
+                <div style=\"font-size: 3.5rem; font-weight: 700; color: #10b981; margin: 1rem 0;\">
+                    🎯 {{ \"%.0f\"|format(score) }}%
                 </div>
-                <p class="mt-3 mb-0">
-                    <span class="badge bg-success">Highly Relevant</span>
-                </p>
+                <span class=\"badge bg-success\" style=\"font-size: 1rem; padding: 0.5rem 1.5rem; border-radius: 20px;\">Highly Relevant</span>
+                <p class=\"text-muted mt-3 mb-0\">This tender is an excellent match for your criteria!</p>
                 {% elif score >= 40 %}
-                <div class="score-badge score-medium" style="font-size: 2rem; padding: 1rem; border-radius: 8px;">
-                    {{ "%.1f"|format(score) }}%
+                <div style=\"font-size: 3.5rem; font-weight: 700; color: #f59e0b; margin: 1rem 0;\">
+                    📊 {{ \"%.0f\"|format(score) }}%
                 </div>
-                <p class="mt-3 mb-0">
-                    <span class="badge bg-warning">Moderately Relevant</span>
-                </p>
+                <span class=\"badge bg-warning text-dark\" style=\"font-size: 1rem; padding: 0.5rem 1.5rem; border-radius: 20px;\">Good Match</span>
+                <p class=\"text-muted mt-3 mb-0\">This tender has moderate relevance to your needs.</p>
                 {% else %}
-                <div class="score-badge score-low" style="font-size: 2rem; padding: 1rem; border-radius: 8px;">
-                    {{ "%.1f"|format(score) }}%
+                <div style=\"font-size: 3.5rem; font-weight: 700; color: #6b7280; margin: 1rem 0;\">
+                    📝 {{ \"%.0f\"|format(score) }}%
                 </div>
                 <p class="mt-3 mb-0">
                     <span class="badge bg-danger">Low Relevance</span>

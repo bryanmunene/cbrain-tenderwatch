@@ -70,103 +70,96 @@
 </div>
 
 {% if results %}
-<div class="table-responsive">
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <th>Tender Opportunity</th>
-                <th>Source</th>
-                <th>Country</th>
-                <th>Deadline</th>
-                <th>Score</th>
-                <th>Category</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for r in results %}
-            <tr>
-                <td>
-                    <div class="d-flex align-items-start gap-2">
-                        <div style="flex: 1;">
-                            <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="text-decoration-none">
-                                <strong id="title-{{ r.id }}" class="tender-title">{{ r.title[:80] }}{% if r.title|length > 80 %}...{% endif %}</strong>
-                            </a>
-                            {% if r.keywords_matched %}
-                            <div>
-                                <small class="text-muted">
-                                    <i class="fas fa-tag"></i> {{ r.keywords_matched[:60] }}{% if r.keywords_matched|length > 60 %}...{% endif %}
-                                </small>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </td>
-                <td>
-                    <span title="{{ r.buyer }}">
-                        {{ r.buyer[:20] }}{% if r.buyer|length > 20 %}...{% endif %}
-                    </span>
-                </td>
-                <td>{{ r.country or '-' }}</td>
-                <td>
-                    {% if r.deadline %}
-                    <small>{{ r.deadline }}</small>
-                    {% else %}
-                    <span class="text-muted">-</span>
-                    {% endif %}
-                </td>
-                <td>
+<div class="row">
+    {% for r in results %}
+    <div class="col-md-6 mb-4">
+        <div class="card tender-card h-100 shadow-sm">
+            <div class="card-body">
+                <!-- Score Badge -->
+                <div class="d-flex justify-content-between align-items-start mb-3">
                     {% set score = r.score or 0 %}
                     {% if score >= 70 %}
-                    <span class="score-badge score-high">{{ "%.1f"|format(score) }}%</span>
+                    <span class="badge bg-success" style="font-size: 1.2rem; padding: 0.5rem 1rem;">🎯 {{ "%.0f"|format(score) }}% Match</span>
                     {% elif score >= 40 %}
-                    <span class="score-badge score-medium">{{ "%.1f"|format(score) }}%</span>
+                    <span class="badge bg-warning text-dark" style="font-size: 1.2rem; padding: 0.5rem 1rem;">📊 {{ "%.0f"|format(score) }}% Match</span>
                     {% else %}
-                    <span class="score-badge score-low">{{ "%.1f"|format(score) }}%</span>
+                    <span class="badge bg-secondary" style="font-size: 1.2rem; padding: 0.5rem 1rem;">{{ "%.0f"|format(score) }}% Match</span>
                     {% endif %}
-                </td>
-                <td>
-                    <span class="badge bg-info">{{ r.category or 'N/A' }}</span>
-                </td>
-                <td>
-                    <div class="btn-group btn-group-sm" role="group">
-                        <!-- Translate button removed: translation is now automatic -->
-                        <a href="{{ r.link }}" target="_blank" class="btn btn-outline-secondary" title="Open in new tab">
-                            <i class="fas fa-external-link-alt"></i>
-                        </a>
-                        <form method="post" class="d-inline" title="View details">
-                            <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="btn btn-outline-info">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                        </form>
+                    
+                    <div class="d-flex gap-1">
                         {% if r.favorite %}
                         <form method="post" action="{{ url_for('main.toggle_favorite', rid=r.id) }}" class="d-inline">
-                            <button class="btn btn-warning" type="submit" title="Remove from favorites">
+                            <button class="btn btn-sm btn-warning" type="submit" title="Remove from favorites">
                                 <i class="fas fa-star"></i>
                             </button>
                         </form>
                         {% else %}
                         <form method="post" action="{{ url_for('main.toggle_favorite', rid=r.id) }}" class="d-inline">
-                            <button class="btn btn-outline-warning" type="submit" title="Add to favorites">
+                            <button class="btn btn-sm btn-outline-warning" type="submit" title="Add to favorites">
                                 <i class="far fa-star"></i>
                             </button>
                         </form>
                         {% endif %}
                     </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<div class="row mt-4">
-    <!-- Translate JS removed: translation is now automatic -->
-    <!-- Removed leftover JS for translation. -->
+                </div>
+                
+                <!-- Tender Title -->
+                <h5 class="card-title mb-3">
+                    <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="text-decoration-none text-dark">
+                        {{ r.title[:120] }}{% if r.title|length > 120 %}...{% endif %}
+                    </a>
+                </h5>
+                
+                <!-- Metadata -->
+                <div class="mb-3">
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <span class="badge bg-primary"><i class="fas fa-folder"></i> {{ r.category or 'Uncategorized' }}</span>
+                        <span class="badge bg-info"><i class="fas fa-globe"></i> {{ r.country or 'Global' }}</span>
+                        {% if r.deadline %}
+                        <span class="badge bg-danger"><i class="fas fa-clock"></i> {{ r.deadline }}</span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if r.buyer %}
+                    <small class="text-muted d-block mb-2">
+                        <i class="fas fa-building"></i> {{ r.buyer[:60] }}{% if r.buyer|length > 60 %}...{% endif %}
+                    </small>
+                    {% endif %}
+                    
+                    {% if r.keywords_matched %}
+                    <small class="text-muted d-block">
+                        <i class="fas fa-tags"></i> {{ r.keywords_matched[:80] }}{% if r.keywords_matched|length > 80 %}...{% endif %}
+                    </small>
+                    {% endif %}
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="btn btn-primary btn-sm flex-grow-1">
+                        <i class="fas fa-eye"></i> View Details
+                    </a>
+                    <a href="{{ r.link }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-external-link-alt"></i> Source
+                    </a>
+                                <i class="far fa-star"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
 </div>
 {% else %}
-<div class="alert alert-info" role="alert">
-    <i class="fas fa-info-circle"></i> No tender results found. Try running a scan or adjusting your filters.
+<div class="text-center py-5\">
+    <div class=\"mb-4\">
+        <i class=\"fas fa-inbox\" style=\"font-size: 4rem; color: #9ca3af;\"></i>
+    </div>
+    <h4 class=\"text-muted\">No Tenders Found</h4>
+    <p class=\"text-muted\">Try running a scan or adjusting your filters to discover opportunities.</p>
+    <form method=\"post\" class=\"mt-3\">
+        <button class=\"btn btn-primary btn-lg\" type=\"submit\">
+            <i class=\"fas fa-sync\"></i> Run Your First Scan
+        </button>
+    </form>
 </div>
 {% endif %}
 

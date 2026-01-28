@@ -24,50 +24,77 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for cBrain branding
+# Custom CSS for modern, friendly design
 st.markdown("""
 <style>
     .main {
-        background-color: #0f172a;
-        color: #e2e8f0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-attachment: fixed;
     }
+    
+    .stApp {
+        background: transparent;
+    }
+    
+    /* Modern card styling */
+    [data-testid="stMetricValue"] {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    
     .stButton>button {
-        background-color: #1e3a8a;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        border-radius: 8px;
-        padding: 0.5rem 2rem;
+        border-radius: 25px;
+        padding: 0.6rem 1.5rem;
         font-weight: 600;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
     }
+    
     .stButton>button:hover {
-        background-color: #0f766e;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
     }
+    
     h1, h2, h3 {
-        color: #60a5fa;
+        color: #ffffff;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
     }
-    .metric-card {
-        background-color: #1e293b;
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid #0f766e;
-    }
-    .tender-card {
-        background-color: #1e293b;
-        padding: 1.5rem;
-        border-radius: 8px;
-        margin-bottom: 1rem;
-        border: 1px solid #334155;
-    }
+    
+    /* Score styling */
     .high-score {
         color: #10b981;
         font-weight: bold;
+        font-size: 1.5rem;
     }
     .medium-score {
         color: #f59e0b;
         font-weight: bold;
+        font-size: 1.5rem;
     }
     .low-score {
         color: #ef4444;
         font-weight: bold;
+        font-size: 1.5rem;
+    }
+    
+    /* Input styling */
+    .stTextInput>div>div>input, .stSelectbox>div>div>select {
+        border-radius: 10px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.9);
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    [data-testid="stSidebar"] * {
+        color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -349,45 +376,93 @@ elif page == "🔍 Scan & Results":
     # Display tenders
     if tenders:
         for tender in tenders:
-            score_color = "#10b981" if tender.score >= 70 else "#f59e0b" if tender.score >= 40 else "#ef4444"
+            # Determine score styling
+            if tender.score >= 70:
+                score_emoji = "🎯"
+                score_color = "#10b981"
+                score_label = "Highly Relevant"
+            elif tender.score >= 40:
+                score_emoji = "📊"
+                score_color = "#f59e0b"
+                score_label = "Good Match"
+            else:
+                score_emoji = "📝"
+                score_color = "#ef4444"
+                score_label = "Potential Match"
             
-            with st.expander(f"**[{tender.score:.1f}%]** {tender.title}", expanded=False):
-                col1, col2 = st.columns([3, 1])
+            # Create attractive card
+            with st.container():
+                st.markdown(f"""
+                <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                            padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; 
+                            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);'>
+                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;'>
+                        <span style='background: rgba(255,255,255,0.95); color: {score_color}; 
+                                     padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold; font-size: 1.1rem;'>
+                            {score_emoji} {tender.score:.0f}% {score_label}
+                        </span>
+                        <span style='background: rgba(255,255,255,0.2); color: white; 
+                                     padding: 0.4rem 0.8rem; border-radius: 15px; font-size: 0.9rem;'>
+                            📁 {tender.category or 'Uncategorized'}
+                        </span>
+                    </div>
+                    <h3 style='color: white; margin: 0; font-size: 1.3rem; line-height: 1.4;'>{tender.title}</h3>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Details section
+                col1, col2, col3 = st.columns([2, 1, 1])
                 
                 with col1:
-                    st.markdown(f"**Category:** {tender.category} ({tender.confidence:.0%} confidence)")
-                    st.markdown(f"**Country:** {tender.country or 'N/A'}")
-                    st.markdown(f"**Deadline:** {tender.deadline or 'Not specified'}")
-                    st.markdown(f"**Description:** {tender.description[:300]}...")
+                    if tender.description:
+                        st.markdown(f"**📄 Description**")
+                        st.write(tender.description[:200] + ("..." if len(tender.description) > 200 else ""))
                     
-                    # Scoring breakdown
+                    # Keywords
                     if tender.scoring_breakdown:
                         try:
                             breakdown = json.loads(tender.scoring_breakdown)
-                            st.markdown("**Matched Keywords:**")
-                            keywords = breakdown.get('unique_keywords', [])[:10]
-                            st.caption(", ".join(keywords) if keywords else "None")
+                            keywords = breakdown.get('unique_keywords', [])[:8]
+                            if keywords:
+                                st.markdown("**🏷️ Matched Keywords**")
+                                keyword_badges = " ".join([f"<span style='background: #e0e7ff; color: #4338ca; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.85rem; margin-right: 0.3rem;'>{kw}</span>" for kw in keywords])
+                                st.markdown(keyword_badges, unsafe_allow_html=True)
                         except:
                             pass
-                    
-                    st.link_button("🔗 View Original Tender", tender.link, use_container_width=False)
                 
                 with col2:
-                    st.markdown(f"**Score: <span style='color:{score_color};font-size:24px;'>{tender.score:.1f}%</span>**", unsafe_allow_html=True)
+                    st.markdown("**📍 Details**")
+                    st.write(f"🌍 {tender.country or 'Global'}")
+                    if tender.deadline:
+                        st.write(f"⏰ {tender.deadline}")
+                    else:
+                        st.write("⏰ No deadline set")
+                
+                with col3:
+                    st.markdown("**⚡ Actions**")
                     
-                    fav_label = "❌ Remove Favorite" if tender.favorite else "⭐ Add to Favorites"
-                    if st.button(fav_label, key=f"fav_{tender.id}", use_container_width=True):
-                        toggle_favorite(tender.id)
-                        st.success("✅ Updated!" if not tender.favorite else "❌ Removed from favorites")
-                        st.rerun()
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        fav_icon = "⭐" if tender.favorite else "☆"
+                        if st.button(fav_icon, key=f"fav_{tender.id}", help="Toggle favorite"):
+                            toggle_favorite(tender.id)
+                            st.rerun()
                     
-                    save_label = "❌ Remove from Saved" if tender.saved else "💾 Save for Later"
-                    if st.button(save_label, key=f"save_{tender.id}", use_container_width=True):
-                        toggle_saved(tender.id)
-                        st.success("✅ Saved!" if not tender.saved else "❌ Removed from saved")
-                        st.rerun()
+                    with col_b:
+                        save_icon = "💾" if tender.saved else "📥"
+                        if st.button(save_icon, key=f"save_{tender.id}", help="Toggle saved"):
+                            toggle_saved(tender.id)
+                            st.rerun()
+                    
+                    st.link_button("🔗 View Source", tender.link, use_container_width=True)
+                    
+                    if st.button("📖 Full Details", key=f"detail_{tender.id}", use_container_width=True):
+                        st.session_state['selected_tender'] = tender.id
+                        st.info("💡 Click 'View Source' above to see the full tender document")
+                
+                st.markdown("---")
     else:
-        st.info("No tenders match your filters. Try adjusting the criteria or run a new scan.")
+        st.markdown(\"\"\"\n        <div style='text-align: center; padding: 3rem; background: rgba(255,255,255,0.95); \n                    border-radius: 20px; margin: 2rem 0;'>\n            <div style='font-size: 4rem; margin-bottom: 1rem;'>📭</div>\n            <h3 style='color: #667eea; margin-bottom: 1rem;'>No Tenders Found</h3>\n            <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 2rem;'>\n                Adjust your filters or run a fresh scan to discover new opportunities!\n            </p>\n        </div>\n        \"\"\", unsafe_allow_html=True)\n        \n        col1, col2, col3 = st.columns([1, 2, 1])\n        with col2:\n            if st.button(\"🔄 Run Scan Now\", type=\"primary\", use_container_width=True):\n                with st.spinner(\"🔍 Scanning tender sources...\"):\n                    new_tenders = run_tender_scan()\n                    if new_tenders:\n                        st.success(f\"✅ Found {len(new_tenders)} new tenders!\")\n                    else:\n                        st.info(\"No new tenders found.\")\n                    st.rerun()
 
 elif page == "📁 Sources":
     st.title("📁 Tender Sources")
