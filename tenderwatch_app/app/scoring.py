@@ -10,9 +10,9 @@ GENERIC_STANDALONE_KEYWORDS = {
 
 def score_text(title: str, text: str = ""):
     """
-    Score text based on keyword matching with strict quality requirements.
+    Score text based on keyword matching with quality requirements.
     Returns: (score, matched_keywords, breakdown_dict)
-    Scoring: Requires specific multi-word keywords (3+ words), excludes generic standalone terms
+    Scoring: Allows all relevant keywords (1+ words), excludes generic standalone terms
     """
     combined = f"{title} {text}".lower()
     matched = [kw for kw in ALL_KEYWORDS if kw in combined]
@@ -23,16 +23,13 @@ def score_text(title: str, text: str = ""):
     # Filter out standalone generic keywords (but keep phrases containing them)
     specific_matched = [kw for kw in matched if kw not in GENERIC_STANDALONE_KEYWORDS]
     
-    # STRICT REQUIREMENT: Must have at least one specific 3+ word keyword
-    multi_word_matches = [kw for kw in specific_matched if len(kw.split()) >= 3]
-    
-    if not multi_word_matches:
-        # No specific 3+ word keywords = not relevant
-        return 0, "", {"keywords_found": 0, "reason": "No specific multi-word keywords matched", "match_percentage": 0}
+    if not specific_matched:
+        # Only generic keywords matched = not relevant
+        return 0, "", {"keywords_found": 0, "reason": "Only generic keywords matched", "match_percentage": 0}
     
     unique_matched = sorted(set(specific_matched))
     
-    # Score calculation: heavily favor multi-word specific keywords
+    # Score calculation: favor multi-word specific keywords but allow relevant 1-2 word terms
     score = 0
     
     for kw in unique_matched:
@@ -44,12 +41,12 @@ def score_text(title: str, text: str = ""):
         elif word_count == 2:
             score += word_count * 2  # 2 words: 4 points (somewhat specific)
         else:
-            score += 0.5  # Single word: minimal weight
+            score += 2  # Single word (like "edms", "dms", "ecm"): 2 points
     
-    # Normalize: Expect 12-40 points for relevant tenders, scale to 10-100%
-    # min_expected = 12 points = 10%
+    # Normalize: Expect 8-40 points for relevant tenders, scale to 10-100%
+    # min_expected = 8 points = 10%
     # max_expected = 40 points = 100%
-    normalized_score = ((score - 12) / (40 - 12)) * 90 + 10
+    normalized_score = ((score - 8) / (40 - 8)) * 90 + 10
     normalized_score = min(100, max(10, round(normalized_score, 2)))
     
     # Determine which groups matched
