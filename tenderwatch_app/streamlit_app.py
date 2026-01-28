@@ -462,7 +462,16 @@ elif page == "🔍 Scan & Results":
                 
                 st.markdown("---")
     else:
-        st.markdown(\"\"\"\n        <div style='text-align: center; padding: 3rem; background: rgba(255,255,255,0.95); \n                    border-radius: 20px; margin: 2rem 0;'>\n            <div style='font-size: 4rem; margin-bottom: 1rem;'>📭</div>\n            <h3 style='color: #667eea; margin-bottom: 1rem;'>No Tenders Found</h3>\n            <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 2rem;'>\n                Adjust your filters or run a fresh scan to discover new opportunities!\n            </p>\n        </div>\n        \"\"\", unsafe_allow_html=True)\n        \n        col1, col2, col3 = st.columns([1, 2, 1])\n        with col2:\n            if st.button(\"🔄 Run Scan Now\", type=\"primary\", use_container_width=True):\n                with st.spinner(\"🔍 Scanning tender sources...\"):\n                    new_tenders = run_tender_scan()\n                    if new_tenders:\n                        st.success(f\"✅ Found {len(new_tenders)} new tenders!\")\n                    else:\n                        st.info(\"No new tenders found.\")\n                    st.rerun()
+        st.markdown("""
+        <div style='text-align: center; padding: 3rem; background: rgba(255,255,255,0.95); 
+                    border-radius: 20px; margin: 2rem 0;'>
+            <div style='font-size: 4rem; margin-bottom: 1rem;'>📭</div>
+            <h3 style='color: #667eea; margin-bottom: 1rem;'>No Tenders Found</h3>
+            <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 2rem;'>
+                Adjust your filters or run a fresh scan to discover new opportunities!
+            </p>
+        </div>
+        """, unsafe_allow_html=True)\n        \n        col1, col2, col3 = st.columns([1, 2, 1])\n        with col2:\n            if st.button(\"🔄 Run Scan Now\", type=\"primary\", use_container_width=True):\n                with st.spinner(\"🔍 Scanning tender sources...\"):\n                    new_tenders = run_tender_scan()\n                    if new_tenders:\n                        st.success(f\"✅ Found {len(new_tenders)} new tenders!\")\n                    else:\n                        st.info(\"No new tenders found.\")\n                    st.rerun()
 
 elif page == "📁 Sources":
     st.title("📁 Tender Sources")
