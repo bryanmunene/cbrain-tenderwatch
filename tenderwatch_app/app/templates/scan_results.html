@@ -106,8 +106,18 @@
                 <!-- Tender Title -->
                 <h5 class="card-title mb-3">
                     <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="text-decoration-none text-dark">
+                        {% if r.title_translated and r.title_translated != r.title %}
+                        <span class="original-title-{{ r.id }}">{{ r.title[:120] }}{% if r.title|length > 120 %}...{% endif %}</span>
+                        <span class="translated-title-{{ r.id }}" style="display:none;">{{ r.title_translated[:120] }}{% if r.title_translated|length > 120 %}...{% endif %}</span>
+                        {% else %}
                         {{ r.title[:120] }}{% if r.title|length > 120 %}...{% endif %}
+                        {% endif %}
                     </a>
+                    {% if r.title_translated and r.title_translated != r.title %}
+                    <button class="btn btn-sm btn-outline-info ms-2 translate-toggle" onclick="toggleTranslation({{ r.id }}); return false;" title="Toggle translation">
+                        <i class="fas fa-language"></i>
+                    </button>
+                    {% endif %}
                 </h5>
                 
                 <!-- Metadata -->
@@ -149,18 +159,35 @@
     {% endfor %}
 </div>
 {% else %}
-<div class="text-center py-5\">
-    <div class=\"mb-4\">
-        <i class=\"fas fa-inbox\" style=\"font-size: 4rem; color: #9ca3af;\"></i>
+<div class="text-center py-5">
+    <div class="mb-4">
+        <i class="fas fa-inbox" style="font-size: 4rem; color: #9ca3af;"></i>
     </div>
-    <h4 class=\"text-muted\">No Tenders Found</h4>
-    <p class=\"text-muted\">Try running a scan or adjusting your filters to discover opportunities.</p>
-    <form method=\"post\" class=\"mt-3\">
-        <button class=\"btn btn-primary btn-lg\" type=\"submit\">
-            <i class=\"fas fa-sync\"></i> Run Your First Scan
+    <h4 class="text-muted">No Tenders Found</h4>
+    <p class="text-muted">Try running a scan or adjusting your filters to discover opportunities.</p>
+    <form method="post" class="mt-3">
+        <button class="btn btn-primary btn-lg" type="submit">
+            <i class="fas fa-sync"></i> Run Your First Scan
         </button>
     </form>
 </div>
 {% endif %}
+
+<script>
+function toggleTranslation(tenderId) {
+    const original = document.querySelector('.original-title-' + tenderId);
+    const translated = document.querySelector('.translated-title-' + tenderId);
+    
+    if (original && translated) {
+        if (original.style.display === 'none') {
+            original.style.display = 'inline';
+            translated.style.display = 'none';
+        } else {
+            original.style.display = 'none';
+            translated.style.display = 'inline';
+        }
+    }
+}
+</script>
 
 {% endblock %}

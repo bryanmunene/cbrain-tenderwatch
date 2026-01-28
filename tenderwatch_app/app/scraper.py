@@ -109,8 +109,15 @@ def scan_source(source: TenderSource):
                 country = value
                 break
 
-        # Translate title to English
-        title_translated = translate_to_english(title)
+        # Translate title to English and detect original language
+        from app.translator import detect_language
+        original_lang = detect_language(title)
+        
+        if original_lang != "en":
+            title_translated = translate_to_english(title)
+        else:
+            title_translated = title  # Already in English
+        
         description_translated = ""
 
         r = TenderResult(

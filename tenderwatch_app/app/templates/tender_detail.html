@@ -13,15 +13,28 @@
 <div class="row">
     <div class="col-lg-8">
         <!-- Tender Title & Main Info -->
-        <div class="card shadow-sm mb-4\" style=\"border-radius: 15px; overflow: hidden;\">
+        <div class="card shadow-sm mb-4" style="border-radius: 15px; overflow: hidden;">
             <!-- Header with gradient -->
-            <div style=\"background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem;\">
-                <div class=\"d-flex justify-content-between align-items-start\">
-                    <div class=\"flex-grow-1\">
-                        <h2 class=\"text-white mb-2\" style=\"font-weight: 700;\">{{ tender.title }}</h2>
-                        <div class=\"d-flex gap-3 text-white\" style=\"opacity: 0.9;\">
-                            <span><i class=\"fas fa-calendar\"></i> {{ tender.created_at.strftime('%B %d, %Y') }}</span>
-                            <span><i class=\"fas fa-globe\"></i> {{ tender.country or 'Global' }}</span>
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem;">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        {% if tender.title_translated and tender.title_translated != tender.title %}
+                        <h2 class="text-white mb-2" style="font-weight: 700;">
+                            <span id="original-title">{{ tender.title }}</span>
+                            <span id="translated-title" style="display:none;">{{ tender.title_translated }}</span>
+                            <button class="btn btn-sm btn-light ms-2" onclick="toggleDetailTranslation()" title="Toggle translation">
+                                <i class="fas fa-language"></i>
+                            </button>
+                        </h2>
+                        <div class="badge bg-light text-dark mb-2">
+                            <i class="fas fa-globe"></i> Translation available
+                        </div>
+                        {% else %}
+                        <h2 class="text-white mb-2" style="font-weight: 700;">{{ tender.title }}</h2>
+                        {% endif %}
+                        <div class="d-flex gap-3 text-white" style="opacity: 0.9;">
+                            <span><i class="fas fa-calendar"></i> {{ tender.created_at.strftime('%B %d, %Y') }}</span>
+                            <span><i class="fas fa-globe"></i> {{ tender.country or 'Global' }}</span>
                         </div>
                     </div>
                     <div>
@@ -195,7 +208,20 @@
                 el.style.width = el.getAttribute('data-width') + '%';
             });
 
-            // Translation toggle removed: translation is now automatic
+            function toggleDetailTranslation() {
+                const original = document.getElementById('original-title');
+                const translated = document.getElementById('translated-title');
+                
+                if (original && translated) {
+                    if (original.style.display === 'none') {
+                        original.style.display = 'inline';
+                        translated.style.display = 'none';
+                    } else {
+                        original.style.display = 'none';
+                        translated.style.display = 'inline';
+                    }
+                }
+            }
         </script>
 
         <!-- Action Buttons -->

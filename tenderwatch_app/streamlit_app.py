@@ -403,6 +403,19 @@ elif page == "🔍 Scan & Results":
             
             # Create attractive card
             with st.container():
+                # Translation toggle state
+                translation_key = f"show_translation_{tender.id}"
+                if translation_key not in st.session_state:
+                    st.session_state[translation_key] = False
+                
+                # Determine which title to show
+                if tender.title_translated and tender.title_translated != tender.title:
+                    display_title = tender.title_translated if st.session_state[translation_key] else tender.title
+                    show_translation_btn = True
+                else:
+                    display_title = tender.title
+                    show_translation_btn = False
+                
                 st.markdown(f"""
                 <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                             padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; 
@@ -417,9 +430,15 @@ elif page == "🔍 Scan & Results":
                             📁 {tender.category or 'Uncategorized'}
                         </span>
                     </div>
-                    <h3 style='color: white; margin: 0; font-size: 1.3rem; line-height: 1.4;'>{tender.title}</h3>
+                    <h3 style='color: white; margin: 0; font-size: 1.3rem; line-height: 1.4;'>{display_title}</h3>
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # Translation toggle button
+                if show_translation_btn:
+                    if st.button("🌐 Toggle Translation", key=f"translate_btn_{tender.id}"):
+                        st.session_state[translation_key] = not st.session_state[translation_key]
+                        st.rerun()
                 
                 # Details section
                 col1, col2, col3 = st.columns([2, 1, 1])
