@@ -111,6 +111,29 @@ def init_db():
     """Initialize database with app context"""
     with app.app_context():
         db.create_all()
+        
+        # Run AI database migration on startup
+        try:
+            from sqlalchemy import text
+            # Try to add AI columns if they don't exist
+            ai_columns = [
+                "ALTER TABLE tender_result ADD COLUMN semantic_score FLOAT DEFAULT 0.0",
+                "ALTER TABLE tender_result ADD COLUMN ai_confidence FLOAT DEFAULT 0.0",
+                "ALTER TABLE tender_result ADD COLUMN entities_extracted TEXT DEFAULT ''",
+                "ALTER TABLE tender_result ADD COLUMN ai_summary TEXT DEFAULT ''",
+                "ALTER TABLE app_settings ADD COLUMN ai_scoring_enabled BOOLEAN DEFAULT 1",
+                "ALTER TABLE app_settings ADD COLUMN ai_learning_enabled BOOLEAN DEFAULT 1",
+                "ALTER TABLE app_settings ADD COLUMN entity_extraction_enabled BOOLEAN DEFAULT 1",
+            ]
+            for sql in ai_columns:
+                try:
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                except:
+                    db.session.rollback()  # Column already exists, continue
+        except:
+            pass  # Migration not critical for startup
+        
         # Ensure settings exist
         if not AppSettings.query.first():
             settings = AppSettings()
