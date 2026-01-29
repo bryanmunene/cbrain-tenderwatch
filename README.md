@@ -19,6 +19,8 @@ A sophisticated tender scanning and opportunity tracking application designed fo
 
 **Both versions use the same backend** (scraper, scoring, database) - just different frontends!
 
+> 💡 **Keep Your App Always Live:** See [KEEP_ALIVE_SETUP.md](KEEP_ALIVE_SETUP.md) for free solutions using GitHub Actions + UptimeRobot to prevent your app from sleeping.
+
 ---
 
 ## Features

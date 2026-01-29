@@ -69,25 +69,39 @@ This applies to: `init_sources.py`, `migrate_db.py`, Flask shell, Streamlit DB q
   - Port auto-detected: `run.py` reads `PORT` env var (Railway/Render provide this)
   - Example: Railway sets `PORT=8080`, Flask binds to `0.0.0.0:8080`
 - **PWA-enabled (Flask only):** Service worker + manifest.json for offline caching
+- **Keep-alive strategies:** See `KEEP_ALIVE_SETUP.md` for preventing app sleep on free tiers
+  - GitHub Actions workflows in `.github/workflows/` for automated scanning
+  - UptimeRobot configuration for UI ping services
 
 **Streamlit-Specific Patterns:**
+- **Single-file architecture:** All UI logic in `streamlit_app.py` (~700 lines), imports backend from `app/` modules
 - **DB initialization:** Call `init_db()` at module level (runs once on app load)
-- **Flask context wrapper:** All DB queries use `with app.app_context():` block
+- **Flask context wrapper:** All DB queries use `with app.app_context():` block since Streamlit runs outside Flask request cycle
 - **State management:** Use `st.session_state` for cross-page persistence (e.g., filters, selected tender)
-- **Refresh trigger:** `st.rerun()` after DB mutations (save/delete/scan operations)
+- **Refresh trigger:** `st.rerun()` after DB mutations (save/delete/scan operations) to update UI
 - **Custom CSS:** Injected via `st.markdown(..., unsafe_allow_html=True)` for cBrain theming
+  - Gradient backgrounds: `linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%)`
+  - Score coloring: `.high-score` (green), `.medium-score` (orange), `.low-score` (red)
 - **Column layouts:** Use `st.columns([3, 1])` for dashboard metrics/sidebar patterns
+- **Page config:** Must be first Streamlit command: `st.set_page_config(page_title="...", layout="wide")`
 
 ## Project-Specific Conventions
 
 ### Scoring Algorithm (scoring.py)
 - **Base score:** Count unique matched keywords from `ALL_KEYWORDS` (imported from `keywords.py`)
-- **Multi-word bonus:** `+word_count` per keyword (e.g., "case management" = +2 extra points)
-- **Normalization formula:** `((score - 2) / 13) * 95 + 5`, capped at 5-100%
-  - Expected range: 2-15 matches scale to 5-100%
-  - Example: 8 matches + 10 multi-word bonus points = ~55% score
-- **Source bias:** Added from `SOURCE_BIAS` dict (e.g., "undp": +10, "world bank": +8)
+- **Quality filtering:** Excludes generic standalone keywords (`GENERIC_STANDALONE_KEYWORDS`) like "bid", "tender", "rfp" when matched alone
+  - Multi-word phrases containing these terms still count (e.g., "invitation to bid" for case management)
+- **Multi-word bonus scoring:**
+  - 4+ words: `word_count × 4` (16+ points, very specific)
+  - 3 words: `word_count × 3` (9 points, specific)
+  - 2 words: `word_count × 2` (4 points, somewhat specific)
+  - 1 word: `+2` points (only for domain-specific terms like "edms", "dms", "ecm")
+- **Normalization formula:** `((score - 8) / 32) × 90 + 10`, capped at 10-100%
+  - Expected range: 8-40 points scale to 10-100%
+  - Example: 20 points = ~44% score; 40 points = 100%
+- **Source bias:** Added from `SOURCE_BIAS` dict (e.g., "undp": +10, "world bank": +8) — applied at categorization stage
 - **Output:** Returns `(score, keywords_matched_str, breakdown_dict)` — breakdown stored as JSON in `TenderResult.scoring_breakdown`
+  - Breakdown includes: `unique_keywords`, `matched_groups`, `match_percentage`, `keywords_found`
 
 ### Category Assignment (categorizer.py)
 - **Keyword groups:** 6 categories from `KEYWORD_GROUPS` (80+ keywords total):
@@ -190,6 +204,28 @@ All routes use Flask Blueprint `main` (registered in `__init__.py`):
 - **Translation failures:** Check internet connection (requires external API). Fallback returns original text.
 - **Database locked errors (SQLite):** Close all connections, delete `.db-journal` file if present, restart app
 - **PWA not installing:** Ensure Flask app served over HTTPS (required for service workers). Use ngrok for local testing.
+- **Streamlit app context errors:** Ensure `app = create_app()` is called at module level (before any DB operations). Always wrap queries in `with app.app_context():`
+- **Port conflicts:** Flask defaults to 5000, Streamlit to 8501. Override with `PORT` env var (Flask) or `--server.port` flag (Streamlit)
+
+## Quick Testing Workflow
+**Flask:**
+```powershell
+cd tenderwatch_app
+python -c "from app import create_app; app = create_app(); app.app_context().push(); from app.models import *; print(f'Sources: {TenderSource.query.count()}, Results: {TenderResult.query.count()}')"
+```
+
+**Streamlit:**
+```powershell
+cd tenderwatch_app
+streamlit run streamlit_app.py --server.port 8502  # Use alternate port if 8501 busy
+```
+
+**Database reset (DESTRUCTIVE):**
+```powershell
+cd tenderwatch_app
+Remove-Item instance\tenderwatch.db  # PowerShell
+python init_sources.py               # Recreate with default sources
+```
 
 ---
 See `README.md` for full features, `START_HERE.md` for quickstart, `VISUAL_OVERVIEW.md` for architecture diagrams.

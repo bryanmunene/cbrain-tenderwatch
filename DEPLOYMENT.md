@@ -2,6 +2,8 @@
 
 This guide covers **easy, one-click deployment** options for TenderWatch.
 
+> 💡 **Want your app always live?** See [KEEP_ALIVE_SETUP.md](KEEP_ALIVE_SETUP.md) for free solutions using GitHub Actions + UptimeRobot
+
 ## 🚀 Quick Deploy (Choose One - All Free Tiers Available)
 
 ### ⭐ Option 1: Railway (Easiest - Recommended)
