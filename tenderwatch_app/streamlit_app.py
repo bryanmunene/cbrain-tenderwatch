@@ -664,7 +664,7 @@ elif page == "⚙️ Settings":
         notification_enabled = st.checkbox("Enable Notifications", 
                                           value=settings.notification_enabled if settings else False)
         
-        if st.button("💾 Save Settings", type="primary"):
+        if st.button("💾 Save Settings", key="save_settings_button", type="primary"):
             if settings:
                 settings.auto_scan_enabled = auto_scan
                 settings.scan_interval_minutes = scan_interval
