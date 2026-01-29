@@ -117,7 +117,19 @@ def scan_source(source: TenderSource):
         category, _, confidence = categorize(title, title)
         learn_keywords(title, category)
         
-        # Extract entities with AI
+        # Parse deadline from raw text first
+        raw_text = a.get_text(" ", strip=True)
+        deadline = parse_deadline(raw_text)
+        
+        # Extract country from source name
+        country = "Unknown"
+        source_lower = source.name.lower()
+        for key, value in COUNTRY_MAP.items():
+            if key in source_lower:
+                country = value
+                break
+        
+        # Extract entities with AI (may override deadline/buyer)
         entities_json = ""
         if use_ai and settings and settings.entity_extraction_enabled:
             try:
@@ -126,26 +138,11 @@ def scan_source(source: TenderSource):
                 entities = extract_entities(title, title)
                 entities_json = json.dumps(entities)
                 
-                # Use extracted buyer and deadline if available
-                if entities.get('buyer') and not country.startswith('Unknown'):
-                    buyer_name = entities['buyer']
-                if entities.get('deadline'):
+                # Use extracted deadline if available and original was empty
+                if entities.get('deadline') and not deadline:
                     deadline = entities['deadline']
             except Exception as e:
                 print(f"⚠️  Entity extraction failed: {e}")
-
-        # Parse deadline from raw text
-        raw_text = a.get_text(" ", strip=True)
-        if not deadline:
-            deadline = parse_deadline(raw_text)
-
-        # Extract country from source name
-        country = "Unknown"
-        source_lower = source.name.lower()
-        for key, value in COUNTRY_MAP.items():
-            if key in source_lower:
-                country = value
-                break
 
         # Translate title to English and detect original language
         from app.translator import detect_language
