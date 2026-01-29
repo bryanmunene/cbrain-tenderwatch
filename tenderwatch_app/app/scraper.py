@@ -86,7 +86,10 @@ def scan_source(source: TenderSource):
         
         # AI-enhanced scoring
         from app.models import AppSettings
-        settings = AppSettings.query.first()
+        from sqlalchemy.orm import Session
+        # Disable autoflush to prevent IntegrityError on pending objects
+        with db.session.no_autoflush:
+            settings = AppSettings.query.first()
         use_ai = settings and settings.ai_scoring_enabled if settings else False
         
         if use_ai:
