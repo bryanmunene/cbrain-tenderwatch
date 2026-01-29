@@ -27,6 +27,12 @@ class TenderResult(db.Model):
     keywords_matched = db.Column(db.Text)
     scoring_breakdown = db.Column(db.Text, default="")
 
+    # AI-enhanced fields
+    semantic_score = db.Column(db.Float, default=0.0)
+    ai_confidence = db.Column(db.Float, default=0.0)
+    entities_extracted = db.Column(db.Text, default="")  # JSON with extracted entities
+    ai_summary = db.Column(db.Text, default="")  # AI-generated summary
+    
     saved = db.Column(db.Boolean, default=False)
     favorite = db.Column(db.Boolean, default=False)
     notified = db.Column(db.Boolean, default=False)
@@ -53,6 +59,11 @@ class AppSettings(db.Model):
     # Scheduler settings
     auto_scan_enabled = db.Column(db.Boolean, default=False)
     scan_interval_minutes = db.Column(db.Integer, default=60)
+    
+    # AI/ML settings
+    ai_scoring_enabled = db.Column(db.Boolean, default=True)
+    ai_learning_enabled = db.Column(db.Boolean, default=True)
+    entity_extraction_enabled = db.Column(db.Boolean, default=True)
     
     # Notification settings
     notifications_enabled = db.Column(db.Boolean, default=True)

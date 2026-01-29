@@ -84,7 +84,27 @@ def scan_source(source: TenderSource):
         if len(title) < 10:
             continue
         
-        score, matched, scoring_breakdown = score_text(title, title)
+        # AI-enhanced scoring
+        from app.models import AppSettings
+        settings = AppSettings.query.first()
+        use_ai = settings and settings.ai_scoring_enabled if settings else False
+        
+        if use_ai:
+            try:
+                from app.ai_scoring import hybrid_score
+                score, matched, scoring_breakdown_dict = hybrid_score(title, title)
+                scoring_breakdown = str(scoring_breakdown_dict)
+                semantic_score = scoring_breakdown_dict.get('semantic_score', score)
+                ai_confidence = scoring_breakdown_dict.get('semantic_confidence', 0.5)
+            except:
+                # Fallback to traditional scoring
+                score, matched, scoring_breakdown = score_text(title, title)
+                semantic_score = 0
+                ai_confidence = 0
+        else:
+            score, matched, scoring_breakdown = score_text(title, title)
+            semantic_score = 0
+            ai_confidence = 0
 
         if score == 0:
             continue  # Skip if no keywords match
@@ -96,10 +116,28 @@ def scan_source(source: TenderSource):
         # Categorize + learn
         category, _, confidence = categorize(title, title)
         learn_keywords(title, category)
+        
+        # Extract entities with AI
+        entities_json = ""
+        if use_ai and settings and settings.entity_extraction_enabled:
+            try:
+                from app.ai_entities import extract_entities
+                import json
+                entities = extract_entities(title, title)
+                entities_json = json.dumps(entities)
+                
+                # Use extracted buyer and deadline if available
+                if entities.get('buyer') and not country.startswith('Unknown'):
+                    buyer_name = entities['buyer']
+                if entities.get('deadline'):
+                    deadline = entities['deadline']
+            except Exception as e:
+                print(f"⚠️  Entity extraction failed: {e}")
 
         # Parse deadline from raw text
         raw_text = a.get_text(" ", strip=True)
-        deadline = parse_deadline(raw_text)
+        if not deadline:
+            deadline = parse_deadline(raw_text)
 
         # Extract country from source name
         country = "Unknown"
@@ -131,6 +169,9 @@ def scan_source(source: TenderSource):
             score=score,
             keywords_matched=matched,
             scoring_breakdown=scoring_breakdown,
+            semantic_score=semantic_score,
+            ai_confidence=ai_confidence,
+            entities_extracted=entities_json,
             category=category,
             confidence=confidence,
             source_id=source.id,
