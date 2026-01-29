@@ -175,10 +175,19 @@ def scan_source(source: TenderSource):
             notified=False,
         )
 
-        db.session.add(r)
-        new_tenders.append(r)
+        try:
+            db.session.add(r)
+            new_tenders.append(r)
+        except Exception as e:
+            # Skip duplicate tenders (IntegrityError on unique link constraint)
+            db.session.rollback()
+            continue
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        print(f"⚠️  Error committing tenders: {e}")
+        db.session.rollback()
     print(f"✅ Scanned {source.name}: Found {len(links_to_process)} potential tenders")
     return new_tenders
 

@@ -363,20 +363,7 @@ if page == "📊 Dashboard":
 elif page == "🔍 Scan & Results":
     st.title("🔍 Tender Scanning")
     
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        st.markdown("Scan all active tender sources to discover new opportunities")
-    
-    with col2:
-        if st.button("🔄 Run Scan Now", type="primary", use_container_width=True):
-            with st.spinner("🔍 Scanning tender sources..."):
-                new_tenders = run_tender_scan()
-                if new_tenders:
-                    st.success(f"✅ Found {len(new_tenders)} new tenders!")
-                else:
-                    st.info("No new tenders found.")
-                st.rerun()
+    st.markdown("Scan all active tender sources to discover new opportunities")
     
     st.markdown("---")
     
@@ -533,7 +520,7 @@ elif page == "🔍 Scan & Results":
         
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("🔄 Run Scan Now", type="primary", use_container_width=True):
+            if st.button("🔄 Run Scan Now", key="main_scan_button", type="primary", use_container_width=True):
                 with st.spinner("🔍 Scanning tender sources..."):
                     new_tenders = run_tender_scan()
                     if new_tenders:
