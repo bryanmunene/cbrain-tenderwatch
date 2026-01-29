@@ -103,6 +103,23 @@ This applies to: `init_sources.py`, `migrate_db.py`, Flask shell, Streamlit DB q
 - **Output:** Returns `(score, keywords_matched_str, breakdown_dict)` — breakdown stored as JSON in `TenderResult.scoring_breakdown`
   - Breakdown includes: `unique_keywords`, `matched_groups`, `match_percentage`, `keywords_found`
 
+### AI/ML Enhancements (NEW)
+- **Semantic Scoring (ai_scoring.py):** Uses sentence-transformers (`all-MiniLM-L6-v2`) for meaning-based relevance
+  - `hybrid_score()` combines semantic (70%) + keyword (30%) scores when AI confidence >0.7
+  - Fallback to keyword-only if model unavailable
+  - Models cached globally for performance (first run: 5-10s, subsequent: <1s)
+- **Entity Extraction (ai_entities.py):** spaCy NER extracts buyer, budget, deadline, location from text
+  - `extract_entities()` returns dict with structured data
+  - Fallback regex patterns if spaCy unavailable
+  - Results stored in `TenderResult.entities_extracted` JSON field
+- **Adaptive Learning (ai_learning.py):** Random Forest learns from saved/favorited tenders
+  - `train_from_database()` requires ≥5 positive samples
+  - `adjust_score()` blends original + learned preference (weighted by confidence)
+  - Models saved in `tenderwatch_app/models/` directory
+  - Retrain after significant user feedback or weekly
+- **Toggle via AppSettings:** `ai_scoring_enabled`, `ai_learning_enabled`, `entity_extraction_enabled`
+- **Setup:** Run `setup_ai.ps1` or manually: `pip install -r requirements.txt && python -m spacy download en_core_web_sm && python migrate_ai_db.py`
+
 ### Category Assignment (categorizer.py)
 - **Keyword groups:** 6 categories from `KEYWORD_GROUPS` (80+ keywords total):
   - Case & Complaint Management
@@ -139,8 +156,10 @@ All routes use Flask Blueprint `main` (registered in `__init__.py`):
 ### Database Models (models.py)
 - **TenderSource**: name, url, active (bool), favorite (bool)
 - **TenderResult**: title, link (unique), description, score, scoring_breakdown (JSON), category, confidence, saved, favorite, notified
+  - **AI fields**: semantic_score, ai_confidence, entities_extracted (JSON), ai_summary
 - **LearnedKeyword**: (Optional) Stores learned keywords from `learner.py`
 - **AppSettings**: auto_scan_enabled, scan_interval_minutes, notification_enabled
+  - **AI settings**: ai_scoring_enabled, ai_learning_enabled, entity_extraction_enabled
 - All models use `db.Column` from `extensions.py` (shared db instance)
 
 ## Integration Points
