@@ -677,18 +677,65 @@ elif page == "⚙️ Settings":
         notification_enabled = st.checkbox("Enable Notifications", 
                                           value=settings.notification_enabled if settings else False)
         
+        st.markdown("---")
+        
+        st.subheader("📱 Push Notifications (Mobile/Desktop)")
+        st.markdown("""
+        Receive instant alerts for new high-score tenders on your phone or desktop browser.
+        
+        **Browser Support:**
+        - ✅ Android: Chrome, Firefox, Edge, Samsung Internet
+        - ✅ iOS: Safari 16.4+ (requires iOS 16.4 or later)
+        - ✅ Desktop: Chrome, Firefox, Edge, Safari
+        """)
+        
+        # Check if notifications are supported
+        push_enabled = st.checkbox("🔔 Enable Push Notifications", value=False, 
+                                   help="Get instant alerts when new tenders match your keywords")
+        
+        if push_enabled:
+            st.info("""
+            **📲 How to enable:**
+            1. Click "Subscribe to Notifications" below
+            2. Allow notifications when your browser asks
+            3. You'll receive alerts for tenders scoring ≥70%
+            
+            **Note:** For best results, deploy on HTTPS (Streamlit Cloud, Railway, or Render provide free HTTPS).
+            """)
+            
+            # This will be handled by JavaScript in production
+            if st.button("🔔 Subscribe to Notifications", type="primary"):
+                st.warning("""
+                ⚠️ **Push notifications require HTTPS deployment**
+                
+                To enable full push notification support:
+                1. Deploy to Streamlit Cloud (free HTTPS automatic)
+                2. Or deploy Flask version with PWA support
+                3. See `MOBILE_NOTIFICATIONS_SETUP.md` for complete guide
+                
+                For now, desktop notifications work without HTTPS.
+                """)
+        
+        min_score = st.slider("Minimum Score for Notifications", 0, 100, 
+                             value=int(settings.min_score_to_notify) if settings else 70,
+                             help="Only notify for tenders above this score")
+        
+        st.markdown("---")
+        
         if st.button("💾 Save Settings", key="save_settings_button", type="primary"):
             if settings:
                 settings.auto_scan_enabled = auto_scan
                 settings.scan_interval_minutes = scan_interval
                 settings.notification_enabled = notification_enabled
+                settings.min_score_to_notify = float(min_score)
                 db.session.commit()
                 st.success("✅ Settings saved!")
             else:
                 new_settings = AppSettings(
                     auto_scan_enabled=auto_scan,
                     scan_interval_minutes=scan_interval,
-                    notification_enabled=notification_enabled
+                    notification_enabled=notification_enabled,
+                    min_score_to_notify=float(min_score)
                 )
                 db.session.add(new_settings)
                 db.session.commit()

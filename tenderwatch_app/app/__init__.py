@@ -52,6 +52,23 @@ def create_app():
             if ai_migrations:
                 db.session.commit()
                 logging.info(f"✅ Applied {len(ai_migrations)} AI schema migrations")
+            
+            # Check for push_subscription table, create if missing
+            if 'push_subscription' not in inspector.get_table_names():
+                db.session.execute(text("""
+                    CREATE TABLE push_subscription (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        endpoint TEXT UNIQUE NOT NULL,
+                        p256dh_key TEXT NOT NULL,
+                        auth_key TEXT NOT NULL,
+                        user_agent TEXT DEFAULT '',
+                        active BOOLEAN DEFAULT 1,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        last_used DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                db.session.commit()
+                logging.info("✅ Created push_subscription table")
                 
         except Exception as e:
             logging.warning(f"Schema migration skipped: {e}")

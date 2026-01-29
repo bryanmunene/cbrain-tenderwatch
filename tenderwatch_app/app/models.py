@@ -81,3 +81,15 @@ class AppSettings(db.Model):
     min_score_to_notify = db.Column(db.Float, default=50.0)
     
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PushSubscription(db.Model):
+    """Store user push notification subscriptions"""
+    id = db.Column(db.Integer, primary_key=True)
+    endpoint = db.Column(db.Text, unique=True, nullable=False)
+    p256dh_key = db.Column(db.Text, nullable=False)  # Client public key
+    auth_key = db.Column(db.Text, nullable=False)    # Client authentication secret
+    user_agent = db.Column(db.Text, default="")
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_used = db.Column(db.DateTime, default=datetime.utcnow)

@@ -50,6 +50,12 @@ A sophisticated tender scanning and opportunity tracking application designed fo
 
 - **Favorite Management**: Mark important tenders and sources as favorites
 - **Tender Saving**: Save relevant tenders for later review
+- **📱 Push Notifications**: Get instant mobile/desktop alerts for new high-score tenders
+  - Works on Android (Chrome, Firefox, Edge)
+  - Works on iOS Safari 16.4+
+  - Desktop browser notifications
+  - Configurable score threshold
+  - See [PUSH_NOTIFICATIONS_COMPLETE.md](PUSH_NOTIFICATIONS_COMPLETE.md) for setup
 - **Detailed Tender View**: Comprehensive tender information including:
   - Full tender title and description
   - Direct access links to original sources

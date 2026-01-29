@@ -4,6 +4,8 @@ Requires: pip install pywebpush
 """
 from typing import List, Dict
 import json
+import os
+import logging
 
 class PushNotificationService:
     """
@@ -11,13 +13,49 @@ class PushNotificationService:
     Uses Web Push API standard (works on Android Chrome, iOS Safari 16.4+)
     """
     
-    def __init__(self):
-        self.subscriptions: List[Dict] = []  # Store in database in production
-        self.vapid_private_key = None  # Generate with: webpush generate_vapid_keys
-        self.vapid_public_key = None
+    def __init__(self, app=None):
+        self.app = app
+        
+        # Load VAPID keys from files or environment
+        self.vapid_private_key = self._load_vapid_private_key()
+        self.vapid_public_key = self._load_vapid_public_key()
+        
         self.vapid_claims = {
-            "sub": "mailto:admin@cbrain.net"  # Your contact email
+            "sub": os.getenv("VAPID_SUBJECT", "mailto:admin@cbrain.net")
         }
+    
+    def _load_vapid_private_key(self):
+        """Load VAPID private key from file or environment"""
+        try:
+            # Try loading from file first
+            with open('vapid_private.pem', 'r') as f:
+                return f.read()
+        except FileNotFoundError:
+            # Fall back to environment variable
+            return os.getenv('VAPID_PRIVATE_KEY')
+    
+    def _load_vapid_public_key(self):
+        """Load VAPID public key from file or environment"""
+        try:
+            with open('vapid_public.pem', 'r') as f:
+                return f.read()
+        except FileNotFoundError:
+            return os.getenv('VAPID_PUBLIC_KEY')
+    
+    def get_subscriptions(self):
+        """Get all active push subscriptions from database"""
+        if self.app:
+            with self.app.app_context():
+                from app.models import PushSubscription
+                subs = PushSubscription.query.filter_by(active=True).all()
+                return [{
+                    "endpoint": sub.endpoint,
+                    "keys": {
+                        "p256dh": sub.p256dh_key,
+                        "auth": sub.auth_key
+                    }
+                } for sub in subs]
+        return []
     
     def send_notification(self, subscription_info: Dict, notification_data: Dict):
         """
@@ -30,43 +68,79 @@ class PushNotificationService:
         try:
             from pywebpush import webpush
             
-            webpush(
+            result = webpush(
                 subscription_info=subscription_info,
                 data=json.dumps(notification_data),
                 vapid_private_key=self.vapid_private_key,
                 vapid_claims=self.vapid_claims
             )
+            logging.info(f"✅ Push notification sent: {result.status_code}")
             return True
         except ImportError:
-            print("⚠️ pywebpush not installed. Run: pip install pywebpush")
+            logging.error("⚠️ pywebpush not installed. Run: pip install pywebpush")
             return False
         except Exception as e:
-            print(f"❌ Push notification failed: {e}")
+            logging.error(f"❌ Push notification failed: {e}")
+            # If endpoint is gone (410), mark subscription as inactive
+            if hasattr(e, 'response') and e.response.status_code == 410:
+                self._deactivate_subscription(subscription_info['endpoint'])
             return False
+    
+    def _deactivate_subscription(self, endpoint):
+        """Mark a subscription as inactive when it returns 410 Gone"""
+        if self.app:
+            with self.app.app_context():
+                from app.models import PushSubscription
+                from app.extensions import db
+                sub = PushSubscription.query.filter_by(endpoint=endpoint).first()
+                if sub:
+                    sub.active = False
+                    db.session.commit()
+                    logging.info(f"🗑️ Deactivated expired subscription")
     
     def notify_new_tenders(self, tenders: list):
         """Send notifications for new high-score tenders"""
         if not tenders:
             return
         
-        high_score_tenders = [t for t in tenders if t.score >= 70]
+        # Get notification settings
+        if self.app:
+            with self.app.app_context():
+                from app.models import AppSettings
+                settings = AppSettings.query.first()
+                if not settings or not settings.notifications_enabled:
+                    return
+                
+                min_score = settings.min_score_to_notify if settings else 50.0
+        else:
+            min_score = 50.0
+        
+        high_score_tenders = [t for t in tenders if t.score >= min_score]
         
         if not high_score_tenders:
             return
         
         notification = {
             "title": f"🎯 {len(high_score_tenders)} New High-Score Tenders!",
-            "body": f"Top: {high_score_tenders[0].title[:50]}...",
+            "body": f"Top: {high_score_tenders[0].title[:80]}",
             "icon": "/static/icon-192x192.png",
             "badge": "/static/badge-72x72.png",
-            "url": "/",
-            "tag": "new-tenders",
-            "requireInteraction": True  # Keep notification visible
+            "data": {
+                "url": f"/tender/{high_score_tenders[0].id}",
+                "tender_id": high_score_tenders[0].id
+            },
+            "tag": f"tender-{high_score_tenders[0].id}",
+            "requireInteraction": True
         }
         
         # Send to all subscribed devices
-        for subscription in self.subscriptions:
-            self.send_notification(subscription, notification)
+        subscriptions = self.get_subscriptions()
+        success_count = 0
+        for subscription in subscriptions:
+            if self.send_notification(subscription, notification):
+                success_count += 1
+        
+        logging.info(f"📱 Sent notifications to {success_count}/{len(subscriptions)} devices")
 
 
 # Setup instructions stored as constant

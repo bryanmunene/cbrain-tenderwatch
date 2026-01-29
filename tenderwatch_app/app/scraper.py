@@ -230,4 +230,16 @@ def run_scan():
         all_new_tenders.extend(new_tenders)
     
     print("✅ Scan complete!")
+    
+    # Send push notifications for new high-score tenders
+    if all_new_tenders:
+        try:
+            from flask import current_app
+            from app.push_notifications import PushNotificationService
+            
+            push_service = PushNotificationService(current_app._get_current_object())
+            push_service.notify_new_tenders(all_new_tenders)
+        except Exception as e:
+            print(f"⚠️ Push notification failed: {e}")
+    
     return all_new_tenders
