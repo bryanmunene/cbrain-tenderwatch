@@ -71,6 +71,9 @@ This applies to: `init_sources.py`, `migrate_db.py`, Flask shell, Streamlit DB q
 - **PWA-enabled (Flask only):** Service worker + manifest.json for offline caching
 - **Keep-alive strategies:** See `KEEP_ALIVE_SETUP.md` for preventing app sleep on free tiers
   - GitHub Actions workflows in `.github/workflows/` for automated scanning
+    - `auto-scan.yml`: Runs `run_scan()` every hour via cron schedule
+    - `keep-alive.yml`: Pings app URL every 5 minutes to prevent Streamlit Cloud sleep
+    - Manual trigger available via `workflow_dispatch` event
   - UptimeRobot configuration for UI ping services
 
 **Streamlit-Specific Patterns:**
@@ -118,7 +121,27 @@ This applies to: `init_sources.py`, `migrate_db.py`, Flask shell, Streamlit DB q
   - Models saved in `tenderwatch_app/models/` directory
   - Retrain after significant user feedback or weekly
 - **Toggle via AppSettings:** `ai_scoring_enabled`, `ai_learning_enabled`, `entity_extraction_enabled`
-- **Setup:** Run `setup_ai.ps1` or manually: `pip install -r requirements.txt && python -m spacy download en_core_web_sm && python migrate_ai_db.py`
+- **Complete AI Setup Workflow:**
+  1. **PowerShell (Windows):** Run `setup_ai.ps1` (auto-installs all dependencies)
+  2. **Manual setup (all platforms):**
+     ```powershell
+     cd tenderwatch_app
+     pip install sentence-transformers spacy scikit-learn
+     python -m spacy download en_core_web_sm  # 15-20MB download
+     python migrate_ai_db.py                   # Adds AI columns to database
+     ```
+  3. **Verify installation:**
+     ```python
+     python -c "import spacy; nlp = spacy.load('en_core_web_sm'); print('✓ spaCy ready')"
+     python -c "from sentence_transformers import SentenceTransformer; print('✓ Transformers ready')"
+     ```
+  4. **Disable AI if issues:** Run `disable_ai.py` to turn off all AI features (falls back to keyword scoring)
+  5. **Model caching:** First scan with AI takes 5-10s (downloads `all-MiniLM-L6-v2` ~80MB), subsequent scans <1s
+- **AI Troubleshooting:**
+  - "Model not found": Run `python -m spacy download en_core_web_sm` again
+  - "Out of memory": Disable AI via Settings UI or `disable_ai.py` script
+  - "Slow scans": AI models cache on first run; wait 10s then retry
+  - "Low confidence scores": Train model with ≥5 saved/favorited tenders via Settings → Retrain AI
 
 ### Category Assignment (categorizer.py)
 - **Keyword groups:** 6 categories from `KEYWORD_GROUPS` (80+ keywords total):
@@ -157,9 +180,13 @@ All routes use Flask Blueprint `main` (registered in `__init__.py`):
 - **TenderSource**: name, url, active (bool), favorite (bool)
 - **TenderResult**: title, link (unique), description, score, scoring_breakdown (JSON), category, confidence, saved, favorite, notified
   - **AI fields**: semantic_score, ai_confidence, entities_extracted (JSON), ai_summary
+  - **Extracted fields**: buyer, country, deadline (parsed via `deadlines.py`)
+- **PushSubscription**: endpoint (unique), p256dh_key, auth_key, user_agent, active (bool)
+  - Stores Web Push API subscriptions for mobile/desktop notifications
 - **LearnedKeyword**: (Optional) Stores learned keywords from `learner.py`
 - **AppSettings**: auto_scan_enabled, scan_interval_minutes, notification_enabled
   - **AI settings**: ai_scoring_enabled, ai_learning_enabled, entity_extraction_enabled
+  - **Notification settings**: notify_desktop, notify_email, min_score_to_notify, smtp_*
 - All models use `db.Column` from `extensions.py` (shared db instance)
 
 ## Integration Points
@@ -169,11 +196,43 @@ All routes use Flask Blueprint `main` (registered in `__init__.py`):
 - **Scheduler**: APScheduler runs `scheduled_scan()` every N minutes (configured in `AppSettings.scan_interval_minutes`)
   - Started in `scheduler.py`, initialized on app startup in `__init__.py`
   - Toggle via `AppSettings.auto_scan_enabled` boolean
-- **Notifications**: `notifications.py` uses `plyer` for desktop alerts on new high-score tenders (≥70%)
-  - Only triggers for new tenders (`notified=False`), sets flag after notification
+- **Notifications**: Dual notification system for high-score tenders (≥min_score_to_notify):
+  - **Desktop**: `notifications.py` uses `plyer` for native OS notifications
+  - **Push**: `push_notifications.py` uses `pywebpush` + Web Push API for mobile/browser alerts
+    - Requires VAPID keys (`vapid_private.pem`, `vapid_public.pem`) or env vars
+    - Generate new keys: `python -c "from pywebpush import webpush; print(webpush.WebPusher.generate_vapid_keys())"`
+    - VAPID subject: Set `VAPID_SUBJECT=mailto:admin@cbrain.net` (required for push API)
+    - Subscriptions stored in `PushSubscription` model (endpoint, p256dh_key, auth_key)
+    - Service worker in `static/service-worker.js` handles subscription + display
+    - Only triggers for new tenders (`notified=False`), sets flag after notification
+    - **Testing push notifications:**
+      - Android Chrome: Open app → Settings → Enable notifications → Grant permission
+      - iOS Safari 16.4+: Add to home screen first, then enable in Settings
+      - Desktop: Click bell icon in browser address bar to grant permission
+      - Verify subscription: Check `PushSubscription.query.all()` in Flask shell
+      - Test send: Use `test_push_notifications.py` script with sample data
+- **Deadline Parsing**: `deadlines.py` extracts dates from tender text
+  - Regex pattern: `(\d{1,2})[\/\-\s]([a-z]{3,9}|\d{1,2})[\/\-\s](\d{2,4})`
+  - Converts formats like "15-Jan-2026", "15/01/2026" → "2026-01-15" (ISO format)
+  - Stored in `TenderResult.deadline` field for sorting
 - **Adaptive Learning**: `learner.py` stores matched keywords in `LearnedKeyword` table for future scoring improvements
   - Called automatically after categorization in `scraper.py`: `learn_keywords(title, category)`
   - Weights increase with repeated matches (future enhancement: use in scoring)
+- **GitHub Actions Automation**: Scheduled workflows for unattended operations
+  - `auto-scan.yml`: Hourly tender scanning without manual intervention
+    - Runs `run_scan()` in Flask app context
+    - Uploads database artifacts for backup (7-day retention)
+    - Example: `python -c "from app import create_app; app = create_app(); ..."` pattern
+    - **Database persistence strategies:**
+      - Option 1: Commit database after scan (not recommended for SQLite on GitHub)
+      - Option 2: Use PostgreSQL on Railway/Render with connection string in env vars
+      - Option 3: Download artifacts manually from GitHub Actions → Artifacts tab
+      - Option 4: Sync to cloud storage (S3, Google Drive) via `rclone` in workflow
+      - Recommended: Deploy to Railway/Render with persistent PostgreSQL database
+  - `keep-alive.yml`: Prevents app hibernation on free hosting tiers
+    - Pings app URL every 5 minutes (Streamlit Cloud, Railway, Render)
+    - Uses `curl` with timeout and retry logic
+    - Alternative: UptimeRobot free tier (50 monitors, 5-min intervals)
 - **UI Theming**: Bootstrap 5 + cBrain brand colors in `base.html` and Streamlit CSS:
   - Blue: `#1e3a8a` (primary buttons, headers)
   - Teal: `#0f766e` (accents, links)
@@ -214,6 +273,19 @@ All routes use Flask Blueprint `main` (registered in `__init__.py`):
 **Migrate database schema:**
 - Use `migrate_db.py` to add new columns without losing data
 - Example pattern: `db.session.execute(text("ALTER TABLE tender_result ADD COLUMN new_field TEXT"))`
+
+**Test push notifications end-to-end:**
+1. **Generate VAPID keys:** `python -c "from pywebpush import webpush; keys = webpush.WebPusher.generate_vapid_keys(); print(f'Private:\n{keys["private_key"]}\n\nPublic:\n{keys["public_key"]}')"`
+2. **Save keys:** Copy output to `vapid_private.pem` and `vapid_public.pem` OR set env vars
+3. **Start app:** `streamlit run streamlit_app.py` or `python run.py`
+4. **Subscribe (browser):**
+   - Chrome/Edge: Open app → Click "Enable Notifications" → Allow permission
+   - iOS Safari: Add to home screen first → Open app → Settings → Enable notifications
+   - Firefox: Click bell icon in address bar → Allow
+5. **Verify subscription:** Check database `PushSubscription.query.all()` or Settings UI "Active Subscriptions"
+6. **Trigger notification:** Run scan with "Run Scan Now" button (score ≥ min_score_to_notify triggers push)
+7. **Test manually:** Run `python test_push_notifications.py` to send test notification to all subscribers
+8. **Debug failed sends:** Check browser console (F12) for "Service worker registration failed" errors
 
 ## Troubleshooting
 - **No scan results:** Check if any `TenderSource.active = True` in DB (query via `/sources` or Flask shell)
