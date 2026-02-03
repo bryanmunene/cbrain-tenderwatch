@@ -651,14 +651,26 @@ elif page == "🔍 Scan & Results":
                 
                 st.markdown("---")
     else:
+        # Make the entire empty state clickable
+        if st.button("🎯", key="empty_state_scan", help="Click to scan!", use_container_width=True, 
+                     type="primary", disabled=False):
+            with st.spinner("🔮 Working some magic..."):
+                new_tenders = run_tender_scan()
+                if new_tenders:
+                    st.success(f"🎉 Woohoo! Found {len(new_tenders)} awesome opportunities!")
+                else:
+                    st.info("🤔 Hmm, nothing new right now. Check back soon!")
+                st.rerun()
+        
         st.markdown("""
         <div style='text-align: center; padding: 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
-                    border-radius: 30px; margin: 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);'>
+                    border-radius: 30px; margin: 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2); cursor: pointer;'>
             <div style='font-size: 4rem; margin-bottom: 1rem; animation: bounce 2s infinite;'>🎯</div>
             <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>Ready for the Hunt?</h3>
             <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 2rem;'>
                 Let's discover some amazing tenders together! 🚀
             </p>
+            <p style='color: #a3a3a3; font-size: 0.9rem; font-style: italic;'>👆 Click the button above to start scanning!</p>
         </div>
         <style>
         @keyframes bounce {
