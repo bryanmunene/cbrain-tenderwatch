@@ -494,7 +494,22 @@ if page == "📊 Dashboard":
 
 elif page == "🔍 Scan & Results":
     st.title("🎯 Find Your Perfect Match!")
-    st.markdown("✨ Let's discover some amazing opportunities together!")
+    
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        st.markdown("✨ Let's discover some amazing opportunities together!")
+    
+    with col2:
+        if st.button("🚀 Let's Go!", key="top_scan_button", type="primary", use_container_width=True):
+            with st.spinner("🔮 Working some magic..."):
+                new_tenders = run_tender_scan()
+                if new_tenders:
+                    st.success(f"🎉 Woohoo! Found {len(new_tenders)} awesome opportunities!")
+                else:
+                    st.info("🤔 Hmm, nothing new right now. Check back soon!")
+                st.rerun()
+    
     st.markdown("---")
     
     # Filters and Export
