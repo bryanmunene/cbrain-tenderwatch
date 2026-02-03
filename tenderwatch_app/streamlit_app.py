@@ -638,7 +638,21 @@ elif page == "🔍 Scan & Results":
                             st.rerun()
                     
                     with col_b:
-                        save_icon = "💾" if tender.saved else "📥"linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
+                        save_icon = "💾" if tender.saved else "📥"
+                        if st.button(save_icon, key=f"save_{tender.id}", help="Toggle saved"):
+                            toggle_saved(tender.id)
+                            st.rerun()
+                    
+                    st.link_button("🔗 View Source", tender.link, use_container_width=True)
+                    
+                    if st.button("📖 Full Details", key=f"detail_{tender.id}", use_container_width=True):
+                        st.session_state['selected_tender'] = tender.id
+                        st.info("💡 Click 'View Source' above to see the full tender document")
+                
+                st.markdown("---")
+    else:
+        st.markdown("""
+        <div style='text-align: center; padding: 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
                     border-radius: 30px; margin: 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);'>
             <div style='font-size: 4rem; margin-bottom: 1rem; animation: bounce 2s infinite;'>🎯</div>
             <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>Ready for the Hunt?</h3>
@@ -651,21 +665,7 @@ elif page == "🔍 Scan & Results":
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-20px); }
         }
-        </style       if st.button("📖 Full Details", key=f"detail_{tender.id}", use_container_width=True):
-                        st.session_state['selected_tender'] = tender.id
-                        st.info("💡 Click 'View Source' above to see the full tender document")
-                
-                st.markdown("---")
-    else:
-        st.markdown("""
-        <div style='text-align: center; padding: 3rem; background: rgba(255,255,255,0.95); 
-                    border-radius: 20px; margin: 2rem 0;'>
-            <div style='font-size: 4rem; margin-bottom: 1rem;'>📭</div>
-            <h3 style='color: #2ba8d8; margin-bottom: 1rem;'>No Tenders Found</h3>
-            <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 2rem;'>
-                Adjust your filters or run a fresh scan to discover new opportunities!
-            </p>
-        </div>
+        </style>
         """, unsafe_allow_html=True)
         
         col1, col2, col3 = st.columns([1, 2, 1])
