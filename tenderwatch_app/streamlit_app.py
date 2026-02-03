@@ -486,8 +486,9 @@ if page == "📊 Dashboard":
         }
         </style>
         """, unsafe_allow_html=True)
-        st.info("**Get started:**\n1. Click **🔍 Scan & Results** in the sidebar
-2. Click **🔄 Run Scan Now** to find tenders
+        st.info("""**Get started:**
+1. Click **🔍 Scan & Results** in the sidebar
+2. Click **🚀 Let's Go!** to find tenders
 3. Or add tender sources in **📁 Sources**
         """)
 
