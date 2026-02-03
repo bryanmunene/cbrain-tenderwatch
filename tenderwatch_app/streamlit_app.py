@@ -651,7 +651,18 @@ elif page == "🔍 Scan & Results":
                 
                 st.markdown("---")
     else:
-        # Clickable bouncing bullseye
+        st.markdown("""
+        <style>
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        </style>
+        <div style='text-align: center; padding: 3rem 3rem 1rem 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
+                    border-radius: 30px 30px 0 0; margin: 2rem 0 0 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);'>
+        """, unsafe_allow_html=True)
+        
+        # Clickable bouncing bullseye inside the container
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
             if st.button("🎯", key="bullseye_scan", help="Click to scan!", 
@@ -666,10 +677,6 @@ elif page == "🔍 Scan & Results":
         
         st.markdown("""
         <style>
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
-        }
         div[data-testid="column"]:nth-child(2) button[kind="secondary"] {
             font-size: 4rem !important;
             background: transparent !important;
@@ -678,16 +685,18 @@ elif page == "🔍 Scan & Results":
             animation: bounce 2s infinite;
             cursor: pointer !important;
             box-shadow: none !important;
+            margin: 0 !important;
         }
         div[data-testid="column"]:nth-child(2) button[kind="secondary"]:hover {
-            transform: scale(1.1);
+            transform: scale(1.15);
             animation: none;
         }
         </style>
-        <div style='text-align: center; padding: 2rem 3rem 3rem 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
-                    border-radius: 30px; margin: 0rem 0 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);'>
+        </div>
+        <div style='text-align: center; padding: 0rem 3rem 3rem 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
+                    border-radius: 0 0 30px 30px; margin: 0 0 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);'>
             <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>Ready for the Hunt?</h3>
-            <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 0;'>
+            <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 0.5rem;'>
                 Let's discover some amazing tenders together! 🚀
             </p>
             <p style='color: #a3a3a3; font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;'>👆 Click the target above!</p>
