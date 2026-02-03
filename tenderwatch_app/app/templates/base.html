@@ -931,6 +931,42 @@
     </div>
 </div>
 
+<!-- Page Load Animation (Clickable) -->
+<div id="page-preloader" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%); z-index: 10000; justify-content: center; align-items: center; cursor: pointer;" onclick="window.location.href='{{ url_for('main.scan') }}'">
+    <div style="text-align: center;">
+        <div class="bullseye-spinner" style="position: relative; width: 120px; height: 120px; margin: 0 auto;">
+            <i class="fas fa-bullseye" style="font-size: 6rem; color: white; animation: spin 2s linear infinite;"></i>
+        </div>
+        <p style="color: white; margin-top: 2rem; font-size: 1.5rem; font-weight: 700; animation: pulse 1.5s ease-in-out infinite;">TenderWatch</p>
+        <p style="color: rgba(255,255,255,0.8); margin-top: 0.5rem; font-size: 1rem;">Click to scan opportunities!</p>
+    </div>
+</div>
+
+<style>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+
+<script>
+// Show preloader on page load
+window.addEventListener('load', function() {
+    const preloader = document.getElementById('page-preloader');
+    if (preloader) {
+        preloader.style.display = 'flex';
+        // Auto-hide after 2 seconds
+        setTimeout(() => {
+            preloader.style.opacity = '0';
+            preloader.style.transition = 'opacity 0.5s ease';
+            setTimeout(() => {
+                preloader.style.display = 'none';
+            }, 500);
+        }, 2000);
+    }
+});
+</script>
+
 <div class="container mt-5 mb-5">
     {% block content %}{% endblock %}
 </div>
