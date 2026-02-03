@@ -1,5 +1,7 @@
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify, make_response
 import json
+import csv
+from io import StringIO
 from datetime import datetime, timedelta
 
 from app.extensions import db
@@ -360,6 +362,83 @@ def test_notification():
     )
     
     return jsonify({"success": True, "message": "Test notification sent"})
+
+
+@main.route("/export/csv")
+def export_csv():
+    """Export tenders to CSV file"""
+    # Get same filters as scan page
+    sort_by = request.args.get("sort", "score")
+    category = request.args.get("category", "")
+    min_score = request.args.get("min_score", "0")
+    search = request.args.get("search", "").strip()
+    
+    try:
+        min_score = float(min_score)
+    except (ValueError, TypeError):
+        min_score = 0
+    
+    # Build query - filter by date (last month only)
+    one_month_ago = datetime.utcnow() - timedelta(days=30)
+    query = TenderResult.query.filter(TenderResult.created_at >= one_month_ago)
+    
+    if category:
+        query = query.filter_by(category=category)
+    
+    if min_score > 0:
+        query = query.filter(TenderResult.score >= min_score)
+    
+    if search:
+        query = query.filter(
+            db.or_(
+                TenderResult.title.ilike(f"%{search}%"),
+                TenderResult.description.ilike(f"%{search}%"),
+                TenderResult.buyer.ilike(f"%{search}%")
+            )
+        )
+    
+    results = query.order_by(TenderResult.created_at.desc()).all()
+    
+    # Sort results
+    if sort_by == "score":
+        results = sorted(results, key=lambda x: x.score or 0, reverse=True)
+    elif sort_by == "deadline":
+        results = sorted(results, key=lambda x: x.deadline or "", reverse=False)
+    elif sort_by == "newest":
+        results = sorted(results, key=lambda x: x.created_at, reverse=True)
+    
+    # Create CSV
+    si = StringIO()
+    writer = csv.writer(si)
+    
+    # Write header
+    writer.writerow([
+        'Title', 'Score', 'Category', 'Country', 'Buyer', 
+        'Deadline', 'Link', 'Keywords Matched', 'Saved', 'Favorite', 'Date Added'
+    ])
+    
+    # Write data
+    for tender in results:
+        writer.writerow([
+            tender.title or '',
+            f"{tender.score:.1f}" if tender.score else '0',
+            tender.category or '',
+            tender.country or '',
+            tender.buyer or '',
+            tender.deadline or '',
+            tender.link or '',
+            tender.keywords_matched or '',
+            'Yes' if tender.saved else 'No',
+            'Yes' if tender.favorite else 'No',
+            tender.created_at.strftime('%Y-%m-%d %H:%M') if tender.created_at else ''
+        ])
+    
+    # Create response
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename=tenderwatch_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    output.headers["Content-type"] = "text/csv"
+    
+    return output
 
 
 from app.translator import translate_to_english, detect_language

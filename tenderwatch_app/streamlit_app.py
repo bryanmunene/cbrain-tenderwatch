@@ -24,83 +24,159 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for modern, friendly design
-st.markdown("""
+# Initialize session state for theme
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'light'
+
+# Custom CSS for modern, friendly design with dark mode
+st.markdown(f"""
 <style>
-    .main {
-        background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%);
-        background-attachment: fixed;
-    }
+    /* Theme Variables */
+    :root {{
+        --bg-primary: {'#0f172a' if st.session_state.theme == 'dark' else '#ffffff'};
+        --bg-secondary: {'#1e293b' if st.session_state.theme == 'dark' else '#f8fafc'};
+        --text-primary: {'#f1f5f9' if st.session_state.theme == 'dark' else '#1e293b'};
+        --text-secondary: {'#94a3b8' if st.session_state.theme == 'dark' else '#64748b'};
+        --border-color: {'#334155' if st.session_state.theme == 'dark' else '#e2e8f0'};
+        --card-bg: {'#1e293b' if st.session_state.theme == 'dark' else '#ffffff'};
+    }}
     
-    .stApp {
+    /* Main background */
+    .main {{
+        background: {'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)'};
+        background-attachment: fixed;
+    }}
+    
+    .stApp {{
         background: transparent;
-    }
+    }}
     
     /* Modern card styling */
-    [data-testid="stMetricValue"] {
+    [data-testid="stMetricValue"] {{
         font-size: 2rem;
         font-weight: 700;
-        color: #ffffff;
-    }
+        color: var(--text-primary);
+    }}
     
-    .stButton>button {
-        background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%);
+    [data-testid="stMetricLabel"] {{
+        color: var(--text-secondary);
+        font-weight: 600;
+    }}
+    
+    /* Button styling */
+    .stButton>button {{
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        border-radius: 25px;
-        padding: 0.6rem 1.5rem;
+        border-radius: 12px;
+        padding: 0.75rem 2rem;
         font-weight: 600;
         border: none;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         transition: all 0.3s ease;
-    }
+    }}
     
-    .stButton>button:hover {
+    .stButton>button:hover {{
         transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-    }
+        box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+    }}
     
-    h1, h2, h3 {
-        color: #ffffff;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-    }
+    /* Headers */
+    h1, h2, h3 {{
+        color: var(--text-primary);
+        font-weight: 700;
+    }}
     
-    /* Score styling */
-    .high-score {
-        color: #10b981;
-        font-weight: bold;
-        font-size: 1.5rem;
-    }
-    .medium-score {
-        color: #f59e0b;
-        font-weight: bold;
-        font-size: 1.5rem;
-    }
-    .low-score {
-        color: #ef4444;
-        font-weight: bold;
-        font-size: 1.5rem;
-    }
+    /* Score badges */
+    .high-score {{
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        font-weight: 700;
+        display: inline-block;
+        font-size: 1.2rem;
+    }}
+    .medium-score {{
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        font-weight: 700;
+        display: inline-block;
+        font-size: 1.2rem;
+    }}
+    .low-score {{
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        font-weight: 700;
+        display: inline-block;
+        font-size: 1.2rem;
+    }}
     
     /* Input styling */
-    .stTextInput>div>div>input, .stSelectbox>div>div>select {
+    .stTextInput>div>div>input, .stSelectbox>div>div>select, .stNumberInput>div>div>input {{
         border-radius: 10px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        background: rgba(255, 255, 255, 0.9);
-        color: #1f2937 !important;
-    }
+        border: 2px solid var(--border-color);
+        background: var(--card-bg);
+        color: var(--text-primary) !important;
+    }}
     
-    .stTextInput>div>div>input::placeholder {
-        color: #9ca3af !important;
-    }
+    /* Card containers */
+    .stExpander {{
+        background: var(--card-bg);
+        border-radius: 16px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }}
     
     /* Sidebar styling */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #2d3e50 0%, #2ba8d8 100%);
-    }
+    [data-testid="stSidebar"] {{
+        background: linear-gradient(180deg, {'#1e293b' if st.session_state.theme == 'dark' else '#2d3e50'} 0%, {'#0f172a' if st.session_state.theme == 'dark' else '#2ba8d8'} 100%);
+    }}
     
-    [data-testid="stSidebar"] * {
+    [data-testid="stSidebar"] * {{
         color: white !important;
-    }
+    }}
+    
+    /* Metric cards */
+    [data-testid="stMetric"] {{
+        background: var(--card-bg);
+        padding: 1.5rem;
+        border-radius: 16px;
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }}
+    
+    [data-testid="stMetric"]:hover {{
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }}
+    
+    /* Info/Success/Warning/Error boxes */
+    .stAlert {{
+        border-radius: 12px;
+        border-left: 4px solid;
+    }}
+    
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 8px;
+    }}
+    
+    .stTabs [data-baseweb="tab"] {{
+        border-radius: 12px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+    }}
+    
+    /* Dataframe styling */
+    [data-testid="stDataFrame"] {{
+        border-radius: 12px;
+        overflow: hidden;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -275,6 +351,17 @@ with st.sidebar:
     st.markdown("**cBrain F2 Tenderwatch**")
     st.markdown("---")
     
+    # Dark mode toggle
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.markdown("**Theme**")
+    with col2:
+        if st.button("🌓"):
+            st.session_state.theme = 'dark' if st.session_state.theme == 'light' else 'light'
+            st.rerun()
+    
+    st.markdown("---")
+    
     page = st.radio(
         "Navigation",
         ["📊 Dashboard", "🔍 Scan & Results", "📁 Sources", "⭐ Favorites", "💾 Saved", "⚙️ Settings"],
@@ -287,22 +374,57 @@ with st.sidebar:
 # Main content based on selected page
 if page == "📊 Dashboard":
     st.title("📊 Dashboard")
+    st.markdown("Overview of all tender opportunities")
     
     stats = get_stats()
     
-    # Metrics row
+    # Metrics row with icons
     col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
-        st.metric("Total Tenders", stats['total'])
+        st.markdown("""
+            <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);'>
+                <div style='font-size: 2.5rem; margin-bottom: 0.5rem;'>📊</div>
+                <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['total']) + """</div>
+                <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>Total Tenders</div>
+            </div>
+        """, unsafe_allow_html=True)
+    
     with col2:
-        st.metric("High Score (≥70%)", stats['high_score'])
+        st.markdown("""
+            <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);'>
+                <div style='font-size: 2.5rem; margin-bottom: 0.5rem;'>🎯</div>
+                <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['high_score']) + """</div>
+                <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>High Score (≥70%)</div>
+            </div>
+        """, unsafe_allow_html=True)
+    
     with col3:
-        st.metric("Saved", stats['saved'])
+        st.markdown("""
+            <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);'>
+                <div style='font-size: 2.5rem; margin-bottom: 0.5rem;'>💾</div>
+                <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['saved']) + """</div>
+                <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>Saved</div>
+            </div>
+        """, unsafe_allow_html=True)
+    
     with col4:
-        st.metric("Favorites", stats['favorites'])
+        st.markdown("""
+            <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);'>
+                <div style='font-size: 2.5rem; margin-bottom: 0.5rem;'>⭐</div>
+                <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['favorites']) + """</div>
+                <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>Favorites</div>
+            </div>
+        """, unsafe_allow_html=True)
+    
     with col5:
-        st.metric("Active Sources", stats['active_sources'])
+        st.markdown("""
+            <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);'>
+                <div style='font-size: 2.5rem; margin-bottom: 0.5rem;'>📡</div>
+                <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['active_sources']) + """</div>
+                <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>Active Sources</div>
+            </div>
+        """, unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -318,7 +440,7 @@ if page == "📊 Dashboard":
                 list(stats['categories'].items()),
                 columns=['Category', 'Count']
             ).sort_values('Count', ascending=False)
-            st.bar_chart(cat_df.set_index('Category'))
+            st.bar_chart(cat_df.set_index('Category'), height=400)
         
         with col2:
             # Table
@@ -380,8 +502,27 @@ elif page == "🔍 Scan & Results":
     
     st.markdown("---")
     
-    # Filters
-    st.subheader("🎛️ Filters")
+    # Filters and Export
+    col_filter, col_export = st.columns([4, 1])
+    
+    with col_filter:
+        st.subheader("🎛️ Filters")
+    
+    with col_export:
+        # CSV Export button
+        all_tenders_for_export = get_tenders()
+        if all_tenders_for_export:
+            csv_data = "Title,Link,Score,Category,Country,Deadline,Description\n"
+            for t in all_tenders_for_export:
+                csv_data += f'"{t.title}","{t.link}",{t.score},"{t.category or ""}","{t.country or ""}","{t.deadline or ""}","{(t.description or "")[:200]}"\n'
+            
+            st.download_button(
+                label="📥 Export CSV",
+                data=csv_data,
+                file_name=f"tenders_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv",
+                help="Download all tenders as CSV"
+            )
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -420,53 +561,33 @@ elif page == "🔍 Scan & Results":
                 score_emoji = "🎯"
                 score_color = "#10b981"
                 score_label = "Highly Relevant"
+                score_class = "high-score"
             elif tender.score >= 40:
                 score_emoji = "📊"
                 score_color = "#f59e0b"
                 score_label = "Good Match"
+                score_class = "medium-score"
             else:
                 score_emoji = "📝"
                 score_color = "#ef4444"
                 score_label = "Potential Match"
+                score_class = "low-score"
             
-            # Create attractive card
+            # Create attractive card with modern styling
             with st.container():
-                # Translation toggle state
-                translation_key = f"show_translation_{tender.id}"
-                if translation_key not in st.session_state:
-                    st.session_state[translation_key] = False
-                
-                # Determine which title to show
-                if tender.title_translated and tender.title_translated != tender.title:
-                    display_title = tender.title_translated if st.session_state[translation_key] else tender.title
-                    show_translation_btn = True
-                else:
-                    display_title = tender.title
-                    show_translation_btn = False
-                
                 st.markdown(f"""
-                <div style='background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%); 
-                            padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; 
-                            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);'>
-                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;'>
-                        <span style='background: rgba(255,255,255,0.95); color: {score_color}; 
-                                     padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold; font-size: 1.1rem;'>
-                            {score_emoji} {tender.score:.0f}% {score_label}
-                        </span>
-                        <span style='background: rgba(255,255,255,0.2); color: white; 
-                                     padding: 0.4rem 0.8rem; border-radius: 15px; font-size: 0.9rem;'>
-                            📁 {tender.category or 'Uncategorized'}
-                        </span>
+                    <div style='background: var(--card-bg); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); margin-bottom: 1rem; transition: all 0.3s ease;'>
+                        <div style='display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;'>
+                            <h3 style='margin: 0; color: var(--text-primary); flex: 1;'>{tender.title}</h3>
+                            <span class='{score_class}' style='margin-left: 1rem; white-space: nowrap;'>{score_emoji} {tender.score:.0f}%</span>
+                        </div>
+                        <div style='display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;'>
+                            {f'<span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.25rem 0.75rem; border-radius: 8px; font-size: 0.85rem;">📁 {tender.category}</span>' if tender.category else ''}
+                            {f'<span style="background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); color: white; padding: 0.25rem 0.75rem; border-radius: 8px; font-size: 0.85rem;">🌍 {tender.country}</span>' if tender.country else ''}
+                            {f'<span style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; padding: 0.25rem 0.75rem; border-radius: 8px; font-size: 0.85rem;">⏰ {tender.deadline}</span>' if tender.deadline else ''}
+                        </div>
                     </div>
-                    <h3 style='color: white; margin: 0; font-size: 1.3rem; line-height: 1.4;'>{display_title}</h3>
-                </div>
                 """, unsafe_allow_html=True)
-                
-                # Translation toggle button
-                if show_translation_btn:
-                    if st.button("🌐 Toggle Translation", key=f"translate_btn_{tender.id}"):
-                        st.session_state[translation_key] = not st.session_state[translation_key]
-                        st.rerun()
                 
                 # Details section
                 col1, col2, col3 = st.columns([2, 1, 1])
@@ -679,7 +800,14 @@ elif page == "⚙️ Settings":
         
         st.markdown("---")
         
-        st.subheader("📱 Push Notifications (Mobile/Desktop)")
+        # Modern settings sections with icons
+        st.markdown("""
+            <div style='padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; margin-bottom: 1rem;'>
+                <div style='font-size: 2rem; text-align: center; margin-bottom: 0.5rem;'>📱</div>
+                <div style='text-align: center; color: white; font-weight: 600; font-size: 1.2rem;'>Push Notifications</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
         st.markdown("""
         Receive instant alerts for new high-score tenders on your phone or desktop browser.
         
@@ -722,24 +850,27 @@ elif page == "⚙️ Settings":
         
         st.markdown("---")
         
-        if st.button("💾 Save Settings", key="save_settings_button", type="primary"):
-            if settings:
-                settings.auto_scan_enabled = auto_scan
-                settings.scan_interval_minutes = scan_interval
-                settings.notification_enabled = notification_enabled
-                settings.min_score_to_notify = float(min_score)
-                db.session.commit()
-                st.success("✅ Settings saved!")
-            else:
-                new_settings = AppSettings(
-                    auto_scan_enabled=auto_scan,
-                    scan_interval_minutes=scan_interval,
-                    notification_enabled=notification_enabled,
-                    min_score_to_notify=float(min_score)
-                )
-                db.session.add(new_settings)
-                db.session.commit()
-                st.success("✅ Settings saved!")
+        # Save button with modern styling
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("💾 Save Settings", key="save_settings_button", type="primary", use_container_width=True):
+                if settings:
+                    settings.auto_scan_enabled = auto_scan
+                    settings.scan_interval_minutes = scan_interval
+                    settings.notification_enabled = notification_enabled
+                    settings.min_score_to_notify = float(min_score)
+                    db.session.commit()
+                    st.success("✅ Settings saved!")
+                else:
+                    new_settings = AppSettings(
+                        auto_scan_enabled=auto_scan,
+                        scan_interval_minutes=scan_interval,
+                        notification_enabled=notification_enabled,
+                        min_score_to_notify=float(min_score)
+                    )
+                    db.session.add(new_settings)
+                    db.session.commit()
+                    st.success("✅ Settings saved!")
         
         st.markdown("---")
         

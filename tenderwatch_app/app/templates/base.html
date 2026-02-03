@@ -35,9 +35,26 @@
             --text-secondary: #6b7280;
         }
 
+        /* Dark Mode Variables */
+        [data-theme="dark"] {
+            --primary: #3b82f6;
+            --accent: #60a5fa;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-hover: #334155;
+            --border: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+        }
+
         * {
             scrollbar-color: #d1d5db #f9fafb;
             scrollbar-width: thin;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        [data-theme="dark"] * {
+            scrollbar-color: #334155 #1e293b;
         }
 
         body {
@@ -78,13 +95,20 @@
         .nav-link {
             color: #dbeafe !important;
             transition: all 0.3s ease;
-            margin: 0 0.5rem;
             font-weight: 500;
+            padding: 0.75rem 1.25rem !important;
+            border-radius: 8px;
+            margin: 0 0.25rem;
         }
 
         .nav-link:hover {
             color: #fff !important;
-            opacity: 1;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff !important;
         }
 
         /* Buttons */
@@ -837,10 +861,37 @@
                         <i class="fas fa-cog"></i> Settings
                     </a>
                 </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="theme-toggle" style="border: none; background: none; cursor: pointer;">
+                        <i class="fas fa-moon" id="theme-icon"></i>
+                    </button>
+                </li>
             </ul>
         </div>
     </div>
 </nav>
+
+<!-- Toast Container -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+    <div id="toast" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body" id="toast-message" style="font-weight: 500;">
+                <!-- Toast message goes here -->
+            </div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 9998; backdrop-filter: blur(5px);">
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+        <div class="spinner-border text-light" role="status" style="width: 4rem; height: 4rem; border-width: 0.5rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p id="loading-text" style="color: white; margin-top: 1.5rem; font-size: 1.2rem; font-weight: 600;">Loading...</p>
+    </div>
+</div>
 
 <div class="container mt-5 mb-5">
     {% block content %}{% endblock %}
@@ -854,6 +905,183 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='pwa.js') }}"></script>
+
+<!-- Dark Mode Toggle Script -->
+<script>
+// Initialize theme from localStorage or system preference
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+    
+    setTheme(theme);
+}
+
+// Set theme and update UI
+function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+    
+    const icon = document.getElementById('theme-icon');
+    if (icon) {
+        icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    }
+    
+    // Update PWA theme-color
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+        metaThemeColor.setAttribute('content', theme === 'dark' ? '#0f172a' : '#1e3a8a');
+    }
+}
+
+// Toggle theme
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    
+    const toggleBtn = document.getElementById('theme-toggle');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', toggleTheme);
+    }
+    
+    // Listen for system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        if (!localStorage.getItem('theme')) {
+            setTheme(e.matches ? 'dark' : 'light');
+        }
+    });
+});
+
+// Keyboard shortcut: Alt+D to toggle dark mode
+document.addEventListener('keydown', (e) => {
+    if (e.altKey && e.key === 'd') {
+        e.preventDefault();
+        toggleTheme();
+    }
+});
+
+// ==== TOAST NOTIFICATIONS ====
+function showToast(message, type = 'info', duration = 3000) {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toast-message');
+    
+    // Set message
+    toastMessage.textContent = message;
+    
+    // Set color based on type
+    toast.className = 'toast align-items-center border-0';
+    switch(type) {
+        case 'success':
+            toast.classList.add('text-bg-success');
+            break;
+        case 'error':
+        case 'danger':
+            toast.classList.add('text-bg-danger');
+            break;
+        case 'warning':
+            toast.classList.add('text-bg-warning');
+            break;
+        default:
+            toast.classList.add('text-bg-primary');
+    }
+    
+    // Show toast
+    const bsToast = new bootstrap.Toast(toast, { delay: duration });
+    bsToast.show();
+}
+
+// ==== LOADING OVERLAY ====
+function showLoading(message = 'Loading...') {
+    const overlay = document.getElementById('loading-overlay');
+    const loadingText = document.getElementById('loading-text');
+    loadingText.textContent = message;
+    overlay.style.display = 'block';
+}
+
+function hideLoading() {
+    const overlay = document.getElementById('loading-overlay');
+    overlay.style.display = 'none';
+}
+
+// ==== KEYBOARD SHORTCUTS ====
+document.addEventListener('keydown', (e) => {
+    // Alt+S: Focus search
+    if (e.altKey && e.key === 's') {
+        e.preventDefault();
+        const searchInput = document.getElementById('search');
+        if (searchInput) searchInput.focus();
+    }
+    
+    // Alt+N: New scan (if on scan page)
+    if (e.altKey && e.key === 'n') {
+        e.preventDefault();
+        const scanForm = document.querySelector('form[method="post"]');
+        if (scanForm) scanForm.submit();
+    }
+    
+    // Alt+H: Go to home/dashboard
+    if (e.altKey && e.key === 'h') {
+        e.preventDefault();
+        window.location.href = "{{ url_for('main.dashboard') }}";
+    }
+    
+    // ? : Show shortcuts help
+    if (e.key === '?' && !e.target.matches('input, textarea')) {
+        e.preventDefault();
+        showToast('Shortcuts: Alt+D (Dark), Alt+S (Search), Alt+N (Scan), Alt+H (Home)', 'info', 5000);
+    }
+});
+
+// ==== FORM LOADING STATES ====
+document.addEventListener('DOMContentLoaded', () => {
+    // Add loading state to all forms
+    document.querySelectorAll('form[method="post"]').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn && !submitBtn.disabled) {
+                const originalHTML = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + (submitBtn.textContent.trim() || 'Processing...');
+                
+                // Re-enable after 10 seconds as fallback
+                setTimeout(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalHTML;
+                }, 10000);
+            }
+        });
+    });
+    
+    // Check for flash messages and convert to toasts
+    const alerts = document.querySelectorAll('.alert');
+    alerts.forEach(alert => {
+        if (alert.classList.contains('alert-success')) {
+            showToast(alert.textContent.trim(), 'success');
+            alert.style.display = 'none';
+        } else if (alert.classList.contains('alert-danger')) {
+            showToast(alert.textContent.trim(), 'error');
+            alert.style.display = 'none';
+        } else if (alert.classList.contains('alert-warning')) {
+            showToast(alert.textContent.trim(), 'warning');
+            alert.style.display = 'none';
+        }
+    });
+});
+
+// ==== PWA INSTALL PROMPT ====
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    // Show install button if you add one
+});
+</script>
 
 </body>
 </html>

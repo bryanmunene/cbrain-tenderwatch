@@ -4,66 +4,112 @@
 
 {% block content %}
 
-<!-- Hero Header -->
-<div style="background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%); padding: 2rem; border-radius: 15px; margin-bottom: 2rem; color: white;">
-    <h1 style=\"margin: 0; font-weight: 700;\"><i class=\"fas fa-chart-line\"></i> Welcome to TenderWatch</h1>
-    <p style=\"margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 1.1rem;\">Your intelligent tender discovery dashboard</p>
+<!-- Hero Header with Quick Actions -->
+<div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); padding: 2.5rem; border-radius: 20px; margin-bottom: 2rem; color: white; box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3);">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h1 style="margin: 0; font-weight: 700; font-size: 2.5rem;">👋 Welcome Back!</h1>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.95; font-size: 1.15rem;">Discover opportunities perfectly matched for cBrain</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{{ url_for('main.scan') }}" class="btn btn-light btn-lg shadow-sm" style="border-radius: 12px; padding: 0.75rem 2rem; font-weight: 600;">
+                <i class="fas fa-search"></i> Scan Now
+            </a>
+        </div>
+    </div>
 </div>
 
 <!-- Statistics Cards -->
-<div class=\"row mb-5\">
-    <div class=\"col-md-3 mb-3\">
-        <div class=\"card border-0 shadow-sm\" style=\"border-radius: 15px; background: linear-gradient(135deg, #e0e7ff 0%, #ddd6fe 100%);\">
-            <div class=\"card-body text-center\">
-                <div style=\"font-size: 2.5rem; margin-bottom: 0.5rem;\">📄</div>
-                <h3 style=\"font-size: 2rem; margin: 0; color: #4338ca;\">{{ total_tenders }}</h3>
-                <p class=\"mb-0\" style=\"color: #6366f1; font-weight: 600;\">Total Tenders</p>
+<div class="row mb-5 g-4">
+    <!-- Total Tenders -->
+    <div class="col-md-3 col-sm-6">
+        <div class="card border-0 h-100 shadow-sm hover-lift" style="background: white; border-radius: 16px; transition: all 0.3s ease;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-3">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                        <i class="fas fa-file-alt" style="color: white; font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <h2 class="mb-0" style="font-weight: 700; color: #1e293b;">{{ total_tenders }}</h2>
+                        <p class="mb-0 text-muted" style="font-size: 0.875rem;">Total Tenders</p>
+                    </div>
+                </div>
+                <a href="{{ url_for('main.scan') }}" class="text-decoration-none" style="color: #667eea; font-weight: 500; font-size: 0.875rem;">View all <i class="fas fa-arrow-right ms-1"></i></a>
             </div>
         </div>
     </div>
-    <div class=\"col-md-3 mb-3\">
-        <div class=\"card border-0 shadow-sm\" style=\"border-radius: 15px; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);\">
-            <div class=\"card-body text-center\">
-                <div style=\"font-size: 2.5rem; margin-bottom: 0.5rem;\">🎯</div>
-                <h3 style=\"font-size: 2rem; margin: 0; color: #065f46;\">{{ high_score_count }}</h3>
-                <p class=\"mb-0\" style=\"color: #059669; font-weight: 600;\">High Score (70+)</p>
+
+    <!-- High Score Tenders -->
+    <div class="col-md-3 col-sm-6">
+        <div class="card border-0 h-100 shadow-sm hover-lift" style="background: white; border-radius: 16px; transition: all 0.3s ease;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-3">
+                    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                        <i class="fas fa-bullseye" style="color: white; font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <h2 class="mb-0" style="font-weight: 700; color: #1e293b;">{{ high_score_count }}</h2>
+                        <p class="mb-0 text-muted" style="font-size: 0.875rem;">High Score (70+)</p>
+                    </div>
+                </div>
+                <a href="{{ url_for('main.scan', min_score=70) }}" class="text-decoration-none" style="color: #f5576c; font-weight: 500; font-size: 0.875rem;">View all <i class="fas fa-arrow-right ms-1"></i></a>
             </div>
         </div>
     </div>
-    <div class=\"col-md-3 mb-3\">
-        <div class=\"card border-0 shadow-sm\" style=\"border-radius: 15px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);\">
-            <div class=\"card-body text-center\">
-                <div style=\"font-size: 2.5rem; margin-bottom: 0.5rem;\">⭐</div>
-                <h3 style=\"font-size: 2rem; margin: 0; color: #92400e;\">{{ favorite_count }}</h3>
-                <p class=\"mb-0\" style=\"color: #d97706; font-weight: 600;\">Favorites</p>
+
+    <!-- Favorites -->
+    <div class="col-md-3 col-sm-6">
+        <div class="card border-0 h-100 shadow-sm hover-lift" style="background: white; border-radius: 16px; transition: all 0.3s ease;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-3">
+                    <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                        <i class="fas fa-star" style="color: white; font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <h2 class="mb-0" style="font-weight: 700; color: #1e293b;">{{ favorite_count }}</h2>
+                        <p class="mb-0 text-muted" style="font-size: 0.875rem;">Favorites</p>
+                    </div>
+                </div>
+                <a href="{{ url_for('main.favorites') }}" class="text-decoration-none" style="color: #fa709a; font-weight: 500; font-size: 0.875rem;">View all <i class="fas fa-arrow-right ms-1"></i></a>
             </div>
         </div>
     </div>
-    <div class=\"col-md-3 mb-3\">
-        <div class=\"card border-0 shadow-sm\" style=\"border-radius: 15px; background: linear-gradient(135deg, #ddd6fe 0%, #e9d5ff 100%);\">
-            <div class=\"card-body text-center\">
-                <div style=\"font-size: 2.5rem; margin-bottom: 0.5rem;\">💾</div>
-                <h3 style=\"font-size: 2rem; margin: 0; color: #6b21a8;\">{{ saved_count }}</h3>
-                <p class=\"mb-0\" style=\"color: #9333ea; font-weight: 600;\">Saved</p>
+
+    <!-- Saved -->
+    <div class="col-md-3 col-sm-6">
+        <div class="card border-0 h-100 shadow-sm hover-lift" style="background: white; border-radius: 16px; transition: all 0.3s ease;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-3">
+                    <div style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                        <i class="fas fa-bookmark" style="color: white; font-size: 1.5rem;"></i>
+                    </div>
+                    <div>
+                        <h2 class="mb-0" style="font-weight: 700; color: #1e293b;">{{ saved_count }}</h2>
+                        <p class="mb-0 text-muted" style="font-size: 0.875rem;">Saved</p>
+                    </div>
+                </div>
+                <a href="{{ url_for('main.saved') }}" class="text-decoration-none" style="color: #30cfd0; font-weight: 500; font-size: 0.875rem;">View all <i class="fas fa-arrow-right ms-1"></i></a>
             </div>
         </div>
     </div>
 </div>
 
-<div class=\"row mb-5\">
-    <div class=\"col-md-6\">
-        <!-- Active Sources -->
-        <div class=\"card border-0 shadow-sm\" style=\"border-radius: 15px;\">
-            <div class="card-header" style="background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%);">
-                <h5 class=\"card-title mb-0\" style=\"color: white;\">
-                    <i class=\"fas fa-link\"></i> Active Sources
-                </h5>
-            </div>
-            <div class=\"card-body\">
-                <div style=\"font-size: 2.5rem; margin-bottom: 0.5rem;\">🔗 {{ active_sources }}</div>
-                <p class=\"text-muted mb-3\">Sources currently being scanned</p>
-                <a href="{{ url_for('main.sources') }}" class="btn btn-primary" style="border-radius: 10px; background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%); border: none;">
-                    <i class=\"fas fa-cog\"></i> Manage Sources
+<div class="row mb-5 g-4">
+    <!-- Active Sources -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100" style="border-radius: 16px;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-4">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                        <i class="fas fa-link" style="color: white; font-size: 1.25rem;"></i>
+                    </div>
+                    <div>
+                        <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Active Sources</h4>
+                        <p class="mb-0 text-muted" style="font-size: 0.875rem;">{{ active_sources }} sources scanning</p>
+                    </div>
+                </div>
+                <a href="{{ url_for('main.sources') }}" class="btn btn-outline-primary" style="border-radius: 10px; border-width: 2px;">
+                    <i class="fas fa-cog"></i> Manage Sources
                 </a>
             </div>
         </div>
@@ -71,28 +117,32 @@
 
     <!-- Category Breakdown -->
     <div class="col-md-6">
-        <div class="card border-0 mb-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-tags"></i> Categories
-                </h5>
-            </div>
-            <div class="card-body">
+        <div class="card border-0 shadow-sm h-100" style="border-radius: 16px;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-4">
+                    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                        <i class="fas fa-tags" style="color: white; font-size: 1.25rem;"></i>
+                    </div>
+                    <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Categories</h4>
+                </div>
                 {% if categories %}
-                <div class="list-group list-group-flush">
-                    {% for category_name, count in categories %}
-                    <div class="list-group-item d-flex justify-content-between align-items-center ps-0 pe-0 border-0 pt-2 pb-2">
-                        <span>
+                <div class="d-flex flex-column gap-2">
+                    {% for category_name, count in categories[:3] %}
+                    <div class="d-flex justify-content-between align-items-center p-2 rounded" style="background: #f8fafc;">
+                        <span style="font-weight: 500; color: #334155;">
                             {% if category_name %}
-                                <i class="fas fa-folder"></i> {{ category_name }}
+                                {{ category_name }}
                             {% else %}
-                                <i class="fas fa-question-circle"></i> Uncategorized
+                                Uncategorized
                             {% endif %}
                         </span>
-                        <span class="badge bg-primary">{{ count }}</span>
+                        <span class="badge" style="background: #667eea; font-weight: 600;">{{ count }}</span>
                     </div>
                     {% endfor %}
                 </div>
+                {% if categories|length > 3 %}
+                <p class="text-muted mb-0 mt-3" style="font-size: 0.875rem;">+ {{ categories|length - 3 }} more categories</p>
+                {% endif %}
                 {% else %}
                 <p class="text-muted mb-0">No categories yet. Run a scan to start.</p>
                 {% endif %}
@@ -102,82 +152,91 @@
 </div>
 
 <!-- Source Contribution Breakdown -->
-<div class="card border-0 mb-5">
-    <div class="card-header">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-chart-pie"></i> Tenders by Source
-        </h5>
-    </div>
-    <div class="card-body">
+<div class="card border-0 shadow-sm mb-5" style="border-radius: 16px;">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center mb-4">
+            <div style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                <i class="fas fa-chart-pie" style="color: white; font-size: 1.25rem;"></i>
+            </div>
+            <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Tenders by Source</h4>
+        </div>
         {% if source_contributions %}
-        <div class="list-group list-group-flush">
+        <div class="row g-3">
             {% for source_name, count in source_contributions %}
-            <div class="list-group-item d-flex justify-content-between align-items-center ps-0 pe-0 border-0 pt-3 pb-3">
-                <div>
-                    <strong>{{ source_name }}</strong>
+            <div class="col-md-6">
+                <div class="p-3 rounded" style="background: #f8fafc; border-left: 4px solid {% if count > 0 %}#30cfd0{% else %}#fbbf24{% endif %};">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span style="font-weight: 600; color: #334155;">{{ source_name }}</span>
+                        <span class="badge" style="background: {% if count > 0 %}#30cfd0{% else %}#fbbf24{% endif %}; font-weight: 600;">
+                            {{ count }} tender{% if count != 1 %}s{% endif %}
+                        </span>
+                    </div>
                     {% if count == 0 %}
-                    <span class="badge bg-warning ms-2">No tenders found</span>
+                    <small class="text-muted d-block mt-1">No results yet</small>
                     {% endif %}
                 </div>
-                <span class="badge bg-primary" style="font-size: 0.9rem;">{{ count }} tender{% if count != 1 %}s{% endif %}</span>
             </div>
             {% endfor %}
         </div>
-        <div class="alert alert-info mt-3 mb-0">
-            <i class="fas fa-info-circle"></i> 
-            <strong>Troubleshooting:</strong> If a source shows "No tenders found", make sure it's active on the <a href="{{ url_for('main.sources') }}">Sources page</a> and check that the source URL is correctly formatted.
+        <div class="alert alert-info mt-4 mb-0" style="border-radius: 12px; border: none; background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);">
+            <i class="fas fa-info-circle" style="color: #0284c7;"></i> 
+            <strong style="color: #0c4a6e;">Tip:</strong> <span style="color: #075985;">If a source shows "No tenders found", make sure it's active on the <a href="{{ url_for('main.sources') }}" style="color: #0369a1; font-weight: 600;">Sources page</a>.</span>
         </div>
         {% else %}
-        <p class="text-muted mb-0">No tenders yet. <a href="{{ url_for('main.scan') }}">Run a scan</a> to get started.</p>
+        <div class="text-center py-4">
+            <i class="fas fa-inbox" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
+            <p class="text-muted mb-0">No tenders yet. <a href="{{ url_for('main.scan') }}" style="font-weight: 600;">Run a scan</a> to get started.</p>
+        </div>
         {% endif %}
     </div>
 </div>
 
 <!-- Recent Tenders -->
-<div class="card border-0">
-    <div class="card-header">
-        <h5 class="card-title mb-0">
-            <i class="fas fa-clock"></i> Recent Tenders
-        </h5>
-    </div>
-    <div class="card-body">
+<div class="card border-0 shadow-sm" style="border-radius: 16px;">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center mb-4">
+            <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                <i class="fas fa-clock" style="color: white; font-size: 1.25rem;"></i>
+            </div>
+            <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Recent Tenders</h4>
+        </div>
         {% if recent_tenders %}
         <div class="table-responsive">
             <table class="table table-hover mb-0">
-                <thead>
+                <thead style="border-bottom: 2px solid #e2e8f0;">
                     <tr>
-                        <th>Title</th>
-                        <th>Score</th>
-                        <th>Category</th>
-                        <th>Added</th>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Title</th>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Score</th>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Category</th>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Added</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for tender in recent_tenders %}
-                    <tr>
-                        <td>
-                            <a href="{{ url_for('main.tender_detail', tid=tender.id) }}" class="text-decoration-none">
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 1rem 0.75rem;">
+                            <a href="{{ url_for('main.tender_detail', tid=tender.id) }}" class="text-decoration-none" style="color: #334155; font-weight: 500;">
                                 {{ tender.title[:60] }}{% if tender.title|length > 60 %}...{% endif %}
                             </a>
                         </td>
-                        <td>
+                        <td style="padding: 1rem 0.75rem;">
                             {% set score = tender.score or 0 %}
                             {% if score >= 70 %}
-                            <span class="score-badge score-high">{{ "%.1f"|format(score) }}%</span>
+                            <span class="badge" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 0.5rem 0.75rem; font-weight: 600;">{{ "%.0f"|format(score) }}%</span>
                             {% elif score >= 40 %}
-                            <span class="score-badge score-medium">{{ "%.1f"|format(score) }}%</span>
+                            <span class="badge" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 0.5rem 0.75rem; font-weight: 600;">{{ "%.0f"|format(score) }}%</span>
                             {% else %}
-                            <span class="score-badge score-low">{{ "%.1f"|format(score) }}%</span>
+                            <span class="badge bg-secondary" style="padding: 0.5rem 0.75rem; font-weight: 600;">{{ "%.0f"|format(score) }}%</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td style="padding: 1rem 0.75rem;">
                             {% if tender.category %}
-                            <span class="badge bg-primary">{{ tender.category }}</span>
+                            <span class="badge" style="background: #667eea; padding: 0.5rem 0.75rem; font-weight: 500;">{{ tender.category }}</span>
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td style="padding: 1rem 0.75rem;">
                             <small class="text-muted">{{ tender.created_at.strftime('%b %d, %Y') }}</small>
                         </td>
                     </tr>
@@ -185,13 +244,26 @@
                 </tbody>
             </table>
         </div>
-        <a href="{{ url_for('main.scan') }}" class="btn btn-sm btn-primary mt-3">
+        <a href="{{ url_for('main.scan') }}" class="btn btn-primary mt-4" style="border-radius: 10px;">
             <i class="fas fa-search"></i> View All Tenders
         </a>
         {% else %}
-        <p class="text-muted mb-0">No tenders yet. <a href="{{ url_for('main.scan') }}">Run a scan</a> to get started.</p>
+        <div class="text-center py-4">
+            <i class="fas fa-inbox" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
+            <p class="text-muted mb-3">No tenders found yet.</p>
+            <a href="{{ url_for('main.scan') }}" class="btn btn-primary" style="border-radius: 10px;">
+                <i class="fas fa-search"></i> Run Your First Scan
+            </a>
+        </div>
         {% endif %}
     </div>
 </div>
+
+<style>
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important;
+}
+</style>
 
 {% endblock %}

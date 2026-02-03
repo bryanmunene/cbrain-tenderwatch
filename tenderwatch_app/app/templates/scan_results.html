@@ -4,21 +4,41 @@
 
 {% block content %}
 
-<div class="page-header mb-4">
-    <h1><i class="fas fa-list-check"></i> {{ title or 'Tender Scan Results' }}</h1>
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 style="font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">
+            <i class="fas fa-list-check" style="color: #667eea;"></i> {{ title or 'Tender Scan Results' }}
+        </h1>
+        {% if results %}
+        <p class="text-muted mb-0">Showing {{ results|length }} result{% if results|length != 1 %}s{% endif %}</p>
+        {% endif %}
+    </div>
+    <div class="d-flex gap-2">
+        {% if results %}
+        <a href="{{ url_for('main.export_csv', sort=sort_by, category=category, min_score=min_score, search=search) }}" class="btn btn-outline-success" style="border-radius: 12px; padding: 0.75rem 1.5rem; border-width: 2px;">
+            <i class="fas fa-download"></i> Export CSV
+        </a>
+        {% endif %}
+        <form method="post">
+            <button class="btn btn-primary btn-lg" type="submit" style="border-radius: 12px; padding: 0.75rem 2rem;">
+                <i class="fas fa-sync"></i> Run Scan
+            </button>
+        </form>
+    </div>
 </div>
 
-<!-- Filters -->
-<div class="card mb-4 border-0 bg-light">
-    <div class="card-body">
+<!-- Filters Card -->
+<div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
+    <div class="card-body p-4">
         <form method="get" class="row g-3 align-items-end">
             <div class="col-md-3">
-                <label for="search" class="form-label">Search</label>
-                <input type="text" class="form-control" id="search" name="search" placeholder="Title, description..." value="{{ search }}">
+                <label for="search" class="form-label" style="font-weight: 600; color: #334155;">Search</label>
+                <input type="text" class="form-control" id="search" name="search" placeholder="Title, description..." value="{{ search }}" style="border-radius: 10px;">
             </div>
             <div class="col-md-2">
-                <label for="category" class="form-label">Category</label>
-                <select class="form-select" id="category" name="category">
+                <label for="category" class="form-label" style="font-weight: 600; color: #334155;">Category</label>
+                <select class="form-select" id="category" name="category" style="border-radius: 10px;">
                     <option value="">All Categories</option>
                     {% for cat in categories %}
                     <option value="{{ cat }}" {% if category == cat %}selected{% endif %}>{{ cat or 'Uncategorized' }}</option>
@@ -26,8 +46,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label for="min_score" class="form-label">Min Score</label>
-                <select class="form-select" id="min_score" name="min_score">
+                <label for="min_score" class="form-label" style="font-weight: 600; color: #334155;">Min Score</label>
+                <select class="form-select" id="min_score" name="min_score" style="border-radius: 10px;">
                     <option value="0" {% if min_score == 0 %}selected{% endif %}>All</option>
                     <option value="40" {% if min_score == 40 %}selected{% endif %}>40+</option>
                     <option value="70" {% if min_score == 70 %}selected{% endif %}>70+</option>
@@ -35,18 +55,18 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label for="sort" class="form-label">Sort By</label>
-                <select class="form-select" id="sort" name="sort">
+                <label for="sort" class="form-label" style="font-weight: 600; color: #334155;">Sort By</label>
+                <select class="form-select" id="sort" name="sort" style="border-radius: 10px;">
                     <option value="score" {% if sort_by == 'score' %}selected{% endif %}>Score</option>
                     <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest</option>
                     <option value="deadline" {% if sort_by == 'deadline' %}selected{% endif %}>Deadline</option>
                 </select>
             </div>
-            <div class="col-md-1 d-flex gap-2">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="fas fa-filter"></i> Filter
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1" style="border-radius: 10px;">
+                    <i class="fas fa-filter"></i> Apply Filters
                 </button>
-                <a href="{{ url_for('main.scan') }}" class="btn btn-outline-secondary">
+                <a href="{{ url_for('main.scan') }}" class="btn btn-outline-secondary" style="border-radius: 10px;">
                     <i class="fas fa-times"></i>
                 </a>
             </div>
@@ -54,49 +74,56 @@
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-6">
-        <form method="post" class="d-inline">
-            <button class="btn btn-primary btn-lg" type="submit">
-                <i class="fas fa-sync"></i> Run Scan
-            </button>
-        </form>
-    </div>
-    <div class="col-md-6 text-end">
-        {% if results %}
-        <small class="text-muted">Showing {{ results|length }} result{% if results|length != 1 %}s{% endif %}</small>
-        {% endif %}
-    </div>
-</div>
-
 {% if results %}
-<div class="row">
+<div class="row g-4">
     {% for r in results %}
-    <div class="col-md-6 mb-4">
-        <div class="card tender-card h-100 shadow-sm">
-            <div class="card-body">
-                <!-- Score Badge -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100 hover-lift" style="border-radius: 16px; transition: all 0.3s ease;">
+            <div class="card-body p-4">
+                <!-- Score Badge and Actions -->
                 <div class="d-flex justify-content-between align-items-start mb-3">
                     {% set score = r.score or 0 %}
                     {% if score >= 70 %}
-                    <span class="badge bg-success" style="font-size: 1.2rem; padding: 0.5rem 1rem;">🎯 {{ "%.0f"|format(score) }}% Match</span>
+                    <span class="badge" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); font-size: 1.1rem; padding: 0.6rem 1rem; border-radius: 10px; font-weight: 600;">
+                        <i class="fas fa-bullseye"></i> {{ "%.0f"|format(score) }}% Match
+                    </span>
                     {% elif score >= 40 %}
-                    <span class="badge bg-warning text-dark" style="font-size: 1.2rem; padding: 0.5rem 1rem;">📊 {{ "%.0f"|format(score) }}% Match</span>
+                    <span class="badge" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); font-size: 1.1rem; padding: 0.6rem 1rem; border-radius: 10px; font-weight: 600;">
+                        <i class="fas fa-chart-line"></i> {{ "%.0f"|format(score) }}% Match
+                    </span>
                     {% else %}
-                    <span class="badge bg-secondary" style="font-size: 1.2rem; padding: 0.5rem 1rem;">{{ "%.0f"|format(score) }}% Match</span>
+                    <span class="badge bg-secondary" style="font-size: 1.1rem; padding: 0.6rem 1rem; border-radius: 10px; font-weight: 600;">
+                        {{ "%.0f"|format(score) }}% Match
+                    </span>
                     {% endif %}
                     
-                    <div class="d-flex gap-1">
+                    <div class="d-flex gap-2">
+                        <!-- Favorite Toggle -->
                         {% if r.favorite %}
                         <form method="post" action="{{ url_for('main.toggle_favorite', rid=r.id) }}" class="d-inline">
-                            <button class="btn btn-sm btn-warning" type="submit" title="Remove from favorites">
+                            <button class="btn btn-sm" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; border: none; border-radius: 8px;" type="submit" title="Remove from favorites">
                                 <i class="fas fa-star"></i>
                             </button>
                         </form>
                         {% else %}
                         <form method="post" action="{{ url_for('main.toggle_favorite', rid=r.id) }}" class="d-inline">
-                            <button class="btn btn-sm btn-outline-warning" type="submit" title="Add to favorites">
+                            <button class="btn btn-sm btn-outline-warning" style="border-radius: 8px; border-width: 2px;" type="submit" title="Add to favorites">
                                 <i class="far fa-star"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                        
+                        <!-- Save Toggle -->
+                        {% if r.saved %}
+                        <form method="post" action="{{ url_for('main.toggle_save', rid=r.id) }}" class="d-inline">
+                            <button class="btn btn-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px;" type="submit" title="Unsave">
+                                <i class="fas fa-bookmark"></i>
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{{ url_for('main.toggle_save', rid=r.id) }}" class="d-inline">
+                            <button class="btn btn-sm btn-outline-primary" style="border-radius: 8px; border-width: 2px;" type="submit" title="Save">
+                                <i class="far fa-bookmark"></i>
                             </button>
                         </form>
                         {% endif %}
@@ -104,8 +131,8 @@
                 </div>
                 
                 <!-- Tender Title -->
-                <h5 class="card-title mb-3">
-                    <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="text-decoration-none text-dark">
+                <h5 class="card-title mb-3" style="line-height: 1.5;">
+                    <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="text-decoration-none" style="color: #1e293b; font-weight: 600;">
                         {% if r.title_translated and r.title_translated != r.title %}
                         <span class="original-title-{{ r.id }}">{{ r.title[:120] }}{% if r.title|length > 120 %}...{% endif %}</span>
                         <span class="translated-title-{{ r.id }}" style="display:none;">{{ r.title_translated[:120] }}{% if r.title_translated|length > 120 %}...{% endif %}</span>
@@ -114,44 +141,52 @@
                         {% endif %}
                     </a>
                     {% if r.title_translated and r.title_translated != r.title %}
-                    <button class="btn btn-sm btn-outline-info ms-2 translate-toggle" onclick="toggleTranslation({{ r.id }}); return false;" title="Toggle translation">
+                    <button class="btn btn-sm btn-outline-info ms-2 translate-toggle" onclick="toggleTranslation({{ r.id }}); return false;" title="Toggle translation" style="border-radius: 6px;">
                         <i class="fas fa-language"></i>
                     </button>
                     {% endif %}
                 </h5>
                 
-                <!-- Metadata -->
-                <div class="mb-3">
-                    <div class="d-flex flex-wrap gap-2 mb-2">
-                        <span class="badge bg-primary"><i class="fas fa-folder"></i> {{ r.category or 'Uncategorized' }}</span>
-                        <span class="badge bg-info"><i class="fas fa-globe"></i> {{ r.country or 'Global' }}</span>
-                        {% if r.deadline %}
-                        <span class="badge bg-danger"><i class="fas fa-clock"></i> {{ r.deadline }}</span>
-                        {% endif %}
-                    </div>
-                    
-                    {% if r.buyer %}
-                    <small class="text-muted d-block mb-2">
-                        <i class="fas fa-building"></i> {{ r.buyer[:60] }}{% if r.buyer|length > 60 %}...{% endif %}
-                    </small>
-                    {% endif %}
-                    
-                    {% if r.keywords_matched %}
-                    <small class="text-muted d-block">
-                        <i class="fas fa-tags"></i> {{ r.keywords_matched[:80] }}{% if r.keywords_matched|length > 80 %}...{% endif %}
-                    </small>
+                <!-- Metadata Badges -->
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <span class="badge" style="background: #667eea; padding: 0.5rem 0.75rem; border-radius: 8px; font-weight: 500;">
+                        <i class="fas fa-folder"></i> {{ r.category or 'Uncategorized' }}
+                    </span>
+                    <span class="badge" style="background: #30cfd0; padding: 0.5rem 0.75rem; border-radius: 8px; font-weight: 500;">
+                        <i class="fas fa-globe"></i> {{ r.country or 'Global' }}
+                    </span>
+                    {% if r.deadline %}
+                    <span class="badge" style="background: #f5576c; padding: 0.5rem 0.75rem; border-radius: 8px; font-weight: 500;">
+                        <i class="fas fa-clock"></i> {{ r.deadline }}
+                    </span>
                     {% endif %}
                 </div>
                 
+                <!-- Additional Info -->
+                {% if r.buyer %}
+                <div class="mb-2 p-2 rounded" style="background: #f8fafc;">
+                    <small style="color: #64748b;">
+                        <i class="fas fa-building"></i> <strong>Buyer:</strong> {{ r.buyer[:60] }}{% if r.buyer|length > 60 %}...{% endif %}
+                    </small>
+                </div>
+                {% endif %}
+                
+                {% if r.keywords_matched %}
+                <div class="mb-3 p-2 rounded" style="background: #f8fafc;">
+                    <small style="color: #64748b;">
+                        <i class="fas fa-tags"></i> <strong>Keywords:</strong> {{ r.keywords_matched[:80] }}{% if r.keywords_matched|length > 80 %}...{% endif %}
+                    </small>
+                </div>
+                {% endif %}
+                
                 <!-- Action Buttons -->
-                <div class="d-flex gap-2">
-                    <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="btn btn-primary btn-sm flex-grow-1">
+                <div class="d-flex gap-2 mt-3">
+                    <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="btn btn-primary flex-grow-1" style="border-radius: 10px; font-weight: 600;">
                         <i class="fas fa-eye"></i> View Details
                     </a>
-                    <a href="{{ r.link }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                    <a href="{{ r.link }}" target="_blank" class="btn btn-outline-primary" style="border-radius: 10px; font-weight: 600;">
                         <i class="fas fa-external-link-alt"></i> Source
                     </a>
-                                <i class="far fa-star"></i>
                 </div>
             </div>
         </div>
@@ -159,19 +194,26 @@
     {% endfor %}
 </div>
 {% else %}
-<div class="text-center py-5">
-    <div class="mb-4">
-        <i class="fas fa-inbox" style="font-size: 4rem; color: #9ca3af;"></i>
+<div class="card border-0 shadow-sm text-center py-5" style="border-radius: 16px;">
+    <div class="card-body">
+        <i class="fas fa-inbox" style="font-size: 4rem; color: #cbd5e1; margin-bottom: 1.5rem;"></i>
+        <h4 style="color: #64748b; font-weight: 600; margin-bottom: 1rem;">No Tenders Found</h4>
+        <p class="text-muted mb-4">Try running a scan or adjusting your filters to discover opportunities.</p>
+        <form method="post" class="d-inline">
+            <button class="btn btn-primary btn-lg" type="submit" style="border-radius: 12px; padding: 0.75rem 2rem;">
+                <i class="fas fa-sync"></i> Run Your First Scan
+            </button>
+        </form>
     </div>
-    <h4 class="text-muted">No Tenders Found</h4>
-    <p class="text-muted">Try running a scan or adjusting your filters to discover opportunities.</p>
-    <form method="post" class="mt-3">
-        <button class="btn btn-primary btn-lg" type="submit">
-            <i class="fas fa-sync"></i> Run Your First Scan
-        </button>
-    </form>
 </div>
 {% endif %}
+
+<style>
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important;
+}
+</style>
 
 <script>
 function toggleTranslation(tenderId) {
