@@ -194,18 +194,25 @@
     {% endfor %}
 </div>
 {% else %}
-<div class="card border-0 shadow-sm text-center py-5" style="border-radius: 16px;">
+<div class="card border-0 shadow-sm text-center py-5" style="border-radius: 30px; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%);">
     <div class="card-body">
-        <i class="fas fa-inbox" style="font-size: 4rem; color: #cbd5e1; margin-bottom: 1.5rem;"></i>
-        <h4 style="color: #64748b; font-weight: 600; margin-bottom: 1rem;">No Tenders Found</h4>
-        <p class="text-muted mb-4">Try running a scan or adjusting your filters to discover opportunities.</p>
+        <i class="fas fa-search" style="font-size: 4rem; color: #8b5cf6; margin-bottom: 1.5rem; animation: bounce 2s infinite;"></i>
+        <h4 style="color: #8b5cf6; font-weight: 700; margin-bottom: 1rem;">🌟 Ready for an Adventure?</h4>
+        <p class="text-muted mb-4">Let's discover some amazing opportunities together! Hit that button below 👇</p>
         <form method="post" class="d-inline">
-            <button class="btn btn-primary btn-lg" type="submit" style="border-radius: 12px; padding: 0.75rem 2rem;">
-                <i class="fas fa-sync"></i> Run Your First Scan
+            <button class="btn btn-primary btn-lg" type="submit" style="border-radius: 50px; padding: 1rem 3rem;">
+                <i class="fas fa-rocket"></i> Start the Hunt! 🎯
             </button>
         </form>
     </div>
 </div>
+
+<style>
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+}
+</style>
 {% endif %}
 
 <style>

@@ -43,7 +43,7 @@ st.markdown(f"""
     
     /* Main background */
     .main {{
-        background: {'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)'};
+        background: {'linear-gradient(135deg, #1e1b4b 0%, #4c1d95 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(135deg, #fef3c7 0%, #fff 50%, #f3e8ff 100%)'};
         background-attachment: fixed;
     }}
     
@@ -65,19 +65,19 @@ st.markdown(f"""
     
     /* Button styling */
     .stButton>button {{
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
         color: white;
-        border-radius: 12px;
+        border-radius: 25px;
         padding: 0.75rem 2rem;
-        font-weight: 600;
+        font-weight: 700;
         border: none;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+        transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     }}
     
     .stButton>button:hover {{
-        transform: translateY(-2px);
-        box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        transform: translateY(-4px) scale(1.05);
+        box-shadow: 0 12px 24px rgba(236, 72, 153, 0.5);
     }}
     
     /* Headers */
@@ -368,8 +368,8 @@ with st.sidebar:
 
 # Main content based on selected page
 if page == "📊 Dashboard":
-    st.title("📊 Dashboard")
-    st.markdown("Overview of all tender opportunities")
+    st.title("🎉 Your Opportunity Hub!")
+    st.markdown("Let's find some amazing tenders today! ✨")
     
     stats = get_stats()
     
@@ -470,29 +470,43 @@ if page == "📊 Dashboard":
                 
                 st.markdown("---")
     else:
-        st.info("📭 No tenders found yet.")
-        st.markdown("""\n**Get started:**
-1. Click **🔍 Scan & Results** in the sidebar
+        st.markdown("""
+        <div style='text-align: center; padding: 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
+                    border-radius: 30px; margin: 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);'>
+            <div style='font-size: 4rem; margin-bottom: 1rem; animation: bounce 2s infinite;'>🌟</div>
+            <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>Ready to Get Started?</h3>
+            <p style='color: #6b7280; font-size: 1.1rem;'>
+                Let's find some amazing opportunities! Click the button in the sidebar 👈
+            </p>
+        </div>
+        <style>
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        st.info("**Get started:**\n1. Click **🔍 Scan & Results** in the sidebar
 2. Click **🔄 Run Scan Now** to find tenders
 3. Or add tender sources in **📁 Sources**
         """)
 
 elif page == "🔍 Scan & Results":
-    st.title("🔍 Tender Scanning")
+    st.title("🎯 Find Your Perfect Match!")
     
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        st.markdown("Scan all active tender sources to discover new opportunities")
+        st.markdown("✨ Let's discover some amazing opportunities together!")
     
     with col2:
-        if st.button("🔄 Run Scan Now", key="top_scan_button", type="primary", use_container_width=True):
-            with st.spinner("🔍 Scanning tender sources..."):
+        if st.button("🚀 Let's Go!", key="top_scan_button", type="primary", use_container_width=True):
+            with st.spinner("🔮 Working some magic..."):
                 new_tenders = run_tender_scan()
                 if new_tenders:
-                    st.success(f"✅ Found {len(new_tenders)} new tenders!")
+                    st.success(f"🎉 Woohoo! Found {len(new_tenders)} awesome opportunities!")
                 else:
-                    st.info("No new tenders found.")
+                    st.info("🤔 Hmm, nothing new right now. Check back soon!")
                 st.rerun()
     
     st.markdown("---")
@@ -623,14 +637,20 @@ elif page == "🔍 Scan & Results":
                             st.rerun()
                     
                     with col_b:
-                        save_icon = "💾" if tender.saved else "📥"
-                        if st.button(save_icon, key=f"save_{tender.id}", help="Toggle saved"):
-                            toggle_saved(tender.id)
-                            st.rerun()
-                    
-                    st.link_button("🔗 View Source", tender.link, use_container_width=True)
-                    
-                    if st.button("📖 Full Details", key=f"detail_{tender.id}", use_container_width=True):
+                        save_icon = "💾" if tender.saved else "📥"linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
+                    border-radius: 30px; margin: 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);'>
+            <div style='font-size: 4rem; margin-bottom: 1rem; animation: bounce 2s infinite;'>🎯</div>
+            <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>Ready for the Hunt?</h3>
+            <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 2rem;'>
+                Let's discover some amazing tenders together! 🚀
+            </p>
+        </div>
+        <style>
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        </style       if st.button("📖 Full Details", key=f"detail_{tender.id}", use_container_width=True):
                         st.session_state['selected_tender'] = tender.id
                         st.info("💡 Click 'View Source' above to see the full tender document")
                 
