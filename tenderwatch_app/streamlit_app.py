@@ -693,17 +693,6 @@ elif page == "🔍 Scan & Results":
             <p style='color: #a3a3a3; font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;'>👆 Click the target above!</p>
         </div>
         """, unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            if st.button("🔄 Run Scan Now", key="main_scan_button", type="primary", use_container_width=True):
-                with st.spinner("🔍 Scanning tender sources..."):
-                    new_tenders = run_tender_scan()
-                    if new_tenders:
-                        st.success(f"✅ Found {len(new_tenders)} new tenders!")
-                    else:
-                        st.info("No new tenders found.")
-                    st.rerun()
 
 elif page == "📁 Sources":
     st.title("📁 Tender Sources")
