@@ -651,54 +651,42 @@ elif page == "🔍 Scan & Results":
                 
                 st.markdown("---")
     else:
-        # Clickable bouncing bullseye inside the container
-        col1, col2, col3 = st.columns([1, 1, 1])
-        with col2:
-            if st.button("🎯", key="bullseye_scan", help="Click to scan!", 
-                        use_container_width=False):
-                with st.spinner("🔮 Working some magic..."):
-                    new_tenders = run_tender_scan()
-                    if new_tenders:
-                        st.success(f"🎉 Woohoo! Found {len(new_tenders)} awesome opportunities!")
-                    else:
-                        st.info("🤔 Hmm, nothing new right now. Check back soon!")
-                    st.rerun()
-        
         st.markdown("""
         <style>
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-20px); }
         }
-        /* Style the bullseye button */
-        button[data-testid="baseButton-secondary"] {
-            background: transparent !important;
-            border: none !important;
-            padding: 0 !important;
-            cursor: pointer !important;
-            box-shadow: none !important;
-            margin-top: -80px !important;
-            position: relative !important;
-            z-index: 10 !important;
-        }
-        button[data-testid="baseButton-secondary"] p {
-            font-size: 4rem !important;
-            animation: bounce 2s infinite;
-            margin: 0 !important;
-        }
-        button[data-testid="baseButton-secondary"]:hover p {
-            transform: scale(1.15);
-            animation: none;
-        }
         </style>
-        <div style='text-align: center; padding: 5rem 3rem 3rem 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
-                    border-radius: 30px; margin: 0rem 0 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2); position: relative;'>
+        <div style='text-align: center; padding: 3rem 3rem 3rem 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
+                    border-radius: 30px; margin: 2rem 0 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2); position: relative;'>
+            <div style='font-size: 4rem; margin-bottom: 1rem; animation: bounce 2s infinite; cursor: pointer;' 
+                 onclick='document.getElementById("bullseye_scan").click();'>🎯</div>
             <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>Ready for the Hunt?</h3>
             <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 0.5rem;'>
                 Let's discover some amazing tenders together! 🚀
             </p>
             <p style='color: #a3a3a3; font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;'>👆 Click the target above!</p>
         </div>
+        """, unsafe_allow_html=True)
+        
+        # Hidden button that gets triggered by the emoji
+        if st.button("🎯", key="bullseye_scan", help="Click to scan!"):
+            with st.spinner("🔮 Working some magic..."):
+                new_tenders = run_tender_scan()
+                if new_tenders:
+                    st.success(f"🎉 Woohoo! Found {len(new_tenders)} awesome opportunities!")
+                else:
+                    st.info("🤔 Hmm, nothing new right now. Check back soon!")
+                st.rerun()
+        
+        st.markdown("""
+        <style>
+        /* Hide the actual Streamlit button */
+        button[data-testid="baseButton-secondary"] {
+            display: none !important;
+        }
+        </style>
         """, unsafe_allow_html=True)
 
 elif page == "📁 Sources":
