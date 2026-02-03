@@ -66,8 +66,14 @@
 
         /* Navigation */
         .navbar {
-            background-color: var(--primary);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            background-color: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        [data-theme="dark"] .navbar {
+            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
             border-bottom: none;
         }
 
@@ -75,8 +81,12 @@
             font-size: 1.5rem;
             font-weight: 700;
             letter-spacing: 0.5px;
-            color: #fff !important;
+            color: #000000 !important;
             transition: opacity 0.3s ease;
+        }
+
+        [data-theme="dark"] .navbar-brand {
+            color: #ffffff !important;
         }
 
         .navbar-brand:hover {
@@ -86,14 +96,18 @@
         .navbar-brand small {
             font-size: 0.55rem;
             display: block;
-            color: #bfdbfe;
+            color: #737373;
             letter-spacing: 1px;
             margin-top: 0.2rem;
             opacity: 0.8;
         }
 
+        [data-theme="dark"] .navbar-brand small {
+            color: #e0e0e0;
+        }
+
         .nav-link {
-            color: #dbeafe !important;
+            color: #404040 !important;
             transition: all 0.3s ease;
             font-weight: 500;
             padding: 0.75rem 1.25rem !important;
@@ -101,29 +115,53 @@
             margin: 0 0.25rem;
         }
 
+        [data-theme="dark"] .nav-link {
+            color: #dbeafe !important;
+        }
+
         .nav-link:hover {
+            color: #000000 !important;
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        [data-theme="dark"] .nav-link:hover {
             color: #fff !important;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.15);
         }
 
         .nav-link.active {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(0, 0, 0, 0.08);
+            color: #000000 !important;
+        }
+
+        [data-theme="dark"] .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
             color: #fff !important;
         }
 
         /* Buttons */
         .btn-primary {
-            background-color: var(--primary);
-            border-color: var(--primary);
+            background-color: #000000;
+            border-color: #000000;
             transition: all 0.3s ease;
             font-weight: 600;
             color: white;
         }
 
+        [data-theme="dark"] .btn-primary {
+            background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+            border: none;
+        }
+
         .btn-primary:hover {
-            background-color: #1e40af;
-            border-color: #1e40af;
+            background-color: #262626;
+            border-color: #262626;
             opacity: 0.9;
+        }
+
+        [data-theme="dark"] .btn-primary:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 8px 20px rgba(236, 72, 153, 0.4);
         }
 
         .btn-secondary {
@@ -902,6 +940,53 @@
         &copy; 2024 TenderWatch - cBrain F2 Tenderwatch | Tender Scanning & Opportunity Tracking
     </small>
 </footer>
+
+<!-- Floating Scan Button -->
+<a href="{{ url_for('main.scan') }}" class="floating-scan-btn" title="Quick Scan">
+    <i class="fas fa-bullseye"></i>
+</a>
+
+<style>
+.floating-scan-btn {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+    z-index: 1000;
+    transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    text-decoration: none;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+}
+
+.floating-scan-btn:hover {
+    transform: scale(1.15) rotate(360deg);
+    box-shadow: 0 8px 30px rgba(236, 72, 153, 0.6);
+    color: white;
+}
+
+.floating-scan-btn:active {
+    transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+    .floating-scan-btn {
+        bottom: 1.5rem;
+        right: 1.5rem;
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+}
+</style>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='pwa.js') }}"></script>
