@@ -651,33 +651,47 @@ elif page == "🔍 Scan & Results":
                 
                 st.markdown("---")
     else:
-        # Make the entire empty state clickable
-        if st.button("🎯", key="empty_state_scan", help="Click to scan!", use_container_width=True, 
-                     type="primary", disabled=False):
-            with st.spinner("🔮 Working some magic..."):
-                new_tenders = run_tender_scan()
-                if new_tenders:
-                    st.success(f"🎉 Woohoo! Found {len(new_tenders)} awesome opportunities!")
-                else:
-                    st.info("🤔 Hmm, nothing new right now. Check back soon!")
-                st.rerun()
+        # Clickable bouncing bullseye
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            if st.button("🎯", key="bullseye_scan", help="Click to scan!", 
+                        use_container_width=False):
+                with st.spinner("🔮 Working some magic..."):
+                    new_tenders = run_tender_scan()
+                    if new_tenders:
+                        st.success(f"🎉 Woohoo! Found {len(new_tenders)} awesome opportunities!")
+                    else:
+                        st.info("🤔 Hmm, nothing new right now. Check back soon!")
+                    st.rerun()
         
         st.markdown("""
-        <div style='text-align: center; padding: 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
-                    border-radius: 30px; margin: 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2); cursor: pointer;'>
-            <div style='font-size: 4rem; margin-bottom: 1rem; animation: bounce 2s infinite;'>🎯</div>
-            <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>Ready for the Hunt?</h3>
-            <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 2rem;'>
-                Let's discover some amazing tenders together! 🚀
-            </p>
-            <p style='color: #a3a3a3; font-size: 0.9rem; font-style: italic;'>👆 Click the button above to start scanning!</p>
-        </div>
         <style>
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-20px); }
         }
+        div[data-testid="column"]:nth-child(2) button[kind="secondary"] {
+            font-size: 4rem !important;
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            animation: bounce 2s infinite;
+            cursor: pointer !important;
+            box-shadow: none !important;
+        }
+        div[data-testid="column"]:nth-child(2) button[kind="secondary"]:hover {
+            transform: scale(1.1);
+            animation: none;
+        }
         </style>
+        <div style='text-align: center; padding: 2rem 3rem 3rem 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
+                    border-radius: 30px; margin: 0rem 0 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);'>
+            <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>Ready for the Hunt?</h3>
+            <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 0;'>
+                Let's discover some amazing tenders together! 🚀
+            </p>
+            <p style='color: #a3a3a3; font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;'>👆 Click the target above!</p>
+        </div>
         """, unsafe_allow_html=True)
         
         col1, col2, col3 = st.columns([1, 2, 1])
