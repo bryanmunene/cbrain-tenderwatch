@@ -351,17 +351,6 @@ with st.sidebar:
     st.markdown("**cBrain F2 Tenderwatch**")
     st.markdown("---")
     
-    # Dark mode toggle
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.markdown("**Theme**")
-    with col2:
-        if st.button("🌓"):
-            st.session_state.theme = 'dark' if st.session_state.theme == 'light' else 'light'
-            st.rerun()
-    
-    st.markdown("---")
-    
     page = st.radio(
         "Navigation",
         ["📊 Dashboard", "🔍 Scan & Results", "📁 Sources", "⭐ Favorites", "💾 Saved", "⚙️ Settings"],
@@ -369,6 +358,12 @@ with st.sidebar:
     )
     
     st.markdown("---")
+    
+    # Subtle theme toggle at bottom
+    if st.button("◐", key="theme_toggle", help="Toggle theme"):
+        st.session_state.theme = 'dark' if st.session_state.theme == 'light' else 'light'
+        st.rerun()
+    
     st.caption("© 2026 cBrain TenderWatch")
 
 # Main content based on selected page
