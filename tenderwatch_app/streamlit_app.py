@@ -34,16 +34,16 @@ st.markdown(f"""
     /* Theme Variables */
     :root {{
         --bg-primary: {'#0f172a' if st.session_state.theme == 'dark' else '#ffffff'};
-        --bg-secondary: {'#1e293b' if st.session_state.theme == 'dark' else '#f8fafc'};
-        --text-primary: {'#f1f5f9' if st.session_state.theme == 'dark' else '#1e293b'};
-        --text-secondary: {'#94a3b8' if st.session_state.theme == 'dark' else '#64748b'};
-        --border-color: {'#334155' if st.session_state.theme == 'dark' else '#e2e8f0'};
-        --card-bg: {'#1e293b' if st.session_state.theme == 'dark' else '#ffffff'};
+        --bg-secondary: {'#0a0a0a' if st.session_state.theme == 'dark' else '#fef9c3'};
+        --text-primary: {'#ffffff' if st.session_state.theme == 'dark' else '#000000'};
+        --text-secondary: {'#a3a3a3' if st.session_state.theme == 'dark' else '#374151'};
+        --border-color: {'#262626' if st.session_state.theme == 'dark' else '#fbbf24'};
+        --card-bg: {'#0a0a0a' if st.session_state.theme == 'dark' else '#ffffff'};
     }}
     
     /* Main background */
     .main {{
-        background: {'linear-gradient(135deg, #1e1b4b 0%, #4c1d95 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(135deg, #fef3c7 0%, #fff 50%, #f3e8ff 100%)'};
+        background: {'linear-gradient(135deg, #000000 0%, #0a0a0a 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(135deg, #fef9c3 0%, #ffffff 50%, #fae8ff 100%)'};
         background-attachment: fixed;
     }}
     
