@@ -64,12 +64,18 @@ def start_scheduler(app):
         from app.models import AppSettings
         from app.extensions import db
         
-        # Ensure settings exist
-        settings = AppSettings.query.first()
-        if not settings:
-            settings = AppSettings()
-            db.session.add(settings)
-            db.session.commit()
+        try:
+            # Ensure settings exist
+            settings = AppSettings.query.first()
+            if not settings:
+                settings = AppSettings()
+                db.session.add(settings)
+                db.session.commit()
+        except Exception as e:
+            # Handle case where database schema is out of sync (e.g., missing columns)
+            print(f"⚠️  Scheduler initialization skipped: {e}")
+            print("   Run migration script or restart app after database updates")
+            return
         
         if settings.auto_scan_enabled:
             # Add scheduled job

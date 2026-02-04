@@ -207,6 +207,45 @@ def init_db():
                     db.session.commit()
                 except:
                     db.session.rollback()  # Column already exists, continue
+            
+            # Run auto-discovery migration on startup
+            discovery_columns = [
+                "ALTER TABLE tender_result ADD COLUMN discovery_method VARCHAR(50) DEFAULT 'manual'",
+                "ALTER TABLE tender_result ADD COLUMN search_query VARCHAR(500)",
+                "ALTER TABLE tender_result ADD COLUMN search_source VARCHAR(50)",
+                "ALTER TABLE app_settings ADD COLUMN auto_discovery_enabled BOOLEAN DEFAULT 1",
+                "ALTER TABLE app_settings ADD COLUMN google_api_key VARCHAR(500) DEFAULT ''",
+                "ALTER TABLE app_settings ADD COLUMN google_cx VARCHAR(500) DEFAULT ''",
+                "ALTER TABLE app_settings ADD COLUMN bing_api_key VARCHAR(500) DEFAULT ''",
+                "ALTER TABLE app_settings ADD COLUMN discovery_queries TEXT DEFAULT ''",
+                "ALTER TABLE app_settings ADD COLUMN results_per_query INTEGER DEFAULT 10",
+            ]
+            for sql in discovery_columns:
+                try:
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                except:
+                    db.session.rollback()  # Column already exists, continue
+            
+            # Create DiscoveryLog table if it doesn't exist
+            try:
+                db.session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS discovery_log (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        run_type VARCHAR(50) NOT NULL,
+                        queries_run INTEGER DEFAULT 0,
+                        results_found INTEGER DEFAULT 0,
+                        results_saved INTEGER DEFAULT 0,
+                        google_quota_used INTEGER DEFAULT 0,
+                        bing_quota_used INTEGER DEFAULT 0,
+                        execution_time_seconds REAL DEFAULT 0.0,
+                        error_message TEXT DEFAULT '',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                db.session.commit()
+            except:
+                db.session.rollback()
         except:
             pass  # Migration not critical for startup
         
