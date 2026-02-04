@@ -286,9 +286,16 @@ def run_auto_discovery():
     has_google_keys = settings.google_api_key and settings.google_cx
     has_bing_key = settings.bing_api_key
     
+    print(f"🔍 Auto-discovery check:")
+    print(f"   Google API Key: {'✓ Present' if settings.google_api_key else '✗ Missing'}")
+    print(f"   Google CX: {'✓ Present' if settings.google_cx else '✗ Missing'}")
+    print(f"   Bing API Key: {'✓ Present' if settings.bing_api_key else '✗ Missing'}")
+    
     if not has_google_keys and not has_bing_key:
-        print("ℹ️  Auto-discovery: No API keys configured")
+        print("⚠️  Auto-discovery: No API keys configured - skipping discovery")
         return new_tenders
+    
+    print("🌐 Starting auto-discovery with configured APIs...")
     
     # Initialize discovery engine
     try:
