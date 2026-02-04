@@ -861,7 +861,7 @@ elif page == "⚙️ Settings":
                                        value=settings.scan_interval_minutes if settings else 60)
         
         notification_enabled = st.checkbox("Enable Notifications", 
-                                          value=settings.notification_enabled if settings else False)
+                                          value=settings.notifications_enabled if settings and hasattr(settings, 'notifications_enabled') else False)
         
         st.markdown("---")
         
@@ -972,7 +972,7 @@ elif page == "⚙️ Settings":
                 if settings:
                     settings.auto_scan_enabled = auto_scan
                     settings.scan_interval_minutes = scan_interval
-                    settings.notification_enabled = notification_enabled
+                    settings.notifications_enabled = notification_enabled
                     settings.min_score_to_notify = float(min_score)
                     
                     # Save auto-discovery settings
@@ -990,7 +990,7 @@ elif page == "⚙️ Settings":
                     new_settings = AppSettings(
                         auto_scan_enabled=auto_scan,
                         scan_interval_minutes=scan_interval,
-                        notification_enabled=notification_enabled,
+                        notifications_enabled=notification_enabled,
                         min_score_to_notify=float(min_score)
                     )
                     db.session.add(new_settings)
