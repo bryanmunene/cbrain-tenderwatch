@@ -278,8 +278,16 @@ def run_auto_discovery():
     
     # Get settings
     settings = AppSettings.query.first()
-    if not settings or not settings.auto_discovery_enabled:
-        print("ℹ️  Auto-discovery is disabled")
+    if not settings:
+        print("ℹ️  No settings found, auto-discovery skipped")
+        return new_tenders
+    
+    # Check if API keys are configured (run if keys exist, regardless of toggle)
+    has_google_keys = settings.google_api_key and settings.google_cx
+    has_bing_key = settings.bing_api_key
+    
+    if not has_google_keys and not has_bing_key:
+        print("ℹ️  Auto-discovery: No API keys configured")
         return new_tenders
     
     # Initialize discovery engine
