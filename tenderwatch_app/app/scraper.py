@@ -211,23 +211,39 @@ def cleanup_old_tenders():
         print("✅ No old tenders to remove")
 
 
-def run_scan():
-    """Scan all active sources for tenders and return newly added tenders"""
+def run_scan(include_auto_discovery=True):
+    """
+    Scan sources for tenders and return newly added tenders.
+    
+    Args:
+        include_auto_discovery: If True, also runs auto-discovery via search APIs
+    
+    Returns:
+        List of newly added TenderResult objects
+    """
     # First, clean up old tenders
     cleanup_old_tenders()
     
     sources = TenderSource.query.filter_by(active=True).all()
     
-    if not sources:
+    if not sources and not include_auto_discovery:
         print("⚠️  No active sources found. Add sources and mark them as active to start scanning.")
         return []
     
-    print(f"\n🔍 Starting scan of {len(sources)} active source(s)...")
     all_new_tenders = []
-    for src in sources:
-        print(f"📡 Scanning: {src.name}")
-        new_tenders = scan_source(src)
-        all_new_tenders.extend(new_tenders)
+    
+    # Scan manual/priority sources
+    if sources:
+        print(f"\n🔍 Starting scan of {len(sources)} active source(s)...")
+        for src in sources:
+            print(f"📡 Scanning: {src.name}")
+            new_tenders = scan_source(src)
+            all_new_tenders.extend(new_tenders)
+    
+    # Run auto-discovery if enabled
+    if include_auto_discovery:
+        auto_tenders = run_auto_discovery()
+        all_new_tenders.extend(auto_tenders)
     
     print("✅ Scan complete!")
     
@@ -243,3 +259,185 @@ def run_scan():
             print(f"⚠️ Push notification failed: {e}")
     
     return all_new_tenders
+
+
+def run_auto_discovery():
+    """
+    Run auto-discovery using Google and Bing search APIs.
+    
+    Returns:
+        List of newly added TenderResult objects from auto-discovery
+    """
+    from app.models import AppSettings, DiscoveryLog
+    from app.auto_discovery import get_discovery_engine, get_search_manager, init_discovery
+    import json
+    import time
+    
+    start_time = time.time()
+    new_tenders = []
+    
+    # Get settings
+    settings = AppSettings.query.first()
+    if not settings or not settings.auto_discovery_enabled:
+        print("ℹ️  Auto-discovery is disabled")
+        return new_tenders
+    
+    # Initialize discovery engine
+    try:
+        init_discovery(
+            google_api_key=settings.google_api_key or None,
+            google_cx=settings.google_cx or None,
+            bing_api_key=settings.bing_api_key or None
+        )
+        
+        engine = get_discovery_engine()
+        manager = get_search_manager()
+        
+        if not engine or not manager:
+            print("⚠️  Auto-discovery engine not initialized (check API keys)")
+            return new_tenders
+        
+    except Exception as e:
+        print(f"❌ Failed to initialize auto-discovery: {e}")
+        return new_tenders
+    
+    print(f"\n🌐 Starting auto-discovery (Google + Bing APIs)...")
+    
+    # Get custom queries or use defaults
+    custom_queries = None
+    if settings.discovery_queries:
+        try:
+            custom_queries = json.loads(settings.discovery_queries)
+        except:
+            pass
+    
+    # Run discovery
+    try:
+        discovered = engine.discover_tenders(
+            queries=custom_queries,
+            results_per_query=settings.results_per_query or 10
+        )
+        
+        print(f"🔍 Auto-discovery found {len(discovered)} potential tenders")
+        
+        # Process discovered tenders
+        existing = {r.link for r in TenderResult.query.all()}
+        
+        for item in discovered:
+            if item['link'] in existing:
+                continue
+            
+            # Score and categorize
+            title = item['title']
+            description = item.get('description', '')
+            
+            # Get AI settings
+            use_ai = settings and settings.ai_scoring_enabled
+            
+            # Score with AI or traditional
+            if use_ai:
+                try:
+                    from app.ai_scoring import hybrid_score
+                    import json as json_lib
+                    score, matched, scoring_breakdown = hybrid_score(title, description)
+                    scoring_breakdown_dict = json_lib.loads(scoring_breakdown)
+                    semantic_score = scoring_breakdown_dict.get('semantic_score', score)
+                    ai_confidence = scoring_breakdown_dict.get('semantic_confidence', 0.5)
+                except:
+                    score, matched, scoring_breakdown = score_text(title, description)
+                    semantic_score = 0
+                    ai_confidence = 0
+            else:
+                score, matched, scoring_breakdown = score_text(title, description)
+                semantic_score = 0
+                ai_confidence = 0
+            
+            if score < 10:  # Skip very low scores
+                continue
+            
+            # Categorize
+            category, _, confidence = categorize(title, description)
+            
+            # Translate
+            title_translated = translate_to_english(title)
+            description_translated = translate_to_english(description)
+            
+            # Extract entities if AI enabled
+            entities_json = ""
+            deadline = ""
+            buyer = ""
+            if use_ai and settings.entity_extraction_enabled:
+                try:
+                    from app.ai_entities import extract_entities
+                    import json as json_lib
+                    entities = extract_entities(title, description)
+                    entities_json = json_lib.dumps(entities)
+                    deadline = entities.get('deadline', '')
+                    buyer = entities.get('buyer', '')
+                except:
+                    pass
+            
+            # Create tender result
+            tender = TenderResult(
+                title=title,
+                title_translated=title_translated,
+                link=item['link'],
+                description=description,
+                description_translated=description_translated,
+                score=score,
+                keywords_matched=matched,
+                scoring_breakdown=scoring_breakdown,
+                discovery_method='auto',
+                search_query=item.get('search_query', ''),
+                search_source=item.get('search_source', ''),
+                semantic_score=semantic_score,
+                ai_confidence=ai_confidence,
+                entities_extracted=entities_json,
+                category=category,
+                confidence=confidence,
+                deadline=deadline,
+                buyer=buyer,
+                country="Global",  # Auto-discovered tenders are global by default
+                source_id=None  # No source for auto-discovered
+            )
+            
+            db.session.add(tender)
+            new_tenders.append(tender)
+        
+        # Commit all new tenders
+        db.session.commit()
+        
+        # Log discovery run
+        quota_status = manager.get_quota_status()
+        log = DiscoveryLog(
+            run_type='manual',
+            queries_run=len(custom_queries) if custom_queries else len(engine.DEFAULT_QUERIES),
+            results_found=len(discovered),
+            results_saved=len(new_tenders),
+            google_quota_used=quota_status['google']['used'],
+            bing_quota_used=quota_status['bing']['used'],
+            execution_time_seconds=time.time() - start_time
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        print(f"✅ Auto-discovery complete: {len(new_tenders)} new tenders added")
+        print(f"📊 Quota used - Google: {quota_status['google']['used']}/{quota_status['google']['limit']}, Bing: {quota_status['bing']['used']}/{quota_status['bing']['limit']}")
+        
+    except Exception as e:
+        print(f"❌ Auto-discovery failed: {e}")
+        db.session.rollback()
+        
+        # Log error
+        log = DiscoveryLog(
+            run_type='manual',
+            queries_run=0,
+            results_found=0,
+            results_saved=0,
+            execution_time_seconds=time.time() - start_time,
+            error_message=str(e)
+        )
+        db.session.add(log)
+        db.session.commit()
+    
+    return new_tenders

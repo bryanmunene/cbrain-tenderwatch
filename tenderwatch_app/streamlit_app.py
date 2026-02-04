@@ -826,6 +826,56 @@ elif page == "⚙️ Settings":
         
         st.markdown("---")
         
+        # Auto-Discovery Settings
+        st.markdown("""
+            <div style='padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; margin-bottom: 1rem;'>
+                <div style='font-size: 2rem; text-align: center; margin-bottom: 0.5rem;'>🌐</div>
+                <div style='text-align: center; color: white; font-weight: 600; font-size: 1.2rem;'>Auto-Discovery (Google + Bing APIs)</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        Automatically discover tenders across the entire web without manual source management.
+        
+        **Free Tier:** 
+        - 🔍 Google: 100 searches/day
+        - 🔎 Bing: 33 searches/day  
+        - ⚡ Total: **133 free searches daily**
+        """)
+        
+        auto_discovery = st.checkbox("Enable Auto-Discovery", 
+                                     value=settings.auto_discovery_enabled if settings and hasattr(settings, 'auto_discovery_enabled') else True,
+                                     help="Automatically find tenders via search APIs")
+        
+        if auto_discovery:
+            st.info("📚 **Setup Required:** Get free API keys from [Google](https://developers.google.com/custom-search) and [Bing](https://www.microsoft.com/en-us/bing/apis/bing-web-search-api). See `AUTO_DISCOVERY_SETUP.md` for guide.")
+            
+            google_key = st.text_input("Google Custom Search API Key", 
+                                       value=settings.google_api_key if settings and hasattr(settings, 'google_api_key') else "",
+                                       type="password",
+                                       help="Get from Google Cloud Console")
+            
+            google_cx = st.text_input("Google Custom Search Engine ID (CX)", 
+                                     value=settings.google_cx if settings and hasattr(settings, 'google_cx') else "",
+                                     help="Create at programmablesearchengine.google.com")
+            
+            bing_key = st.text_input("Bing Search API Key", 
+                                    value=settings.bing_api_key if settings and hasattr(settings, 'bing_api_key') else "",
+                                    type="password",
+                                    help="Get from Azure Portal")
+            
+            results_per_query = st.number_input("Results per Query", min_value=5, max_value=50,
+                                               value=settings.results_per_query if settings and hasattr(settings, 'results_per_query') else 10,
+                                               help="Lower = fewer API calls, faster scans")
+            
+            custom_queries = st.text_area("Custom Search Queries (JSON array, optional)",
+                                         value=settings.discovery_queries if settings and hasattr(settings, 'discovery_queries') else "",
+                                         height=100,
+                                         placeholder='["RFP document management Kenya", "tender case management"]',
+                                         help="Leave empty to use default queries")
+        
+        st.markdown("---")
+        
         # Modern settings sections with icons
         st.markdown("""
             <div style='padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; margin-bottom: 1rem;'>
@@ -885,8 +935,18 @@ elif page == "⚙️ Settings":
                     settings.scan_interval_minutes = scan_interval
                     settings.notification_enabled = notification_enabled
                     settings.min_score_to_notify = float(min_score)
+                    
+                    # Save auto-discovery settings
+                    if hasattr(settings, 'auto_discovery_enabled'):
+                        settings.auto_discovery_enabled = auto_discovery
+                        settings.google_api_key = google_key if auto_discovery else ""
+                        settings.google_cx = google_cx if auto_discovery else ""
+                        settings.bing_api_key = bing_key if auto_discovery else ""
+                        settings.results_per_query = results_per_query if auto_discovery else 10
+                        settings.discovery_queries = custom_queries if auto_discovery else ""
+                    
                     db.session.commit()
-                    st.success("✅ Settings saved!")
+                    st.success("✅ Settings saved! Auto-discovery will run on next scan.")
                 else:
                     new_settings = AppSettings(
                         auto_scan_enabled=auto_scan,
@@ -896,7 +956,7 @@ elif page == "⚙️ Settings":
                     )
                     db.session.add(new_settings)
                     db.session.commit()
-                    st.success("✅ Settings saved!")
+                    st.success("✅ Settings saved! Run migration script to enable auto-discovery.")
         
         st.markdown("---")
         

@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2 class="mb-4">
+                <i class="bi bi-globe"></i> Auto-Discovery Dashboard
+                <span class="badge {% if settings.auto_discovery_enabled %}bg-success{% else %}bg-secondary{% endif %} ms-2">
+                    {% if settings.auto_discovery_enabled %}Enabled{% else %}Disabled{% endif %}
+                </span>
+            </h2>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <h5 class="card-title">Total Auto-Discovered</h5>
+                    <h2>{{ auto_tenders_count }}</h2>
+                    <small>Tenders found via API</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <h5 class="card-title">Discovery Runs</h5>
+                    <h2>{{ total_runs }}</h2>
+                    <small>Total scan executions</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <h5 class="card-title">Avg Execution Time</h5>
+                    <h2>{{ "%.1f"|format(avg_execution_time) }}s</h2>
+                    <small>Per discovery run</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <h5 class="card-title">Saved from Discovery</h5>
+                    <h2>{{ total_discovered }}</h2>
+                    <small>High-quality tenders</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Quota Status -->
+    {% if quota_status %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-google"></i> Google Custom Search API
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4>{{ quota_status.google.used }} / {{ quota_status.google.limit }}</h4>
+                            <small>Queries used today</small>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="progress" style="height: 30px;">
+                                <div class="progress-bar {% if quota_status.google.remaining < 10 %}bg-danger{% elif quota_status.google.remaining < 30 %}bg-warning{% else %}bg-success{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ (quota_status.google.used / quota_status.google.limit * 100)|round }}%">
+                                    {{ quota_status.google.remaining }} remaining
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <i class="bi bi-bing"></i> Bing Search API
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4>{{ quota_status.bing.used }} / {{ quota_status.bing.limit }}</h4>
+                            <small>Queries used today</small>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="progress" style="height: 30px;">
+                                <div class="progress-bar {% if quota_status.bing.remaining < 5 %}bg-danger{% elif quota_status.bing.remaining < 15 %}bg-warning{% else %}bg-success{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ (quota_status.bing.used / quota_status.bing.limit * 100)|round }}%">
+                                    {{ quota_status.bing.remaining }} remaining
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> Quota resets daily at midnight UTC ({{ quota_status.reset_date }})
+    </div>
+    {% else %}
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i> Auto-discovery not initialized. Configure API keys in <a href="{{ url_for('main.settings') }}">Settings</a>.
+    </div>
+    {% endif %}
+
+    <!-- Manual Discovery Trigger -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-play-circle"></i> Manual Discovery
+                </div>
+                <div class="card-body">
+                    <p>Run auto-discovery now to find new tenders across Google and Bing search engines.</p>
+                    <button id="runDiscoveryBtn" class="btn btn-primary" {% if not settings.auto_discovery_enabled %}disabled{% endif %}>
+                        <i class="bi bi-search"></i> Run Discovery Now
+                    </button>
+                    <div id="discoveryResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Discovery Logs -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-clock-history"></i> Recent Discovery Runs
+                </div>
+                <div class="card-body">
+                    {% if logs %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date/Time</th>
+                                    <th>Type</th>
+                                    <th>Queries</th>
+                                    <th>Found</th>
+                                    <th>Saved</th>
+                                    <th>Google</th>
+                                    <th>Bing</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs %}
+                                <tr>
+                                    <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td><span class="badge bg-secondary">{{ log.run_type }}</span></td>
+                                    <td>{{ log.queries_run }}</td>
+                                    <td>{{ log.results_found }}</td>
+                                    <td>{{ log.results_saved }}</td>
+                                    <td>{{ log.google_quota_used }}</td>
+                                    <td>{{ log.bing_quota_used }}</td>
+                                    <td>{{ "%.1f"|format(log.execution_time_seconds) }}s</td>
+                                    <td>
+                                        {% if log.error_message %}
+                                        <span class="badge bg-danger" data-bs-toggle="tooltip" title="{{ log.error_message }}">Error</span>
+                                        {% else %}
+                                        <span class="badge bg-success">Success</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No discovery runs yet. Click "Run Discovery Now" to start.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('runDiscoveryBtn').addEventListener('click', function() {
+    const btn = this;
+    const resultDiv = document.getElementById('discoveryResult');
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Running...';
+    resultDiv.innerHTML = '<div class="alert alert-info">Starting auto-discovery... This may take 30-60 seconds.</div>';
+    
+    fetch('/api/discovery/run', { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                resultDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                setTimeout(() => window.location.reload(), 2000);
+            } else {
+                resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
+            }
+        })
+        .catch(error => {
+            resultDiv.innerHTML = `<div class="alert alert-danger">Request failed: ${error}</div>`;
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-search"></i> Run Discovery Now';
+        });
+});
+
+// Enable Bootstrap tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+  return new bootstrap.Tooltip(tooltipTriggerEl)
+})
+</script>
+{% endblock %}

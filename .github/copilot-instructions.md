@@ -12,21 +12,23 @@
 **Sources → Scraper → Translator → Scorer/Categorizer → Database → UI**
 
 ```
-TenderSource (URL, active flag) 
+TenderSource (URL, active flag) OR Auto-Discovery (Google/Bing APIs)
     ↓
-scraper.py: run_scan() fetches HTML, extracts <a> links
+scraper.py: run_scan() fetches HTML OR run_auto_discovery() searches web
     ↓
 translator.py: detect_language() + translate_to_english() (deep-translator)
     ↓
 scoring.py: score_text() matches keywords → 5-100% score
 categorizer.py: categorize() assigns category + confidence
     ↓
-TenderResult (title, link, score, scoring_breakdown JSON)
+TenderResult (title, link, score, discovery_method, scoring_breakdown JSON)
     ↓
 Flask routes.py OR streamlit_app.py
 ```
 
 **Key deduplication:** `existing = {r.link for r in TenderResult.query.all()}` prevents duplicate tenders by URL
+
+**Auto-Discovery NEW:** Dual API system (Google + Bing) searches entire web without manual source management. See `AUTO_DISCOVERY_SETUP.md` for full guide.
 
 ## Critical Setup Workflow
 
@@ -172,7 +174,10 @@ All routes use Flask Blueprint `main` (registered in `__init__.py`):
 - `/scan` (POST) — Triggers `run_scan()`, returns results sorted by score desc, redirects to `/scan-results`
 - `/tender/<int:tid>` — Detail view with scoring breakdown, matched keywords, categorization
 - `/sources` — CRUD for tender sources (add, edit, delete, toggle active/favorite)
-- `/settings` — Auto-scan config (interval in minutes, notification toggles)
+- `/discovery` — Auto-discovery dashboard with quota tracking, recent logs, manual trigger
+- `/api/discovery/status` (GET) — JSON endpoint for quota status and recent discovery logs
+- `/api/discovery/run` (POST) — Manual trigger for auto-discovery scan
+- `/settings` — Auto-scan config (interval in minutes, notification toggles, auto-discovery API keys)
 - `/api/source-status` (GET) — JSON endpoint returning source health (active status, tender counts)
 - `/favorites`, `/saved` — Filtered views using query filters `filter_by(favorite=True)`
 
@@ -180,19 +185,48 @@ All routes use Flask Blueprint `main` (registered in `__init__.py`):
 - **TenderSource**: name, url, active (bool), favorite (bool)
 - **TenderResult**: title, link (unique), description, score, scoring_breakdown (JSON), category, confidence, saved, favorite, notified
   - **AI fields**: semantic_score, ai_confidence, entities_extracted (JSON), ai_summary
+  - **Discovery fields**: discovery_method ('manual', 'auto', 'priority'), search_query, search_source ('google', 'bing')
   - **Extracted fields**: buyer, country, deadline (parsed via `deadlines.py`)
 - **PushSubscription**: endpoint (unique), p256dh_key, auth_key, user_agent, active (bool)
   - Stores Web Push API subscriptions for mobile/desktop notifications
+- **DiscoveryLog**: run_type, queries_run, results_found, results_saved, google_quota_used, bing_quota_used, execution_time_seconds, error_message
+  - Tracks auto-discovery runs with quota usage and statistics
 - **LearnedKeyword**: (Optional) Stores learned keywords from `learner.py`
 - **AppSettings**: auto_scan_enabled, scan_interval_minutes, notification_enabled
   - **AI settings**: ai_scoring_enabled, ai_learning_enabled, entity_extraction_enabled
+  - **Auto-discovery settings**: auto_discovery_enabled, google_api_key, google_cx, bing_api_key, discovery_queries (JSON), results_per_query
   - **Notification settings**: notify_desktop, notify_email, min_score_to_notify, smtp_*
 - All models use `db.Column` from `extensions.py` (shared db instance)
+
+### Auto-Discovery System (NEW - auto_discovery.py)
+- **SearchAPIManager**: Handles Google Custom Search + Bing Search API v7
+  - `search_google()`: Query Google API (100/day free), returns list of dicts with title/link/snippet
+  - `search_bing()`: Query Bing API (33/day free), returns list of dicts
+  - `search_all()`: Combines both APIs with deduplication by URL
+  - `get_quota_status()`: Returns current quota usage for both APIs (resets daily)
+  - Quota tracking: Automatically stops at limit, resets at midnight UTC
+- **TenderDiscovery**: Main discovery engine
+  - `discover_tenders()`: Runs 14 default queries or custom queries from AppSettings
+  - `_is_likely_tender()`: Filters results by positive keywords (tender, rfp, rfq) and excludes news/blogs/social
+  - Default queries target: government procurement, EDMS, case management, regional (Kenya, Africa), source-specific (UNDP, World Bank)
+- **Integration with run_scan()**: Auto-discovery runs after manual sources if `auto_discovery_enabled=True`
+  - `run_auto_discovery()`: Initializes APIs from settings, discovers tenders, scores/categorizes/translates, saves with `discovery_method='auto'`
+  - Logs each run in `DiscoveryLog` table with quota usage, results found, execution time
+- **Setup**: Run `migrate_discovery.py` once to add discovery columns/tables
+  - Get free API keys: Google Custom Search (100/day), Bing Search (33/day) = 133/day combined
+  - Configure in Settings → Auto-Discovery section (Flask) or Settings sidebar (Streamlit)
+  - View quota/logs in `/discovery` dashboard route
 
 ## Integration Points
 - **Translation**: `translator.py` uses `deep-translator` for GoogleTranslator, `langdetect` for language detection
   - Fallback chain: deep-translator → MyMemory API → original text if all fail
   - Auto-detects language with `detect()`, uses `source_lang="auto"` by default
+- **Auto-Discovery**: `auto_discovery.py` searches web via Google/Bing APIs for tender opportunities
+  - Runs automatically with scheduled scans if `auto_discovery_enabled=True` in AppSettings
+  - Manual trigger: POST to `/api/discovery/run` or "Run Discovery Now" button in UI
+  - Quota management: Tracks usage per API, stops at limit, resets daily
+  - Hybrid strategy: Manual sources scanned first (priority), then auto-discovery supplements
+  - Setup guide: See `AUTO_DISCOVERY_SETUP.md` for API key instructions
 - **Scheduler**: APScheduler runs `scheduled_scan()` every N minutes (configured in `AppSettings.scan_interval_minutes`)
   - Started in `scheduler.py`, initialized on app startup in `__init__.py`
   - Toggle via `AppSettings.auto_scan_enabled` boolean
