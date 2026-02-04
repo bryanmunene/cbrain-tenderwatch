@@ -422,37 +422,46 @@ def run_auto_discovery():
         # Commit all new tenders
         db.session.commit()
         
-        # Log discovery run
-        quota_status = manager.get_quota_status()
-        log = DiscoveryLog(
-            run_type='manual',
-            queries_run=len(custom_queries) if custom_queries else len(engine.DEFAULT_QUERIES),
-            results_found=len(discovered),
-            results_saved=len(new_tenders),
-            google_quota_used=quota_status['google']['used'],
-            bing_quota_used=quota_status['bing']['used'],
-            execution_time_seconds=time.time() - start_time
-        )
-        db.session.add(log)
-        db.session.commit()
+        # Log discovery run (skip if database is read-only on Streamlit Cloud)
+        try:
+            quota_status = manager.get_quota_status()
+            log = DiscoveryLog(
+                run_type='manual',
+                queries_run=len(custom_queries) if custom_queries else len(engine.DEFAULT_QUERIES),
+                results_found=len(discovered),
+                results_saved=len(new_tenders),
+                google_quota_used=quota_status['google']['used'],
+                bing_quota_used=quota_status['bing']['used'],
+                execution_time_seconds=time.time() - start_time
+            )
+            db.session.add(log)
+            db.session.commit()
+        except Exception as log_error:
+            logger.debug(f"Could not save discovery log (read-only database): {log_error}")
+            db.session.rollback()
         
         print(f"✅ Auto-discovery complete: {len(new_tenders)} new tenders added")
+        quota_status = manager.get_quota_status()
         print(f"📊 Quota used - Google: {quota_status['google']['used']}/{quota_status['google']['limit']}, Bing: {quota_status['bing']['used']}/{quota_status['bing']['limit']}")
         
     except Exception as e:
         print(f"❌ Auto-discovery failed: {e}")
         db.session.rollback()
         
-        # Log error
-        log = DiscoveryLog(
-            run_type='manual',
-            queries_run=0,
-            results_found=0,
-            results_saved=0,
-            execution_time_seconds=time.time() - start_time,
-            error_message=str(e)
-        )
-        db.session.add(log)
-        db.session.commit()
+        # Log error (skip if database is read-only on Streamlit Cloud)
+        try:
+            log = DiscoveryLog(
+                run_type='manual',
+                queries_run=0,
+                results_found=0,
+                results_saved=0,
+                execution_time_seconds=time.time() - start_time,
+                error_message=str(e)
+            )
+            db.session.add(log)
+            db.session.commit()
+        except Exception as log_error:
+            logger.debug(f"Could not save discovery error log (read-only database): {log_error}")
+            db.session.rollback()
     
     return new_tenders
