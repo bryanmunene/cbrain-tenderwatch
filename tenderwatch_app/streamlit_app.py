@@ -622,170 +622,247 @@ if page == "📊 Dashboard":
 elif page == "🔍 Scan & Results":
     st.title("🎯 Find Your Perfect Match!")
     
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        st.markdown("✨ Let's discover some amazing opportunities together!")
-    
-    with col2:
-        if st.button("🚀 Let's Go!", key="top_scan_button", type="primary", use_container_width=True):
-            with st.spinner("🔮 Working some magic..."):
-                new_tenders = run_tender_scan()
-                if new_tenders:
-                    st.success(f"🎉 Woohoo! Found {len(new_tenders)} awesome opportunities!")
-                else:
-                    st.info("🤔 Hmm, nothing new right now. Check back soon!")
-                st.rerun()
-    
-    st.markdown("---")
-    
-    # Filters and Export
-    col_filter, col_export = st.columns([4, 1])
-    
-    with col_filter:
-        st.subheader("🎛️ Filters")
-    
-    with col_export:
-        # CSV Export button
-        all_tenders_for_export = get_tenders()
-        if all_tenders_for_export:
-            csv_data = "Title,Link,Score,Category,Country,Deadline,Description\n"
-            for t in all_tenders_for_export:
-                csv_data += f'"{t.title}","{t.link}",{t.score},"{t.category or ""}","{t.country or ""}","{t.deadline or ""}","{(t.description or "")[:200]}"\n'
-            
-            st.download_button(
-                label="📥 Export CSV",
-                data=csv_data,
-                file_name=f"tenders_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv",
-                help="Download all tenders as CSV"
-            )
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        min_score = st.slider("Minimum Score", 0, 100, 0, 5)
-    
-    with col2:
-        all_tenders = get_tenders()
-        categories = ["All"] + sorted(list(set([t.category for t in all_tenders if t.category]))) if all_tenders else ["All"]
-        category = st.selectbox("Category", categories)
-    
-    with col3:
-        sort_by = st.selectbox("Sort By", ["score", "date", "deadline"])
-    
-    with col4:
-        search = st.text_input("🔍 Search", placeholder="Search titles & descriptions...", help="Search in tender titles and descriptions")
-    
-    # Get filtered tenders
-    filters = {
-        'min_score': min_score,
-        'category': category,
-        'sort_by': sort_by,
-        'search': search
-    }
-    
-    tenders = get_tenders(filters)
-    
-    st.markdown(f"**{len(tenders)} tenders found**")
-    st.markdown("---")
-    
-    # Display tenders
-    if tenders:
-        for tender in tenders:
-            # Determine score styling
-            if tender.score >= 70:
-                score_emoji = "🎯"
-                score_color = "#10b981"
-            elif tender.score >= 40:
-                score_emoji = "📊"
-                score_color = "#f59e0b"
-            else:
-                score_emoji = "📝"
-                score_color = "#ef4444"
-            
-            # Clean simple card layout
-            with st.container():
-                # Header row
-                col_title, col_score = st.columns([5, 1])
-                with col_title:
-                    st.markdown(f"### {tender.title}")
-                with col_score:
-                    st.markdown(f"<span style='background: {score_color}; color: white; padding: 0.5rem 1rem; border-radius: 12px; font-weight: bold;'>{score_emoji} {tender.score:.0f}%</span>", unsafe_allow_html=True)
-                
-                # Tags row
-                tags = []
-                if tender.category and tender.category != "Unclassified":
-                    tags.append(f"📁 {tender.category}")
-                if tender.country:
-                    tags.append(f"🌍 {tender.country}")
-                if tender.deadline:
-                    tags.append(f"⏰ {tender.deadline}")
-                
-                if tags:
-                    st.markdown(" | ".join(tags))
-                
-                # Action buttons
-                col1, col2, col3, col4 = st.columns(4)
-                
-                with col1:
-                    fav_label = "⭐ Favorited" if tender.favorite else "☆ Favorite"
-                    if st.button(fav_label, key=f"fav_{tender.id}"):
-                        toggle_favorite(tender.id)
-                        st.rerun()
-                
-                with col2:
-                    save_label = "💾 Saved" if tender.saved else "📥 Save"
-                    if st.button(save_label, key=f"save_{tender.id}"):
-                        toggle_saved(tender.id)
-                        st.rerun()
-                
-                with col3:
-                    st.link_button("🔗 View Source", tender.link)
-                
-                with col4:
-                    if st.button("📖 Details", key=f"detail_{tender.id}"):
-                        st.session_state['selected_tender'] = tender.id
+    # Check if a tender is selected for detail view
+    if 'selected_tender' in st.session_state and st.session_state['selected_tender']:
+        tender_id = st.session_state['selected_tender']
+        with app.app_context():
+            tender = TenderResult.query.get(tender_id)
+            if tender:
+                # Back button
+                if st.button("← Back to Results", key="back_from_detail"):
+                    st.session_state['selected_tender'] = None
+                    st.rerun()
                 
                 st.markdown("---")
+                
+                # Tender title with score
+                score_color = "#10b981" if tender.score >= 70 else "#f59e0b" if tender.score >= 40 else "#ef4444"
+                st.markdown(f"""
+                <div style='padding: 1.5rem; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; margin-bottom: 1rem;'>
+                    <div style='display: flex; justify-content: space-between; align-items: center;'>
+                        <h2 style='color: white; margin: 0; font-size: 1.5rem;'>{tender.title}</h2>
+                        <span style='background: {score_color}; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 700; font-size: 1.2rem;'>{tender.score:.0f}%</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Details in columns
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("### 📋 Basic Information")
+                    st.markdown(f"**Category:** {tender.category or 'Uncategorized'}")
+                    st.markdown(f"**Country:** {tender.country or 'Not specified'}")
+                    st.markdown(f"**Deadline:** {tender.deadline or 'Not specified'}")
+                    st.markdown(f"**Found on:** {tender.created_at.strftime('%Y-%m-%d %H:%M') if tender.created_at else 'Unknown'}")
+                    
+                    st.markdown("### 🔗 Source")
+                    st.link_button("🌐 View Original Tender", tender.link, use_container_width=True)
+                
+                with col2:
+                    st.markdown("### 🎯 Scoring Details")
+                    st.markdown(f"**Match Score:** {tender.score:.1f}%")
+                    st.markdown(f"**Confidence:** {(tender.confidence or 0) * 100:.0f}%")
+                    
+                    if tender.matched_keywords:
+                        st.markdown("**Matched Keywords:**")
+                        keywords = tender.matched_keywords.split(", ") if tender.matched_keywords else []
+                        for kw in keywords[:10]:
+                            st.markdown(f"• {kw}")
+                        if len(keywords) > 10:
+                            st.markdown(f"*...and {len(keywords) - 10} more*")
+                
+                st.markdown("---")
+                
+                # Description
+                st.markdown("### 📝 Description")
+                st.markdown(tender.description or "No description available.")
+                
+                # Scoring breakdown
+                if tender.scoring_breakdown:
+                    st.markdown("### 📊 Scoring Breakdown")
+                    try:
+                        import json
+                        breakdown = json.loads(tender.scoring_breakdown) if isinstance(tender.scoring_breakdown, str) else tender.scoring_breakdown
+                        
+                        if isinstance(breakdown, dict):
+                            if 'unique_keywords' in breakdown:
+                                st.markdown(f"**Keywords Found:** {breakdown.get('keywords_found', 0)} / {breakdown.get('total_keywords_in_system', 'N/A')}")
+                            if 'matched_groups' in breakdown:
+                                st.markdown("**Matched Categories:**")
+                                for group in breakdown.get('matched_groups', []):
+                                    st.markdown(f"• **{group.get('group', 'Unknown')}**: {group.get('count', 0)} keywords")
+                    except:
+                        st.code(tender.scoring_breakdown)
+                
+                st.markdown("---")
+                
+                # Action buttons
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    fav_label = "💛 Unfavorite" if tender.favorite else "⭐ Favorite"
+                    if st.button(fav_label, key="detail_fav", use_container_width=True):
+                        toggle_favorite(tender.id)
+                        st.rerun()
+                with col2:
+                    save_label = "📤 Unsave" if tender.saved else "💾 Save"
+                    if st.button(save_label, key="detail_save", use_container_width=True):
+                        toggle_saved(tender.id)
+                        st.rerun()
+                with col3:
+                    if st.button("← Back to Results", key="detail_back", use_container_width=True):
+                        st.session_state['selected_tender'] = None
+                        st.rerun()
+            else:
+                st.error("Tender not found")
+                st.session_state['selected_tender'] = None
     else:
-        st.markdown("""
-        <style>
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
+        # Normal scan & results view
+        col1, col2 = st.columns([3, 1])
+    
+        with col1:
+            st.markdown("✨ Let's discover some amazing opportunities together!")
+    
+        with col2:
+            if st.button("🚀 Let's Go!", key="top_scan_button", type="primary", use_container_width=True):
+                with st.spinner("🔮 Working some magic..."):
+                    new_tenders = run_tender_scan()
+                    if new_tenders:
+                        st.success(f"🎉 Woohoo! Found {len(new_tenders)} awesome opportunities!")
+                    else:
+                        st.info("🤔 Hmm, nothing new right now. Check back soon!")
+                    st.rerun()
+    
+        st.markdown("---")
+    
+        # Filters and Export
+        col_filter, col_export = st.columns([4, 1])
+    
+        with col_filter:
+            st.subheader("🎛️ Filters")
+    
+        with col_export:
+            # CSV Export button
+            all_tenders_for_export = get_tenders()
+            if all_tenders_for_export:
+                csv_data = "Title,Link,Score,Category,Country,Deadline,Description\n"
+                for t in all_tenders_for_export:
+                    csv_data += f'"{t.title}","{t.link}",{t.score},"{t.category or ""}","{t.country or ""}","{t.deadline or ""}","{(t.description or "")[:200]}"\n'
+            
+                st.download_button(
+                    label="📥 Export CSV",
+                    data=csv_data,
+                    file_name=f"tenders_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv",
+                    help="Download all tenders as CSV"
+                )
+    
+        col1, col2, col3, col4 = st.columns(4)
+    
+        with col1:
+            min_score = st.slider("Minimum Score", 0, 100, 0, 5)
+    
+        with col2:
+            all_tenders = get_tenders()
+            categories = ["All"] + sorted(list(set([t.category for t in all_tenders if t.category]))) if all_tenders else ["All"]
+            category = st.selectbox("Category", categories)
+    
+        with col3:
+            sort_by = st.selectbox("Sort By", ["score", "date", "deadline"])
+    
+        with col4:
+            search = st.text_input("🔍 Search", placeholder="Search titles & descriptions...", help="Search in tender titles and descriptions")
+    
+        # Get filtered tenders
+        filters = {
+            'min_score': min_score,
+            'category': category,
+            'sort_by': sort_by,
+            'search': search
         }
-        </style>
-        <div style='text-align: center; padding: 3rem 3rem 3rem 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
-                    border-radius: 30px; margin: 2rem 0 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2); position: relative;'>
-            <div style='font-size: 4rem; margin-bottom: 1rem; animation: bounce 2s infinite; cursor: pointer;' 
-                 onclick='document.getElementById("bullseye_scan").click();'>🎯</div>
-            <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>Ready for the Hunt?</h3>
-            <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 0.5rem;'>
-                Let's discover some amazing tenders together! 🚀
-            </p>
-            <p style='color: #a3a3a3; font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;'>👆 Click the target above!</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Hidden button that gets triggered by the emoji
-        if st.button("🎯", key="bullseye_scan", help="Click to scan!"):
-            with st.spinner("🔮 Working some magic..."):
-                new_tenders = run_tender_scan()
-                if new_tenders:
-                    st.success(f"🎉 Woohoo! Found {len(new_tenders)} awesome opportunities!")
+    
+        tenders = get_tenders(filters)
+    
+        st.markdown(f"**{len(tenders)} tenders found**")
+        st.markdown("---")
+    
+        # Display tenders
+        if tenders:
+            for tender in tenders:
+                # Determine score styling
+                if tender.score >= 70:
+                    score_emoji = "🎯"
+                    score_color = "#10b981"
+                elif tender.score >= 40:
+                    score_emoji = "📊"
+                    score_color = "#f59e0b"
                 else:
-                    st.info("🤔 Hmm, nothing new right now. Check back soon!")
-                st.rerun()
-        
-        st.markdown("""
-        <style>
-        /* Hide the actual Streamlit button */
-        button[data-testid="baseButton-secondary"] {
-            display: none !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
+                    score_emoji = "📝"
+                    score_color = "#ef4444"
+            
+                # Clean simple card layout
+                with st.container():
+                    # Header row
+                    col_title, col_score = st.columns([5, 1])
+                    with col_title:
+                        st.markdown(f"### {tender.title}")
+                    with col_score:
+                        st.markdown(f"<span style='background: {score_color}; color: white; padding: 0.5rem 1rem; border-radius: 12px; font-weight: bold;'>{score_emoji} {tender.score:.0f}%</span>", unsafe_allow_html=True)
+                
+                    # Tags row
+                    tags = []
+                    if tender.category and tender.category != "Unclassified":
+                        tags.append(f"📁 {tender.category}")
+                    if tender.country:
+                        tags.append(f"🌍 {tender.country}")
+                    if tender.deadline:
+                        tags.append(f"⏰ {tender.deadline}")
+                
+                    if tags:
+                        st.markdown(" | ".join(tags))
+                
+                    # Action buttons
+                    col1, col2, col3, col4 = st.columns(4)
+                
+                    with col1:
+                        fav_label = "⭐ Favorited" if tender.favorite else "☆ Favorite"
+                        if st.button(fav_label, key=f"fav_{tender.id}"):
+                            toggle_favorite(tender.id)
+                            st.rerun()
+                
+                    with col2:
+                        save_label = "💾 Saved" if tender.saved else "📥 Save"
+                        if st.button(save_label, key=f"save_{tender.id}"):
+                            toggle_saved(tender.id)
+                            st.rerun()
+                
+                    with col3:
+                        st.link_button("🔗 View Source", tender.link)
+                
+                    with col4:
+                        if st.button("📖 Details", key=f"detail_{tender.id}"):
+                            st.session_state['selected_tender'] = tender.id
+                            st.rerun()
+                
+                    st.markdown("---")
+        else:
+            st.markdown("""
+            <style>
+            @keyframes bounce {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-20px); }
+            }
+            </style>
+            <div style='text-align: center; padding: 3rem 3rem 3rem 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
+                        border-radius: 30px; margin: 2rem 0 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2); position: relative;'>
+                <div style='font-size: 4rem; margin-bottom: 1rem; animation: bounce 2s infinite; cursor: pointer;'>🎯</div>
+                <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>Ready for the Hunt?</h3>
+                <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 0.5rem;'>
+                    Let's discover some amazing tenders together! 🚀
+                </p>
+                <p style='color: #a3a3a3; font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;'>Click "Let's Go!" above to scan!</p>
+            </div>
+            """, unsafe_allow_html=True)
 
 elif page == "📁 Sources":
     st.title("📁 Tender Sources")
