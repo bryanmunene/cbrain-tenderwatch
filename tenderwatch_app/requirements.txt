@@ -5,6 +5,7 @@ beautifulsoup4
 python-dateutil
 lxml
 deep-translator>=1.11.4
+googletrans==4.0.0-rc1
 langdetect>=1.0.9
 APScheduler>=3.10.4
 plyer>=2.1.0

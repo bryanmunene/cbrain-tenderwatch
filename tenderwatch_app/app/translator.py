@@ -60,6 +60,8 @@ def translate_to_english(text: str, source_lang: str = "auto") -> str:
     Returns:
         Translated text in English, or original text if translation fails
     """
+    import time
+    
     if not text or len(text.strip()) == 0:
         return ""
     
@@ -72,30 +74,49 @@ def translate_to_english(text: str, source_lang: str = "auto") -> str:
     
     print(f"🌐 Translating from {detected_lang}: {text[:50]}...")
     
-    # Try GoogleTranslator FIRST (most reliable, uses auto-detect)
-    try:
-        from deep_translator import GoogleTranslator
-        # Use 'auto' for source to let Google auto-detect (more reliable)
-        translator = GoogleTranslator(source='auto', target='en')
-        translated = translator.translate(text[:5000])
-        
-        if translated and translated.lower() != text.lower():
-            print(f"✅ Translated via Google: {translated[:50]}...")
-            return translated
-    except Exception as e:
-        print(f"⚠️ GoogleTranslator failed: {str(e)}")
+    # Try GoogleTranslator with retries
+    for attempt in range(3):
+        try:
+            from deep_translator import GoogleTranslator
+            translator = GoogleTranslator(source='auto', target='en')
+            translated = translator.translate(text[:5000])
+            
+            if translated and translated.lower() != text.lower():
+                print(f"✅ Translated via Google: {translated[:50]}...")
+                return translated
+            break  # No error but same text, don't retry
+        except Exception as e:
+            print(f"⚠️ GoogleTranslator attempt {attempt+1} failed: {str(e)[:50]}")
+            if attempt < 2:
+                time.sleep(1)  # Wait before retry
     
-    # Fallback: Try MyMemory
+    # Fallback: Try googletrans library (different Google endpoint)
+    try:
+        from googletrans import Translator
+        translator = Translator()
+        result = translator.translate(text[:5000], dest='en')
+        if result and result.text and result.text.lower() != text.lower():
+            print(f"✅ Translated via googletrans: {result.text[:50]}...")
+            return result.text
+    except Exception as e:
+        print(f"⚠️ googletrans failed: {str(e)[:50]}")
+    
+    # Fallback: Try MyMemory with proper language code mapping
     try:
         from deep_translator import MyMemoryTranslator
-        translator = MyMemoryTranslator(source=detected_lang, target='en')
+        # Map 2-letter codes to MyMemory format
+        lang_map = {'fr': 'french', 'de': 'german', 'es': 'spanish', 'pt': 'portuguese', 
+                    'it': 'italian', 'nl': 'dutch', 'ru': 'russian', 'zh': 'chinese simplified',
+                    'ar': 'arabic', 'ja': 'japanese', 'ko': 'korean'}
+        source = lang_map.get(detected_lang, detected_lang)
+        translator = MyMemoryTranslator(source=source, target='english')
         translated = translator.translate(text[:500])
         
         if translated and translated.lower() != text.lower():
             print(f"✅ Translated via MyMemory: {translated[:50]}...")
             return translated
     except Exception as e:
-        print(f"⚠️ MyMemoryTranslator failed: {str(e)}")
+        print(f"⚠️ MyMemoryTranslator failed: {str(e)[:50]}")
     
     # Fallback: Try LibreTranslate API
     try:
@@ -116,7 +137,7 @@ def translate_to_english(text: str, source_lang: str = "auto") -> str:
                     print(f"✅ Translated via LibreTranslate: {translated[:50]}...")
                     return translated
     except Exception as e:
-        print(f"⚠️ LibreTranslate failed: {str(e)}")
+        print(f"⚠️ LibreTranslate failed: {str(e)[:50]}")
     
     # Return original text if all methods fail
     print(f"❌ Translation failed, returning original text")
