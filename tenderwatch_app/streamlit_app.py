@@ -664,9 +664,9 @@ elif page == "🔍 Scan & Results":
                     st.markdown(f"**Match Score:** {tender.score:.1f}%")
                     st.markdown(f"**Confidence:** {(tender.confidence or 0) * 100:.0f}%")
                     
-                    if tender.matched_keywords:
+                    if tender.keywords_matched:
                         st.markdown("**Matched Keywords:**")
-                        keywords = tender.matched_keywords.split(", ") if tender.matched_keywords else []
+                        keywords = tender.keywords_matched.split(", ") if tender.keywords_matched else []
                         for kw in keywords[:10]:
                             st.markdown(f"• {kw}")
                         if len(keywords) > 10:
