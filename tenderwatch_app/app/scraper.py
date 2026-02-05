@@ -181,13 +181,10 @@ def scan_source(source: TenderSource):
             semantic_score = 0
             ai_confidence = 0
 
-        # Give minimum score to all valid tenders (even if no specific keywords match)
-        # This allows users to see all tenders, with relevant ones scored higher
+        # ONLY save tenders that match cBrain keywords (document management, case management, workflow, e-gov)
+        # Skip tenders that don't match any relevant keywords
         if score == 0:
-            # Still a valid tender, give minimum score
-            score = 5
-            matched = "general tender"
-            scoring_breakdown = '{"reason": "General tender - no specific keywords matched"}'
+            continue  # Not relevant to cBrain - skip entirely
         
         # Ensure scoring_breakdown is a string
         if isinstance(scoring_breakdown, dict):
