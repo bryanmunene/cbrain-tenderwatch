@@ -827,17 +827,11 @@ elif page == "🔍 Scan & Results":
                     emoji, message = cooking_messages[message_index % len(cooking_messages)]
                     
                     loading_placeholder.markdown(f"""
-                    <div style='text-align: center; padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; margin: 1rem 0;'>
-                        <div style='font-size: 4rem; margin-bottom: 1rem; animation: pulse 1s infinite;'>{emoji}</div>
-                        <h3 style='color: white; margin: 0;'>{message}</h3>
-                        <p style='color: rgba(255,255,255,0.8); margin-top: 0.5rem;'>Elapsed: {elapsed} seconds</p>
+                    <div style='display: inline-flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px;'>
+                        <span style='font-size: 1.5rem;'>{emoji}</span>
+                        <span style='color: white; font-size: 0.9rem;'>{message}</span>
+                        <span style='color: rgba(255,255,255,0.7); font-size: 0.8rem;'>({elapsed}s)</span>
                     </div>
-                    <style>
-                        @keyframes pulse {{
-                            0%, 100% {{ transform: scale(1); }}
-                            50% {{ transform: scale(1.1); }}
-                        }}
-                    </style>
                     """, unsafe_allow_html=True)
                     
                     # Update progress (fake progress that slows down)
