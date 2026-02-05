@@ -342,6 +342,42 @@ def init_db():
         if added_count > 0:
             db.session.commit()
             print(f"✅ Added {added_count} new tender sources")
+        
+        # Translate any untranslated tenders
+        translate_untranslated_tenders()
+
+def translate_untranslated_tenders():
+    """Translate tenders that don't have translations yet"""
+    from app.translator import translate_to_english, detect_language
+    
+    with app.app_context():
+        # Find tenders where title_translated is empty or same as title
+        untranslated = TenderResult.query.filter(
+            (TenderResult.title_translated == None) | 
+            (TenderResult.title_translated == "") |
+            (TenderResult.title_translated == TenderResult.title)
+        ).limit(20).all()  # Limit to 20 at a time to avoid timeout
+        
+        if untranslated:
+            print(f"🌐 Translating {len(untranslated)} untranslated tenders...")
+            translated_count = 0
+            
+            for tender in untranslated:
+                # Check if title is non-English
+                detected_lang = detect_language(tender.title)
+                if detected_lang != "en":
+                    translated_title = translate_to_english(tender.title)
+                    if translated_title and translated_title.lower() != tender.title.lower():
+                        tender.title_translated = translated_title
+                        translated_count += 1
+                        print(f"  ✅ Translated: {tender.title[:40]}...")
+                else:
+                    # Mark English tenders as translated (same as original)
+                    tender.title_translated = tender.title
+            
+            if translated_count > 0:
+                db.session.commit()
+                print(f"✅ Translated {translated_count} tenders")
 
 def get_tenders(filters=None):
     """Get tenders with optional filters - only from last month"""

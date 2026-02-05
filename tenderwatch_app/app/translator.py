@@ -10,8 +10,37 @@ from typing import Tuple
 
 logger = logging.getLogger(__name__)
 
+# Common non-English words that indicate foreign language
+FRENCH_INDICATORS = ['pour', 'les', 'des', 'une', 'aux', 'sur', 'dans', 'avec', 'par', 'mise', 'place', 'terme', 'long', 'accord', 'etablissement', 'hebergement', 'plateforme', 'classement', 'services', 'production', 'audiovisuelles', 'digitale']
+SPANISH_INDICATORS = ['para', 'los', 'las', 'una', 'del', 'con', 'por', 'servicios', 'construccion', 'contratacion', 'adquisicion', 'suministro']
+PORTUGUESE_INDICATORS = ['para', 'dos', 'das', 'uma', 'com', 'por', 'servicos', 'aquisicao', 'fornecimento', 'contratacao']
+GERMAN_INDICATORS = ['für', 'die', 'der', 'das', 'und', 'mit', 'bei', 'zur', 'ausschreibung', 'vergabe', 'dienstleistungen']
+
 def detect_language(text: str) -> str:
-    """Detect the language of the given text"""
+    """Detect the language of the given text with improved accuracy"""
+    if not text:
+        return "en"
+    
+    text_lower = text.lower()
+    words = text_lower.split()
+    
+    # Check for common non-English word patterns first (more reliable for short texts)
+    french_count = sum(1 for word in words if word in FRENCH_INDICATORS)
+    spanish_count = sum(1 for word in words if word in SPANISH_INDICATORS)
+    portuguese_count = sum(1 for word in words if word in PORTUGUESE_INDICATORS)
+    german_count = sum(1 for word in words if word in GERMAN_INDICATORS)
+    
+    # If we find multiple indicator words, trust that over langdetect
+    if french_count >= 2:
+        return "fr"
+    if spanish_count >= 2:
+        return "es"
+    if portuguese_count >= 2:
+        return "pt"
+    if german_count >= 2:
+        return "de"
+    
+    # Fall back to langdetect
     try:
         from langdetect import detect
         lang = detect(text)
@@ -34,77 +63,63 @@ def translate_to_english(text: str, source_lang: str = "auto") -> str:
     if not text or len(text.strip()) == 0:
         return ""
     
-    # First check: if already English, return as is
-    try:
-        detected_lang = detect_language(text)
-        if detected_lang == "en":
-            return text
-    except Exception as e:
-        logger.debug(f"Language detection failed: {e}")
+    # Detect language
+    detected_lang = detect_language(text) if source_lang == "auto" else source_lang
     
-    # Try: Free translation service (LibreTranslate API)
+    # If English, return as is
+    if detected_lang == "en":
+        return text
+    
+    print(f"🌐 Translating from {detected_lang}: {text[:50]}...")
+    
+    # Try GoogleTranslator FIRST (most reliable, uses auto-detect)
     try:
-        detected_lang = detect_language(text) if source_lang == "auto" else source_lang
+        from deep_translator import GoogleTranslator
+        # Use 'auto' for source to let Google auto-detect (more reliable)
+        translator = GoogleTranslator(source='auto', target='en')
+        translated = translator.translate(text[:5000])
         
-        if detected_lang == "en":
-            return text
+        if translated and translated.lower() != text.lower():
+            print(f"✅ Translated via Google: {translated[:50]}...")
+            return translated
+    except Exception as e:
+        print(f"⚠️ GoogleTranslator failed: {str(e)}")
+    
+    # Fallback: Try MyMemory
+    try:
+        from deep_translator import MyMemoryTranslator
+        translator = MyMemoryTranslator(source=detected_lang, target='en')
+        translated = translator.translate(text[:500])
         
-        # Using LibreTranslate free API (no API key needed)
+        if translated and translated.lower() != text.lower():
+            print(f"✅ Translated via MyMemory: {translated[:50]}...")
+            return translated
+    except Exception as e:
+        print(f"⚠️ MyMemoryTranslator failed: {str(e)}")
+    
+    # Fallback: Try LibreTranslate API
+    try:
         url = "https://libretranslate.de/translate"
         payload = {
-            "q": text[:500],  # Limit to 500 chars
+            "q": text[:500],
             "source": detected_lang,
             "target": "en"
         }
         
-        response = requests.post(url, json=payload, timeout=5)
+        response = requests.post(url, json=payload, timeout=10)
         
         if response.status_code == 200:
             result = response.json()
             if "translatedText" in result:
                 translated = result["translatedText"]
-                if translated and translated != text:
-                    logger.info(f"✅ Translated {detected_lang} -> en (LibreTranslate)")
+                if translated and translated.lower() != text.lower():
+                    print(f"✅ Translated via LibreTranslate: {translated[:50]}...")
                     return translated
     except Exception as e:
-        logger.debug(f"LibreTranslate API failed: {str(e)}")
-    
-    # Fallback: Try deep_translator MyMemory (no API key, local service)
-    try:
-        from deep_translator import MyMemoryTranslator
-        detected_lang = detect_language(text) if source_lang == "auto" else source_lang
-        
-        if detected_lang == "en":
-            return text
-        
-        translator = MyMemoryTranslator(source_language=detected_lang, target_language='en')
-        translated = translator.translate(text[:500])
-        
-        if translated and translated != text:
-            logger.info(f"✅ Translated {detected_lang} -> en (MyMemory)")
-            return translated
-    except Exception as e:
-        logger.debug(f"MyMemoryTranslator failed: {str(e)}")
-    
-    # Final fallback: Try GoogleTranslator one more time
-    try:
-        from deep_translator import GoogleTranslator
-        detected_lang = detect_language(text) if source_lang == "auto" else source_lang
-        
-        if detected_lang == "en":
-            return text
-        
-        translator = GoogleTranslator(source_language=detected_lang, target_language='en')
-        translated = translator.translate(text[:500])
-        
-        if translated and translated != text:
-            logger.info(f"✅ Translated {detected_lang} -> en (Google)")
-            return translated
-    except Exception as e:
-        logger.debug(f"GoogleTranslator failed: {str(e)}")
+        print(f"⚠️ LibreTranslate failed: {str(e)}")
     
     # Return original text if all methods fail
-    logger.debug(f"Translation failed, returning original text")
+    print(f"❌ Translation failed, returning original text")
     return text
 
 def translate_tender(title: str, description: str = "") -> Tuple[str, str]:
