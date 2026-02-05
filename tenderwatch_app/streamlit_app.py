@@ -258,28 +258,74 @@ def init_db():
         # Ensure default sources exist
         if TenderSource.query.count() == 0:
             default_sources = [
-                # UN/International Development Sources
-                TenderSource(name="UNDP Procurement Notices", url="https://procurement-notices.undp.org/", active=True, favorite=True),
-                TenderSource(name="UN Global Marketplace", url="https://www.ungm.org/Public/Notice", active=True, favorite=False),
-                TenderSource(name="DevBusiness (World Bank)", url="https://devbusiness.un.org/content/tenders", active=True, favorite=False),
+                # UN System
+                TenderSource(name="UNDP Procurement", url="https://procurement-notices.undp.org/", active=True, favorite=True),
+                TenderSource(name="UN Global Marketplace", url="https://www.ungm.org/Public/Notice", active=True, favorite=True),
+                TenderSource(name="UNICEF Supply", url="https://www.unicef.org/supply/procurement-services", active=True, favorite=False),
+                TenderSource(name="WHO Procurement", url="https://www.who.int/about/accountability/procurement", active=True, favorite=False),
+                TenderSource(name="WFP Procurement", url="https://www.wfp.org/procurement", active=True, favorite=False),
+                TenderSource(name="UNOPS Opportunities", url="https://www.unops.org/business-opportunities", active=True, favorite=False),
+                TenderSource(name="UNESCO Procurement", url="https://en.unesco.org/procurement", active=True, favorite=False),
+                TenderSource(name="FAO Procurement", url="https://www.fao.org/unfao/procurement/", active=True, favorite=False),
                 
-                # Regional Development Banks
+                # Development Banks
+                TenderSource(name="World Bank Procurement", url="https://projects.worldbank.org/en/projects-operations/procurement", active=True, favorite=True),
+                TenderSource(name="DevBusiness (World Bank)", url="https://devbusiness.un.org/content/tenders", active=True, favorite=False),
                 TenderSource(name="AfDB Procurement", url="https://www.afdb.org/en/about-us/corporate-procurement/procurement-notices", active=True, favorite=False),
                 TenderSource(name="ADB Procurement", url="https://www.adb.org/projects/tenders/all", active=True, favorite=False),
                 TenderSource(name="IDB Procurement", url="https://www.iadb.org/en/procurement/current-opportunities", active=True, favorite=False),
+                TenderSource(name="EBRD Procurement", url="https://www.ebrd.com/work-with-us/procurement.html", active=True, favorite=False),
+                TenderSource(name="EIB Procurement", url="https://www.eib.org/en/about/procurement/index.htm", active=True, favorite=False),
+                TenderSource(name="IsDB Procurement", url="https://www.isdb.org/procurement", active=True, favorite=False),
                 
-                # Government Portals
-                TenderSource(name="TED Europa (EU)", url="https://ted.europa.eu/en/search/result", active=True, favorite=False),
-                TenderSource(name="SAM.gov (US Federal)", url="https://sam.gov/search/?index=opp&page=1&sort=-modifiedDate", active=True, favorite=False),
-                TenderSource(name="Contracts Finder (UK)", url="https://www.contractsfinder.service.gov.uk/Search/Results", active=True, favorite=False),
+                # European Union
+                TenderSource(name="TED Europa", url="https://ted.europa.eu/en/search/result", active=True, favorite=True),
+                TenderSource(name="EU Funding Tenders", url="https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-search", active=True, favorite=False),
                 
-                # Development/NGO
+                # Government Portals - Europe
+                TenderSource(name="UK Contracts Finder", url="https://www.contractsfinder.service.gov.uk/Search/Results", active=True, favorite=False),
+                TenderSource(name="UK Find a Tender", url="https://www.find-tender.service.gov.uk/Search", active=True, favorite=False),
+                TenderSource(name="Germany BUND", url="https://www.service.bund.de/Content/DE/Ausschreibungen/", active=True, favorite=False),
+                TenderSource(name="France BOAMP", url="https://www.boamp.fr/pages/recherche/", active=True, favorite=False),
+                TenderSource(name="Netherlands TenderNed", url="https://www.tenderned.nl/tenderned-tap/aankondigingen", active=True, favorite=False),
+                
+                # Government Portals - Americas
+                TenderSource(name="SAM.gov (US Federal)", url="https://sam.gov/search/?index=opp&page=1&sort=-modifiedDate", active=True, favorite=True),
+                TenderSource(name="Canada Buyandsell", url="https://buyandsell.gc.ca/procurement-data/tenders", active=True, favorite=False),
+                
+                # Government Portals - Africa
+                TenderSource(name="Kenya PPB", url="https://tenders.go.ke/", active=True, favorite=True),
+                TenderSource(name="South Africa eTender", url="https://www.etenders.gov.za/", active=True, favorite=False),
+                TenderSource(name="Nigeria BPP", url="https://www.bpp.gov.ng/", active=True, favorite=False),
+                TenderSource(name="Ghana PPA", url="https://ppaghana.org/tenders.asp", active=True, favorite=False),
+                TenderSource(name="Tanzania PPRA", url="https://www.ppra.go.tz/", active=True, favorite=False),
+                TenderSource(name="Uganda PPDA", url="https://www.ppda.go.ug/", active=True, favorite=False),
+                TenderSource(name="Rwanda RPPA", url="https://umucyo.gov.rw/", active=True, favorite=False),
+                TenderSource(name="Ethiopia PPA", url="https://ppa.gov.et/", active=True, favorite=False),
+                
+                # Government Portals - Asia Pacific
+                TenderSource(name="Australia AusTender", url="https://www.tenders.gov.au/", active=True, favorite=False),
+                TenderSource(name="New Zealand GETS", url="https://www.gets.govt.nz/ExternalIndex.htm", active=True, favorite=False),
+                TenderSource(name="India CPPP", url="https://eprocure.gov.in/eprocure/app", active=True, favorite=False),
+                TenderSource(name="Philippines PhilGEPS", url="https://www.philgeps.gov.ph/", active=True, favorite=False),
+                TenderSource(name="Singapore GeBIZ", url="https://www.gebiz.gov.sg/", active=True, favorite=False),
+                
+                # International Organizations
+                TenderSource(name="NATO Procurement", url="https://www.nspa.nato.int/business", active=True, favorite=False),
+                TenderSource(name="Commonwealth Secretariat", url="https://thecommonwealth.org/procurement", active=True, favorite=False),
+                
+                # Development/NGO Portals
                 TenderSource(name="DevEx Funding", url="https://www.devex.com/funding", active=True, favorite=False),
+                TenderSource(name="ReliefWeb Jobs", url="https://reliefweb.int/jobs", active=True, favorite=False),
+                
+                # Tender Aggregators
+                TenderSource(name="DgMarket", url="https://www.dgmarket.com/", active=True, favorite=False),
+                TenderSource(name="Global Tenders", url="https://www.globaltenders.com/", active=True, favorite=False),
             ]
             for source in default_sources:
                 db.session.add(source)
             db.session.commit()
-            print("✅ Added default tender sources")
+            print("✅ Added 48 default tender sources")
 
 def get_tenders(filters=None):
     """Get tenders with optional filters - only from last month"""
