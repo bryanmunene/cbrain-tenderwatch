@@ -24,6 +24,23 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# PWA Installation Support - inject manifest and service worker
+st.markdown("""
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32.png">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TenderWatch">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="TenderWatch">
+<meta name="msapplication-TileColor" content="#2563eb">
+<meta name="msapplication-TileImage" content="/static/icons/icon-144.png">
+<script src="/static/pwa.js" defer></script>
+""", unsafe_allow_html=True)
+
 # Initialize session state for theme
 if 'theme' not in st.session_state:
     st.session_state.theme = 'light'
@@ -866,21 +883,88 @@ elif page == "⚙️ Settings":
     with app.app_context():
         settings = AppSettings.query.first()
         
-        # Notification Settings
+        # Install App Section
         st.markdown("""
-            <div style='padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; margin-bottom: 1rem;'>
-                <div style='font-size: 2rem; text-align: center; margin-bottom: 0.5rem;'>🔔</div>
-                <div style='text-align: center; color: white; font-weight: 600; font-size: 1.2rem;'>Notification Settings</div>
+            <div style='padding: 1.5rem; background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); border-radius: 16px; margin-bottom: 1.5rem;'>
+                <div style='font-size: 2.5rem; text-align: center; margin-bottom: 0.5rem;'>📲</div>
+                <div style='text-align: center; color: white; font-weight: 700; font-size: 1.4rem;'>Install TenderWatch</div>
+                <div style='text-align: center; color: rgba(255,255,255,0.9); font-size: 0.9rem; margin-top: 0.5rem;'>Add to your home screen for quick access</div>
             </div>
         """, unsafe_allow_html=True)
         
-        notification_enabled = st.checkbox("Enable Notifications", 
-                                          value=settings.notifications_enabled if settings and hasattr(settings, 'notifications_enabled') else False,
-                                          help="Get notified when high-score tenders are found")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("""
+            **📱 Mobile (Android/iOS):**
+            1. Open this app in Chrome/Safari
+            2. Tap the **Share** button (iOS) or **⋮ Menu** (Android)
+            3. Select **"Add to Home Screen"**
+            4. The app icon will appear on your home screen!
+            """)
         
-        min_score = st.slider("Minimum Score for Notifications", 0, 100, 
+        with col2:
+            st.markdown("""
+            **💻 Desktop (Chrome/Edge):**
+            1. Look for the **📲 Install** button in the address bar
+            2. Or click the floating **📲** button (bottom-right)
+            3. Click **"Install"** when prompted
+            4. TenderWatch will open as a standalone app!
+            """)
+        
+        st.markdown("---")
+        
+        # Daily Notifications Section
+        st.markdown("""
+            <div style='padding: 1.5rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 16px; margin-bottom: 1.5rem;'>
+                <div style='font-size: 2.5rem; text-align: center; margin-bottom: 0.5rem;'>🔔</div>
+                <div style='text-align: center; color: white; font-weight: 700; font-size: 1.4rem;'>Daily Scan Reminders</div>
+                <div style='text-align: center; color: rgba(255,255,255,0.9); font-size: 0.9rem; margin-top: 0.5rem;'>Get notified to check for new tenders</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        **How it works:**
+        - Click the **🔔** button (bottom-right corner) to set up daily reminders
+        - Choose your preferred time (e.g., 8:00 AM)
+        - You'll receive a notification every day to scan for new tenders
+        - Works on both mobile and desktop (after installing the app)
+        
+        **Tips:**
+        - For best results, **install the app** first
+        - Allow notifications when your browser asks
+        - Notifications work even when the browser is closed (on supported devices)
+        """)
+        
+        # JavaScript button for notification setup
+        st.markdown("""
+        <div style='text-align: center; margin: 1rem 0;'>
+            <button onclick="window.TenderWatchPWA && window.TenderWatchPWA.setupNotifications()" 
+                    style='background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+                           color: white; 
+                           border: none; 
+                           padding: 12px 32px; 
+                           border-radius: 8px; 
+                           font-size: 1rem; 
+                           font-weight: 600; 
+                           cursor: pointer;
+                           box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);'>
+                🔔 Set Up Daily Notifications
+            </button>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Notification Settings
+        st.subheader("⚙️ Notification Preferences")
+        
+        notification_enabled = st.checkbox("Enable In-App Notifications", 
+                                          value=settings.notifications_enabled if settings and hasattr(settings, 'notifications_enabled') else False,
+                                          help="Show notifications for high-score tenders during scans")
+        
+        min_score = st.slider("Minimum Score for Alerts", 0, 100, 
                              value=int(settings.min_score_to_notify) if settings else 70,
-                             help="Only notify for tenders above this score")
+                             help="Only alert for tenders above this score")
         
         st.markdown("---")
         
@@ -928,6 +1012,8 @@ elif page == "⚙️ Settings":
         - 📊 Automatic categorization
         - 🌐 Multi-source scanning
         - 💾 Persistent storage
+        - 📲 Installable as app (PWA)
+        - 🔔 Daily notification reminders
         
         For support, see the documentation.
         """)
