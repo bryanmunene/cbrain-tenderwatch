@@ -774,13 +774,98 @@ elif page == "🔍 Scan & Results":
     
         with col2:
             if st.button("🚀 Let's Go!", key="top_scan_button", type="primary", use_container_width=True):
-                with st.spinner("🔮 Working some magic..."):
-                    new_tenders = run_tender_scan()
-                    if new_tenders:
-                        st.success(f"🎉 Woohoo! Found {len(new_tenders)} awesome opportunities!")
-                    else:
-                        st.info("🤔 Hmm, nothing new right now. Check back soon!")
-                    st.rerun()
+                # Fun loading messages that rotate every few seconds
+                cooking_messages = [
+                    ("🍳", "Something delicious is cooking..."),
+                    ("👨‍🍳", "Our tender chefs are hard at work!"),
+                    ("🔥", "Heating up the search engines..."),
+                    ("🌍", "Scanning the globe for opportunities..."),
+                    ("☕", "Good things take time... grab a coffee!"),
+                    ("🎣", "Fishing for the best tenders..."),
+                    ("🔮", "Consulting the procurement crystal ball..."),
+                    ("🚀", "Launching tender discovery rockets..."),
+                    ("🎯", "Zeroing in on perfect matches..."),
+                    ("⏳", "Sorry for the wait - quality hunting takes time!"),
+                    ("🌟", "Polishing up some gems for you..."),
+                    ("🔍", "Deep diving into tender databases..."),
+                    ("🎪", "The tender circus is in town!"),
+                    ("🍜", "Slow-cooking the best results..."),
+                    ("🎸", "Jamming through procurement portals..."),
+                    ("🏃", "Running through global tender sites..."),
+                    ("📡", "Receiving transmissions from tender satellites..."),
+                    ("🧙", "Wizarding up some opportunities..."),
+                    ("🎁", "Unwrapping tender surprises..."),
+                    ("🌈", "Following the tender rainbow..."),
+                ]
+                
+                import time
+                import random
+                import threading
+                
+                # Create a placeholder for the loading message
+                loading_placeholder = st.empty()
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                # Shuffle messages for variety
+                random.shuffle(cooking_messages)
+                
+                # Run scan in background while showing messages
+                result_container = {'tenders': None, 'done': False}
+                
+                def do_scan():
+                    result_container['tenders'] = run_tender_scan()
+                    result_container['done'] = True
+                
+                scan_thread = threading.Thread(target=do_scan)
+                scan_thread.start()
+                
+                # Show rotating messages while scanning
+                message_index = 0
+                elapsed = 0
+                while not result_container['done']:
+                    emoji, message = cooking_messages[message_index % len(cooking_messages)]
+                    
+                    loading_placeholder.markdown(f"""
+                    <div style='text-align: center; padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; margin: 1rem 0;'>
+                        <div style='font-size: 4rem; margin-bottom: 1rem; animation: pulse 1s infinite;'>{emoji}</div>
+                        <h3 style='color: white; margin: 0;'>{message}</h3>
+                        <p style='color: rgba(255,255,255,0.8); margin-top: 0.5rem;'>Elapsed: {elapsed} seconds</p>
+                    </div>
+                    <style>
+                        @keyframes pulse {{
+                            0%, 100% {{ transform: scale(1); }}
+                            50% {{ transform: scale(1.1); }}
+                        }}
+                    </style>
+                    """, unsafe_allow_html=True)
+                    
+                    # Update progress (fake progress that slows down)
+                    progress = min(0.95, elapsed / 120)  # Max 95% until done
+                    progress_bar.progress(progress)
+                    status_text.caption(f"🔄 Scanning tender sources... Please wait")
+                    
+                    time.sleep(3)  # Update every 3 seconds
+                    elapsed += 3
+                    
+                    # Change message every 30 seconds
+                    if elapsed % 30 == 0:
+                        message_index += 1
+                
+                # Scan complete
+                scan_thread.join()
+                progress_bar.progress(1.0)
+                loading_placeholder.empty()
+                status_text.empty()
+                progress_bar.empty()
+                
+                new_tenders = result_container['tenders']
+                if new_tenders:
+                    st.success(f"🎉 Woohoo! Found {len(new_tenders)} awesome opportunities!")
+                    st.balloons()
+                else:
+                    st.info("🤔 Hmm, nothing new right now. Check back soon!")
+                st.rerun()
     
         st.markdown("---")
     
