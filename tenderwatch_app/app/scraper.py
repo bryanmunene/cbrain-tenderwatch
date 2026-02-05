@@ -109,16 +109,25 @@ def scan_source(source: TenderSource):
             semantic_score = 0
             ai_confidence = 0
 
+        # Give minimum score to all valid tenders (even if no specific keywords match)
+        # This allows users to see all tenders, with relevant ones scored higher
         if score == 0:
-            continue  # Skip if no keywords match
+            # Still a valid tender, give minimum score
+            score = 5
+            matched = "general tender"
+            scoring_breakdown = '{"reason": "General tender - no specific keywords matched"}'
+        
+        # Ensure scoring_breakdown is a string
+        if isinstance(scoring_breakdown, dict):
+            import json
+            scoring_breakdown = json.dumps(scoring_breakdown)
 
         # Apply deterministic per-source bias
         bias = SOURCE_BIAS.get(source.name.lower(), 0)
         score = min(100, score + bias)
 
-        # Categorize + learn
+        # Categorize (don't learn keywords yet - do it after commit)
         category, _, confidence = categorize(title, title)
-        learn_keywords(title, category)
         
         # Parse deadline from raw text first
         raw_text = a.get_text(" ", strip=True)
@@ -180,6 +189,7 @@ def scan_source(source: TenderSource):
 
         try:
             db.session.add(r)
+            db.session.flush()  # Flush to check for duplicates early
             new_tenders.append(r)
         except Exception as e:
             # Skip duplicate tenders (IntegrityError on unique link constraint)
@@ -188,6 +198,12 @@ def scan_source(source: TenderSource):
 
     try:
         db.session.commit()
+        # Learn keywords after successful commit
+        for tender in new_tenders:
+            try:
+                learn_keywords(tender.title, tender.category)
+            except:
+                pass  # Ignore learning errors
     except Exception as e:
         print(f"⚠️  Error committing tenders: {e}")
         db.session.rollback()
