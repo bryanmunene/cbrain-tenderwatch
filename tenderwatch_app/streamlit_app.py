@@ -207,45 +207,6 @@ def init_db():
                     db.session.commit()
                 except:
                     db.session.rollback()  # Column already exists, continue
-            
-            # Run auto-discovery migration on startup
-            discovery_columns = [
-                "ALTER TABLE tender_result ADD COLUMN discovery_method VARCHAR(50) DEFAULT 'manual'",
-                "ALTER TABLE tender_result ADD COLUMN search_query VARCHAR(500)",
-                "ALTER TABLE tender_result ADD COLUMN search_source VARCHAR(50)",
-                "ALTER TABLE app_settings ADD COLUMN auto_discovery_enabled BOOLEAN DEFAULT 1",
-                "ALTER TABLE app_settings ADD COLUMN google_api_key VARCHAR(500) DEFAULT ''",
-                "ALTER TABLE app_settings ADD COLUMN google_cx VARCHAR(500) DEFAULT ''",
-                "ALTER TABLE app_settings ADD COLUMN bing_api_key VARCHAR(500) DEFAULT ''",
-                "ALTER TABLE app_settings ADD COLUMN discovery_queries TEXT DEFAULT ''",
-                "ALTER TABLE app_settings ADD COLUMN results_per_query INTEGER DEFAULT 10",
-            ]
-            for sql in discovery_columns:
-                try:
-                    db.session.execute(text(sql))
-                    db.session.commit()
-                except:
-                    db.session.rollback()  # Column already exists, continue
-            
-            # Create DiscoveryLog table if it doesn't exist
-            try:
-                db.session.execute(text("""
-                    CREATE TABLE IF NOT EXISTS discovery_log (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        run_type VARCHAR(50) NOT NULL,
-                        queries_run INTEGER DEFAULT 0,
-                        results_found INTEGER DEFAULT 0,
-                        results_saved INTEGER DEFAULT 0,
-                        google_quota_used INTEGER DEFAULT 0,
-                        bing_quota_used INTEGER DEFAULT 0,
-                        execution_time_seconds REAL DEFAULT 0.0,
-                        error_message TEXT DEFAULT '',
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """))
-                db.session.commit()
-            except:
-                db.session.rollback()
         except:
             pass  # Migration not critical for startup
         
@@ -905,110 +866,17 @@ elif page == "⚙️ Settings":
     with app.app_context():
         settings = AppSettings.query.first()
         
-        st.subheader("🔄 Auto-Scan Settings")
-        
-        auto_scan = st.checkbox("Enable Automatic Scanning", value=settings.auto_scan_enabled if settings else False)
-        scan_interval = st.number_input("Scan Interval (minutes)", min_value=5, max_value=1440, 
-                                       value=settings.scan_interval_minutes if settings else 60)
+        # Notification Settings
+        st.markdown("""
+            <div style='padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; margin-bottom: 1rem;'>
+                <div style='font-size: 2rem; text-align: center; margin-bottom: 0.5rem;'>🔔</div>
+                <div style='text-align: center; color: white; font-weight: 600; font-size: 1.2rem;'>Notification Settings</div>
+            </div>
+        """, unsafe_allow_html=True)
         
         notification_enabled = st.checkbox("Enable Notifications", 
-                                          value=settings.notifications_enabled if settings and hasattr(settings, 'notifications_enabled') else False)
-        
-        st.markdown("---")
-        
-        # Auto-Discovery Settings
-        st.markdown("""
-            <div style='padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; margin-bottom: 1rem;'>
-                <div style='font-size: 2rem; text-align: center; margin-bottom: 0.5rem;'>🌐</div>
-                <div style='text-align: center; color: white; font-weight: 600; font-size: 1.2rem;'>Auto-Discovery (Google + Bing APIs)</div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        Automatically discover tenders across the entire web without manual source management.
-        
-        **Free Tier:** 
-        - 🔍 Google: 100 searches/day
-        - 🔎 Bing: 33 searches/day  
-        - ⚡ Total: **133 free searches daily**
-        """)
-        
-        auto_discovery = st.checkbox("Enable Auto-Discovery", 
-                                     value=settings.auto_discovery_enabled if settings and hasattr(settings, 'auto_discovery_enabled') else True,
-                                     help="Automatically find tenders via search APIs")
-        
-        if auto_discovery:
-            st.info("📚 **Setup Required:** Get free API keys from [Google](https://developers.google.com/custom-search) and [Bing](https://www.microsoft.com/en-us/bing/apis/bing-web-search-api). See `AUTO_DISCOVERY_SETUP.md` for guide.")
-            
-            google_key = st.text_input("Google Custom Search API Key", 
-                                       value=settings.google_api_key if settings and hasattr(settings, 'google_api_key') else "",
-                                       type="password",
-                                       help="Get from Google Cloud Console")
-            
-            google_cx = st.text_input("Google Custom Search Engine ID (CX)", 
-                                     value=settings.google_cx if settings and hasattr(settings, 'google_cx') else "",
-                                     help="Create at programmablesearchengine.google.com")
-            
-            bing_key = st.text_input("Bing Search API Key", 
-                                    value=settings.bing_api_key if settings and hasattr(settings, 'bing_api_key') else "",
-                                    type="password",
-                                    help="Get from Azure Portal")
-            
-            results_per_query = st.number_input("Results per Query", min_value=5, max_value=50,
-                                               value=settings.results_per_query if settings and hasattr(settings, 'results_per_query') else 10,
-                                               help="Lower = fewer API calls, faster scans")
-            
-            custom_queries = st.text_area("Custom Search Queries (JSON array, optional)",
-                                         value=settings.discovery_queries if settings and hasattr(settings, 'discovery_queries') else "",
-                                         height=100,
-                                         placeholder='["RFP document management Kenya", "tender case management"]',
-                                         help="Leave empty to use default queries")
-        
-        st.markdown("---")
-        
-        # Modern settings sections with icons
-        st.markdown("""
-            <div style='padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; margin-bottom: 1rem;'>
-                <div style='font-size: 2rem; text-align: center; margin-bottom: 0.5rem;'>📱</div>
-                <div style='text-align: center; color: white; font-weight: 600; font-size: 1.2rem;'>Push Notifications</div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        Receive instant alerts for new high-score tenders on your phone or desktop browser.
-        
-        **Browser Support:**
-        - ✅ Android: Chrome, Firefox, Edge, Samsung Internet
-        - ✅ iOS: Safari 16.4+ (requires iOS 16.4 or later)
-        - ✅ Desktop: Chrome, Firefox, Edge, Safari
-        """)
-        
-        # Check if notifications are supported
-        push_enabled = st.checkbox("🔔 Enable Push Notifications", value=False, 
-                                   help="Get instant alerts when new tenders match your keywords")
-        
-        if push_enabled:
-            st.info("""
-            **📲 How to enable:**
-            1. Click "Subscribe to Notifications" below
-            2. Allow notifications when your browser asks
-            3. You'll receive alerts for tenders scoring ≥70%
-            
-            **Note:** For best results, deploy on HTTPS (Streamlit Cloud, Railway, or Render provide free HTTPS).
-            """)
-            
-            # This will be handled by JavaScript in production
-            if st.button("🔔 Subscribe to Notifications", type="primary"):
-                st.warning("""
-                ⚠️ **Push notifications require HTTPS deployment**
-                
-                To enable full push notification support:
-                1. Deploy to Streamlit Cloud (free HTTPS automatic)
-                2. Or deploy Flask version with PWA support
-                3. See `MOBILE_NOTIFICATIONS_SETUP.md` for complete guide
-                
-                For now, desktop notifications work without HTTPS.
-                """)
+                                          value=settings.notifications_enabled if settings and hasattr(settings, 'notifications_enabled') else False,
+                                          help="Get notified when high-score tenders are found")
         
         min_score = st.slider("Minimum Score for Notifications", 0, 100, 
                              value=int(settings.min_score_to_notify) if settings else 70,
@@ -1016,37 +884,23 @@ elif page == "⚙️ Settings":
         
         st.markdown("---")
         
-        # Save button with modern styling
+        # Save button
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             if st.button("💾 Save Settings", key="save_settings_button", type="primary", use_container_width=True):
                 if settings:
-                    settings.auto_scan_enabled = auto_scan
-                    settings.scan_interval_minutes = scan_interval
                     settings.notifications_enabled = notification_enabled
                     settings.min_score_to_notify = float(min_score)
-                    
-                    # Save auto-discovery settings
-                    if hasattr(settings, 'auto_discovery_enabled'):
-                        settings.auto_discovery_enabled = auto_discovery
-                        settings.google_api_key = google_key if auto_discovery else ""
-                        settings.google_cx = google_cx if auto_discovery else ""
-                        settings.bing_api_key = bing_key if auto_discovery else ""
-                        settings.results_per_query = results_per_query if auto_discovery else 10
-                        settings.discovery_queries = custom_queries if auto_discovery else ""
-                    
                     db.session.commit()
-                    st.success("✅ Settings saved! Auto-discovery will run on next scan.")
+                    st.success("✅ Settings saved!")
                 else:
                     new_settings = AppSettings(
-                        auto_scan_enabled=auto_scan,
-                        scan_interval_minutes=scan_interval,
                         notifications_enabled=notification_enabled,
                         min_score_to_notify=float(min_score)
                     )
                     db.session.add(new_settings)
                     db.session.commit()
-                    st.success("✅ Settings saved! Run migration script to enable auto-discovery.")
+                    st.success("✅ Settings saved!")
         
         st.markdown("---")
         
@@ -1075,5 +929,5 @@ elif page == "⚙️ Settings":
         - 🌐 Multi-source scanning
         - 💾 Persistent storage
         
-        For support, see [documentation](README.md).
+        For support, see the documentation.
         """)
