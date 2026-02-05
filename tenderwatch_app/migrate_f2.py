@@ -19,7 +19,12 @@ def migrate():
             ("priority_level", "VARCHAR(20)", "LOW"),
             ("likely_fit_for_f2", "VARCHAR(20)", "uncertain"),
             ("timing_status", "VARCHAR(100)", ""),
-            ("procurement_status", "VARCHAR(20)", "open"),  # open, locked, locked_but_open
+            ("procurement_status", "VARCHAR(30)", "open"),  # open, locked, locked_but_open, conditional_nogo, conditional_strategic
+            # Platform commitment qualification fields
+            ("requires_qualification", "BOOLEAN", "0"),  # 0=False, 1=True
+            ("qualification_reason", "TEXT", ""),
+            ("qualification_answers", "TEXT", ""),  # JSON: user-provided answers
+            ("platform_commitment_signals", "TEXT", ""),  # JSON: detected signals
         ]
         
         for col_name, col_type, default in new_columns:

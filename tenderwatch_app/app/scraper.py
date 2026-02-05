@@ -274,11 +274,22 @@ def scan_source(source: TenderSource):
             r.priority_level = breakdown_data.get("priority", "LOW")
             r.likely_fit_for_f2 = breakdown_data.get("likely_fit_for_F2", "uncertain")
             r.procurement_status = breakdown_data.get("procurement_status", "open")
+            
+            # Platform commitment qualification fields
+            r.requires_qualification = breakdown_data.get("requires_qualification", False)
+            r.qualification_reason = breakdown_data.get("qualification_reason", "")
+            
+            # Store Microsoft commitment signals if found
+            ms_signals = breakdown_data.get("microsoft_commitment_signals", [])
+            r.platform_commitment_signals = json.dumps(ms_signals) if ms_signals else ""
         except:
             r.inferred_domains = "[]"
             r.priority_level = "LOW"
             r.likely_fit_for_f2 = "uncertain"
             r.procurement_status = "open"
+            r.requires_qualification = False
+            r.qualification_reason = ""
+            r.platform_commitment_signals = ""
 
         try:
             db.session.add(r)

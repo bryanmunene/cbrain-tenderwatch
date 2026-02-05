@@ -30,10 +30,16 @@ class TenderResult(db.Model):
     
     # F2-ALIGNED CLASSIFICATION FIELDS
     inferred_domains = db.Column(db.Text, default="")  # JSON: ["EDMS", "Workflow", "Gov"]
-    priority_level = db.Column(db.String(20), default="LOW")  # HIGH, MEDIUM, LOW, LOCKED
-    likely_fit_for_f2 = db.Column(db.String(20), default="uncertain")  # true, false, uncertain, no-go, discuss
+    priority_level = db.Column(db.String(20), default="LOW")  # HIGH, MEDIUM, LOW, LOCKED, CONDITIONAL, STRATEGIC
+    likely_fit_for_f2 = db.Column(db.String(20), default="uncertain")  # true, false, uncertain, no-go, discuss, conditional, strategic
     timing_status = db.Column(db.String(100), default="")  # Timing constraint result
-    procurement_status = db.Column(db.String(20), default="open")  # open, locked, locked_but_open
+    procurement_status = db.Column(db.String(30), default="open")  # open, locked, locked_but_open, conditional_nogo, conditional_strategic
+    
+    # Platform commitment qualification fields
+    requires_qualification = db.Column(db.Boolean, default=False)  # True if Microsoft-mandated
+    qualification_reason = db.Column(db.Text, default="")  # Why qualification is needed
+    qualification_answers = db.Column(db.Text, default="")  # JSON: user-provided answers to qualification questions
+    platform_commitment_signals = db.Column(db.Text, default="")  # JSON: detected Microsoft commitment signals
     
     # Discovery metadata
     discovery_method = db.Column(db.String(50), default="manual")  # 'manual', 'auto', 'priority'

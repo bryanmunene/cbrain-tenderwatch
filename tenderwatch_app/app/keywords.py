@@ -261,6 +261,81 @@ PLATFORM_LOCKIN_SIGNALS = [
     "hyland onbase implementation",
 ]
 
+# =============================================================================
+# MICROSOFT PLATFORM COMMITMENT SIGNALS (SI-only engagement, platform fixed)
+# These are STRONGER lock-in signals - buyer wants implementer, not platform
+# =============================================================================
+
+MICROSOFT_COMMITMENT_SIGNALS = [
+    # Platform already procured
+    "has procured microsoft",
+    "already procured microsoft",
+    "procured power platform",
+    "procured microsoft power platform",
+    "existing microsoft",
+    "existing power platform",
+    "existing sharepoint",
+    "current microsoft environment",
+    "microsoft environment",
+    
+    # Licenses provided by buyer
+    "licenses will be provided",
+    "licences will be provided",
+    "licenses provided by",
+    "licences provided by",
+    "not required to quote for licenses",
+    "not required to quote for licences",
+    "exclude licensing",
+    "excluding licenses",
+    "excluding licences",
+    "authority will provide licenses",
+    "client will provide licenses",
+    
+    # Enterprise Agreement signals
+    "microsoft enterprise agreement",
+    "enterprise agreement",
+    "microsoft ea",
+    "existing ea",
+    "under ea",
+    "microsoft licensing agreement",
+    
+    # Mandated platform
+    "must use power platform",
+    "must use sharepoint",
+    "must use microsoft",
+    "required to use power platform",
+    "required to use sharepoint",
+    "mandatory use of microsoft",
+    "on microsoft power platform",
+    "on sharepoint",
+    "on power platform",
+    "using power platform",
+    "using sharepoint",
+    "based on power platform",
+    "based on sharepoint",
+    "built on power platform",
+    "built on sharepoint",
+    
+    # SI-only language
+    "implementation partner",
+    "implementation consultant",
+    "configuration services",
+    "customization services",
+    "customisation services",
+    "configuration and customization",
+    "configuration and customisation",
+    "develop and deploy on",
+    "deploy on power platform",
+    "deploy on sharepoint",
+    
+    # Delivery partner signals
+    "delivery partner for",
+    "seeking a partner to implement",
+    "partner to configure",
+    "partner to customize",
+    "partner to customise",
+]
+
 # Signals that the client is OPEN to alternatives (good for F2)
 OPEN_PROCUREMENT_SIGNALS = [
     "supply and implementation",
@@ -279,6 +354,40 @@ OPEN_PROCUREMENT_SIGNALS = [
     "solution agnostic",
     "platform agnostic",
     "vendor neutral",
+]
+
+# =============================================================================
+# PLATFORM OPENNESS SIGNALS (buyer may consider alternatives)
+# =============================================================================
+
+PLATFORM_OPENNESS_SIGNALS = [
+    "alternative solutions",
+    "alternative platforms",
+    "open to alternatives",
+    "consider alternatives",
+    "evaluate options",
+    "compare solutions",
+    "total cost of ownership",
+    "tco analysis",
+    "platform evaluation",
+    "platform selection",
+    "technology neutral",
+    "no preferred platform",
+    "any suitable platform",
+    "best fit solution",
+    "fit for purpose",
+]
+
+# =============================================================================
+# QUALIFICATION QUESTIONS (surface these for Microsoft-locked tenders)
+# =============================================================================
+
+QUALIFICATION_QUESTIONS = [
+    "1. Total number of end-users (not just admins or champions)?",
+    "2. Total tender budget (implementation + support)?",
+    "3. Annual cost of Microsoft Enterprise Agreement / licenses?",
+    "4. Is the buyer open to discussing alternative platforms?",
+    "5. What is the primary use case (case management, workflow, records)?",
 ]
 
 # =============================================================================

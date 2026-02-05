@@ -10,6 +10,12 @@ Scoring Logic:
 - +2 if government/public-sector context appears
 - -2 if tender is purely storage, hosting, or website-only
 
+Platform Commitment Logic:
+- Detect Microsoft-mandated tenders (SI-only engagements)
+- Flag as CONDITIONAL / NO-GO but don't auto-discard
+- Surface qualification questions for strategic review
+- HIGH STRATEGIC VALUE if buyer is open to alternatives
+
 Design Principles:
 - Do NOT hard-reject based on score
 - Use score only for ranking
@@ -28,6 +34,9 @@ from app.keywords import (
     GENERIC_STANDALONE_KEYWORDS,
     PLATFORM_LOCKIN_SIGNALS,
     OPEN_PROCUREMENT_SIGNALS,
+    MICROSOFT_COMMITMENT_SIGNALS,
+    PLATFORM_OPENNESS_SIGNALS,
+    QUALIFICATION_QUESTIONS,
 )
 
 
@@ -131,30 +140,83 @@ def score_text(title: str, text: str = ""):
         negative_penalty = -2 * len(negative_signals_found)
     
     # ==========================================================================
-    # STEP 5b: Platform lock-in detection (already chose a vendor)
+    # STEP 5b: Platform commitment detection (Microsoft-mandated = SI-only)
     # ==========================================================================
+    # General platform lock-in signals
     platform_lockin_found = []
-    open_procurement_found = []
-    procurement_status = "open"  # Default: assume open procurement
-    
     for signal in PLATFORM_LOCKIN_SIGNALS:
         if signal.lower() in combined:
             platform_lockin_found.append(signal)
     
+    # STRONGER: Microsoft platform commitment signals (SI-only engagement)
+    microsoft_commitment_found = []
+    for signal in MICROSOFT_COMMITMENT_SIGNALS:
+        if signal.lower() in combined:
+            microsoft_commitment_found.append(signal)
+    
+    # Open procurement signals
+    open_procurement_found = []
     for signal in OPEN_PROCUREMENT_SIGNALS:
         if signal.lower() in combined:
             open_procurement_found.append(signal)
     
-    # Determine procurement status
-    if platform_lockin_found:
-        if open_procurement_found:
+    # Platform openness signals (buyer may consider alternatives)
+    platform_openness_found = []
+    for signal in PLATFORM_OPENNESS_SIGNALS:
+        if signal.lower() in combined:
+            platform_openness_found.append(signal)
+    
+    # ==========================================================================
+    # STEP 5c: Determine procurement status and classification
+    # ==========================================================================
+    procurement_status = "open"  # Default: assume open procurement
+    requires_qualification = False
+    qualification_reason = ""
+    
+    # Combined openness signals (either open procurement OR platform openness)
+    has_openness_signals = bool(open_procurement_found or platform_openness_found)
+    
+    # Check for Microsoft platform commitment (STRONGEST lock-in)
+    if microsoft_commitment_found:
+        requires_qualification = True
+        
+        if platform_openness_found:
+            # Microsoft mandated BUT buyer signals openness to alternatives
+            # This is HIGH STRATEGIC VALUE - position F2 as alternative
+            procurement_status = "conditional_strategic"
+            qualification_reason = "Microsoft mandated but buyer may be open to alternatives - HIGH STRATEGIC VALUE"
+            negative_penalty -= 5  # Moderate penalty, but worth pursuing
+        elif open_procurement_found:
+            # Microsoft mentioned but this is clearly an open tender (provision of, RFP, etc.)
+            # Worth discussing - may just be integration requirement
+            procurement_status = "conditional_discuss"
+            qualification_reason = "Microsoft environment mentioned in open tender - clarify if platform is mandated"
+            negative_penalty -= 3  # Slight penalty
+            requires_qualification = False  # Don't require full qualification for open tenders
+        else:
+            # Microsoft mandated, no openness signals
+            # CONDITIONAL / NO-GO - require qualification before pursuit
+            procurement_status = "conditional_nogo"
+            qualification_reason = "Microsoft platform mandated - SI-only engagement unless buyer is open to alternatives"
+            negative_penalty -= 15  # Strong penalty
+    
+    # Check for general platform lock-in (weaker than Microsoft commitment)
+    elif platform_lockin_found:
+        if has_openness_signals:
             # Mixed signals - client may be open to alternatives
             procurement_status = "locked_but_open"
+            qualification_reason = "Platform mentioned but procurement appears open"
             negative_penalty -= 3  # Slight penalty but still viable
         else:
             # Strong lock-in signal - F2 unlikely to compete
             procurement_status = "locked"
+            qualification_reason = "Vendor/platform already chosen"
             negative_penalty -= 10  # Significant penalty
+    
+    # Check if explicitly open procurement
+    elif has_openness_signals:
+        procurement_status = "open"
+        qualification_reason = ""
     
     # ==========================================================================
     # STEP 6: Calculate final score
@@ -168,14 +230,29 @@ def score_text(title: str, text: str = ""):
     normalized_score = min(100, max(5, round(normalized_score, 1)))
     
     # ==========================================================================
-    # STEP 7: Determine F2 fit likelihood
+    # STEP 7: Determine F2 fit likelihood and priority
     # ==========================================================================
-    # Consider platform lock-in when determining F2 fit
-    if procurement_status == "locked":
-        likely_fit = "no-go"  # Vendor already chosen, unlikely to compete
+    # Consider platform commitment when determining F2 fit
+    
+    if procurement_status == "conditional_nogo":
+        # Microsoft mandated, no openness signals → CONDITIONAL / NO-GO
+        likely_fit = "conditional"
+        priority_level = "CONDITIONAL"
+    elif procurement_status == "conditional_strategic":
+        # Microsoft mandated BUT buyer may be open → HIGH STRATEGIC VALUE
+        likely_fit = "strategic"
+        priority_level = "STRATEGIC"
+    elif procurement_status == "conditional_discuss":
+        # Microsoft mentioned in open tender → clarify but proceed
+        likely_fit = "discuss"
+        # Keep original priority_level, don't override
+    elif procurement_status == "locked":
+        # Other vendor locked in → NO-GO
+        likely_fit = "no-go"
         priority_level = "LOCKED"
     elif procurement_status == "locked_but_open":
-        likely_fit = "discuss"  # Worth discussing if client open to alternatives
+        # Platform mentioned but open procurement → DISCUSS
+        likely_fit = "discuss"
     elif priority_level == "HIGH" or normalized_score >= 60:
         likely_fit = "true"
     elif priority_level == "MEDIUM" or normalized_score >= 30:
@@ -195,10 +272,16 @@ def score_text(title: str, text: str = ""):
         "domains_matched": sorted(matched_domains),
         "priority_phrases_matched": priority_phrases_found,
         "negative_signals_found": negative_signals_found,
-        # Platform lock-in analysis
+        # Platform commitment analysis
         "platform_lockin_signals": platform_lockin_found,
+        "microsoft_commitment_signals": microsoft_commitment_found,
         "open_procurement_signals": open_procurement_found,
-        "procurement_status": procurement_status,  # "open", "locked", "locked_but_open"
+        "platform_openness_signals": platform_openness_found,
+        "procurement_status": procurement_status,
+        "requires_qualification": requires_qualification,
+        "qualification_reason": qualification_reason,
+        # Qualification questions (only if requires_qualification)
+        "qualification_questions": QUALIFICATION_QUESTIONS if requires_qualification else [],
         # Scoring
         "base_score": base_score,
         "domain_bonus": domain_bonus,
