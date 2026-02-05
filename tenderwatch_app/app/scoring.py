@@ -65,9 +65,10 @@ def score_text(title: str, text: str = ""):
         "total_keywords_in_system": len(ALL_KEYWORDS),
         "keywords_found": len(unique_matched),
         "unique_keywords": unique_matched,
-        "match_percentage": score,
-        "matched_groups": matched_groups,
-        "score": score
+        "raw_score": score,
+        "normalized_score": normalized_score,
+        "matched_groups": matched_groups
     }
     
-    return score, ", ".join(unique_matched), json.dumps(breakdown)
+    # Return normalized_score (percentage), not raw score
+    return normalized_score, ", ".join(unique_matched), json.dumps(breakdown)
