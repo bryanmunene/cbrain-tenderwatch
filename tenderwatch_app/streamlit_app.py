@@ -359,7 +359,9 @@ def get_tenders(filters=None):
                 search_term = f"%{filters['search']}%"
                 query = query.filter(
                     TenderResult.title.ilike(search_term) | 
-                    TenderResult.description.ilike(search_term)
+                    TenderResult.title_translated.ilike(search_term) |
+                    TenderResult.description.ilike(search_term) |
+                    TenderResult.description_translated.ilike(search_term)
                 )
             if filters.get('favorites_only'):
                 query = query.filter(TenderResult.favorite == True)
@@ -635,12 +637,13 @@ elif page == "🔍 Scan & Results":
                 
                 st.markdown("---")
                 
-                # Tender title with score
+                # Tender title with score (prefer translated if available)
+                display_title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
                 score_color = "#10b981" if tender.score >= 70 else "#f59e0b" if tender.score >= 40 else "#ef4444"
                 st.markdown(f"""
                 <div style='padding: 1.5rem; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; margin-bottom: 1rem;'>
                     <div style='display: flex; justify-content: space-between; align-items: center;'>
-                        <h2 style='color: white; margin: 0; font-size: 1.5rem;'>{tender.title}</h2>
+                        <h2 style='color: white; margin: 0; font-size: 1.5rem;'>{display_title}</h2>
                         <span style='background: {score_color}; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 700; font-size: 1.2rem;'>{tender.score:.0f}%</span>
                     </div>
                 </div>
@@ -674,9 +677,19 @@ elif page == "🔍 Scan & Results":
                 
                 st.markdown("---")
                 
-                # Description
+                # Description (prefer translated if available)
                 st.markdown("### 📝 Description")
-                st.markdown(tender.description or "No description available.")
+                display_description = tender.description_translated if tender.description_translated and tender.description_translated != tender.description else tender.description
+                st.markdown(display_description or "No description available.")
+                
+                # Show original language notice if translated
+                if tender.title_translated and tender.title_translated != tender.title:
+                    st.markdown("---")
+                    st.markdown("### 🌐 Original Language")
+                    with st.expander("View Original (Non-English)"):
+                        st.markdown(f"**Original Title:** {tender.title}")
+                        if tender.description and tender.description != tender.description_translated:
+                            st.markdown(f"**Original Description:** {tender.description}")
                 
                 # Scoring breakdown
                 if tender.scoring_breakdown:
@@ -802,10 +815,13 @@ elif page == "🔍 Scan & Results":
             
                 # Clean simple card layout
                 with st.container():
-                    # Header row
+                    # Header row (prefer translated title if available)
+                    display_title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
+                    is_translated = tender.title_translated and tender.title_translated != tender.title
                     col_title, col_score = st.columns([5, 1])
                     with col_title:
-                        st.markdown(f"### {tender.title}")
+                        title_suffix = " 🌐" if is_translated else ""  # Globe emoji for translated
+                        st.markdown(f"### {display_title}{title_suffix}")
                     with col_score:
                         st.markdown(f"<span style='background: {score_color}; color: white; padding: 0.5rem 1rem; border-radius: 12px; font-weight: bold;'>{score_emoji} {tender.score:.0f}%</span>", unsafe_allow_html=True)
                 
