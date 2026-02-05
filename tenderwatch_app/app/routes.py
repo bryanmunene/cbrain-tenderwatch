@@ -281,6 +281,14 @@ def save(rid):
     r = TenderResult.query.get_or_404(rid)
     r.saved = True
     db.session.commit()
+    
+    # Update golden embeddings for ML learning
+    try:
+        from app.ml_ranker import update_golden_embeddings
+        update_golden_embeddings()
+    except Exception as e:
+        pass  # Non-critical, don't break the save
+    
     return redirect(request.referrer or url_for("main.scan"))
 
 
@@ -298,6 +306,15 @@ def toggle_favorite(rid):
     r = TenderResult.query.get_or_404(rid)
     r.favorite = not r.favorite
     db.session.commit()
+    
+    # Update golden embeddings for ML learning
+    if r.favorite:
+        try:
+            from app.ml_ranker import update_golden_embeddings
+            update_golden_embeddings()
+        except Exception as e:
+            pass  # Non-critical
+    
     return redirect(request.referrer or url_for("main.scan"))
 
 
@@ -380,6 +397,53 @@ def test_notification():
     )
     
     return jsonify({"success": True, "message": "Test notification sent"})
+
+
+@main.route("/api/ml/status")
+def ml_status():
+    """Get ML model status"""
+    try:
+        from app.ml_ranker import get_model_status
+        status = get_model_status()
+        return jsonify({"success": True, **status})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+@main.route("/api/ml/train", methods=["POST"])
+def ml_train():
+    """Train ML ranker model from user feedback"""
+    try:
+        from app.ml_ranker import train_ranker_model, update_golden_embeddings
+        
+        # First update golden embeddings
+        update_golden_embeddings()
+        
+        # Then train the ranker
+        success, message = train_ranker_model()
+        
+        return jsonify({"success": success, "message": message})
+    except ImportError as e:
+        return jsonify({
+            "success": False, 
+            "message": f"ML dependencies not installed: {e}. Run: pip install lightgbm sentence-transformers"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
+
+
+@main.route("/api/ml/score/<int:rid>")
+def ml_score_tender(rid):
+    """Get ML score breakdown for a specific tender"""
+    try:
+        from app.ml_ranker import ml_score
+        
+        tender = TenderResult.query.get_or_404(rid)
+        result = ml_score(tender.title, tender.title)
+        
+        return jsonify({"success": True, "tender_id": rid, **result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 
 @main.route("/export/csv")

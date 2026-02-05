@@ -1236,6 +1236,60 @@ elif page == "⚙️ Settings":
         
         st.markdown("---")
         
+        # ML Learning Section
+        st.subheader("🤖 Machine Learning")
+        st.markdown("""
+        TenderWatch learns from your saved and favorited tenders to improve relevance scoring.
+        The more tenders you save, the smarter it gets!
+        """)
+        
+        # Show ML status
+        try:
+            from app.ml_ranker import get_model_status, train_ranker_model, update_golden_embeddings
+            
+            ml_status = get_model_status()
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                status_icon = "✅" if ml_status.get('sentence_model_loaded') else "❌"
+                st.metric("Sentence Model", status_icon)
+            with col2:
+                status_icon = "✅" if ml_status.get('ranker_model_loaded') else "⚪"
+                st.metric("Ranker Model", status_icon)
+            with col3:
+                st.metric("Golden Tenders", ml_status.get('golden_tenders_count', 0))
+            
+            if ml_status.get('ranker_trained_at'):
+                st.caption(f"Model trained: {ml_status['ranker_trained_at'][:10]} on {ml_status.get('ranker_positive_count', 0)} positive samples")
+            
+            # Train button
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔄 Update Golden Embeddings", help="Update semantic model with saved/favorited tenders"):
+                    with st.spinner("Updating embeddings..."):
+                        success = update_golden_embeddings()
+                        if success:
+                            st.success("✅ Golden embeddings updated!")
+                        else:
+                            st.warning("⚠️ No saved/favorited tenders to learn from yet")
+            
+            with col2:
+                if st.button("🎓 Train Ranker Model", help="Train ML model to rank tenders based on your preferences"):
+                    with st.spinner("Training model..."):
+                        success, message = train_ranker_model()
+                        if success:
+                            st.success(f"✅ {message}")
+                        else:
+                            st.warning(f"⚠️ {message}")
+        
+        except ImportError as e:
+            st.warning(f"⚠️ ML features not available: {e}")
+            st.caption("Install with: pip install sentence-transformers lightgbm")
+        except Exception as e:
+            st.error(f"ML error: {e}")
+        
+        st.markdown("---")
+        
         st.subheader("📊 Database Statistics")
         stats = get_stats()
         
