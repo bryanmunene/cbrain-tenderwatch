@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime, timedelta
 
-from app.deadlines import parse_deadline
+from app.deadlines import parse_deadline, check_timing_constraints, is_deadline_valid
 from app.source_bias import SOURCE_BIAS
 from app.categorizer import categorize
 from app.learner import learn_keywords
@@ -202,6 +202,14 @@ def scan_source(source: TenderSource):
         raw_text = a.get_text(" ", strip=True)
         deadline = parse_deadline(raw_text)
         
+        # F2-ALIGNED TIMING FILTER (HARD CONSTRAINT)
+        # Only exclude if deadline < 7 days AND we have a valid deadline
+        # If deadline missing, include with lower confidence (scored separately)
+        timing_valid, timing_modifier, timing_reason = check_timing_constraints(deadline)
+        if not timing_valid and timing_modifier <= -0.5:
+            # Deadline has passed - skip this tender
+            continue
+        
         # Extract country from source name
         country = "Unknown"
         source_lower = source.name.lower()
@@ -254,7 +262,21 @@ def scan_source(source: TenderSource):
             confidence=confidence,
             source_id=source.id,
             notified=False,
+            # F2-ALIGNED FIELDS
+            timing_status=timing_reason,
         )
+        
+        # Extract F2 classification from scoring breakdown
+        try:
+            import json
+            breakdown_data = json.loads(scoring_breakdown) if isinstance(scoring_breakdown, str) else scoring_breakdown
+            r.inferred_domains = json.dumps(breakdown_data.get("domains_matched", []))
+            r.priority_level = breakdown_data.get("priority", "LOW")
+            r.likely_fit_for_f2 = breakdown_data.get("likely_fit_for_F2", "uncertain")
+        except:
+            r.inferred_domains = "[]"
+            r.priority_level = "LOW"
+            r.likely_fit_for_f2 = "uncertain"
 
         try:
             db.session.add(r)

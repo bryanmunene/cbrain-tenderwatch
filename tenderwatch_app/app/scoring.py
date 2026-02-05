@@ -1,88 +1,203 @@
-from app.keywords import ALL_KEYWORDS, KEYWORD_GROUPS, GENERIC_STANDALONE_KEYWORDS, PRIORITY_PHRASES
+"""
+TenderWatch Scoring — F2-Aligned (Non-Strict)
+==============================================
+Loose, non-blocking scoring for cBrain F2 relevance.
+
+Scoring Logic:
+- +1 per keyword hit
+- +2 if multiple domains appear in same section/paragraph
+- +2 if workflow OR case language appears near records language
+- +2 if government/public-sector context appears
+- -2 if tender is purely storage, hosting, or website-only
+
+Design Principles:
+- Do NOT hard-reject based on score
+- Use score only for ranking
+- Favor recall over precision
+- Let humans or downstream models decide final fit
+"""
+
 import json
+from app.keywords import (
+    ALL_KEYWORDS, 
+    KEYWORD_DOMAINS, 
+    KEYWORD_TO_DOMAIN,
+    PRIORITY_COMBINATIONS,
+    NEGATIVE_SIGNALS,
+    PRIORITY_PHRASES,
+    GENERIC_STANDALONE_KEYWORDS,
+)
+
 
 def score_text(title: str, text: str = ""):
     """
-    Score text based on keyword matching with quality requirements.
-    Returns: (score, matched_keywords, breakdown_dict)
+    Score text based on F2-aligned loose keyword matching.
     
-    Philosophy:
-    - Treat any occurrence as a signal, not a filter
-    - Prioritize multi-term matches, especially around workflow, case, records, government
-    - Let scoring, not exclusion, decide relevance
-    - Noise is cheaper to discard than missed signal
+    Returns: (score, matched_keywords_str, breakdown_json)
+    
+    Score is a relevance ranking (not a filter).
+    Any keyword hit is a signal. Multiple hits increase relevance.
     """
     combined = f"{title} {text}".lower()
-    matched = [kw for kw in ALL_KEYWORDS if kw in combined]
-
-    if not matched:
-        return 0, "", {"keywords_found": 0, "total_keywords": len(ALL_KEYWORDS), "match_percentage": 0}
-
-    # Check for priority phrases (high-value multi-word matches)
-    priority_matched = [phrase for phrase in PRIORITY_PHRASES if phrase.lower() in combined]
     
-    # Filter out standalone generic keywords (but keep phrases containing them)
-    specific_matched = [kw for kw in matched if kw not in GENERIC_STANDALONE_KEYWORDS]
+    # ==========================================================================
+    # STEP 1: Find all keyword matches
+    # ==========================================================================
+    matched_keywords = []
+    matched_domains = set()
     
-    # If only generic keywords but no specific ones, still allow with lower score
-    if not specific_matched and not priority_matched:
-        return 5, ", ".join(matched[:5]), {"keywords_found": len(matched), "reason": "Generic keywords only", "match_percentage": 5}
+    for kw in ALL_KEYWORDS:
+        if kw in combined:
+            matched_keywords.append(kw)
+            # Track which domains matched
+            if kw in KEYWORD_TO_DOMAIN:
+                for domain in KEYWORD_TO_DOMAIN[kw]:
+                    matched_domains.add(domain)
     
-    unique_matched = sorted(set(specific_matched))
+    # No matches = still include but with minimal score
+    if not matched_keywords:
+        return 5, "", json.dumps({
+            "keywords_found": 0,
+            "domains_matched": [],
+            "base_score": 0,
+            "domain_bonus": 0,
+            "negative_penalty": 0,
+            "final_score": 5,
+            "priority": "LOW",
+            "likely_fit_for_F2": "uncertain"
+        })
     
-    # Score calculation: favor multi-word specific keywords
-    score = 0
+    # ==========================================================================
+    # STEP 2: Base score (+1 per keyword hit)
+    # ==========================================================================
+    base_score = len(matched_keywords)
     
-    for kw in unique_matched:
-        word_count = len(kw.split())
-        if word_count >= 4:
-            score += word_count * 4  # 4+ words: 16+ points (very specific)
-        elif word_count == 3:
-            score += word_count * 3  # 3 words: 9 points (specific)
-        elif word_count == 2:
-            score += word_count * 2  # 2 words: 4 points (somewhat specific)
-        else:
-            score += 2  # Single word (like "edms", "dms", "ecm"): 2 points
+    # ==========================================================================
+    # STEP 3: Domain combination bonuses
+    # ==========================================================================
+    domain_bonus = 0
+    priority_level = "LOW"
     
-    # BONUS: Priority phrases (multi-term matches close together)
+    for combo_domains, bonus, priority in PRIORITY_COMBINATIONS:
+        if all(d in matched_domains for d in combo_domains):
+            domain_bonus = max(domain_bonus, bonus)
+            if priority == "HIGH":
+                priority_level = "HIGH"
+            elif priority == "MEDIUM" and priority_level != "HIGH":
+                priority_level = "MEDIUM"
+    
+    # Additional +2 if multiple domains in same text
+    if len(matched_domains) >= 2:
+        domain_bonus += 2
+    
+    # Additional +2 for government/public-sector context
+    if "Gov" in matched_domains:
+        domain_bonus += 2
+    
+    # ==========================================================================
+    # STEP 4: Priority phrase bonus
+    # ==========================================================================
     priority_bonus = 0
-    for phrase in priority_matched:
-        word_count = len(phrase.split())
-        if word_count >= 5:
-            priority_bonus += 15  # Very specific phrase
-        elif word_count >= 4:
-            priority_bonus += 10  # Specific phrase
-        else:
-            priority_bonus += 5   # Moderately specific
+    priority_phrases_found = []
     
-    score += priority_bonus
+    for phrase in PRIORITY_PHRASES:
+        if phrase.lower() in combined:
+            priority_phrases_found.append(phrase)
+            word_count = len(phrase.split())
+            if word_count >= 5:
+                priority_bonus += 5
+            elif word_count >= 4:
+                priority_bonus += 3
+            else:
+                priority_bonus += 2
     
-    # Normalize: Expect 8-50 points for relevant tenders, scale to 10-100%
-    normalized_score = ((score - 8) / (50 - 8)) * 90 + 10
-    normalized_score = min(100, max(10, round(normalized_score, 2)))
+    # ==========================================================================
+    # STEP 5: Negative signals (-2 if purely storage/hosting/website)
+    # ==========================================================================
+    negative_penalty = 0
+    negative_signals_found = []
     
-    # Determine which groups matched
-    matched_groups = []
-    for group_name, keywords in KEYWORD_GROUPS.items():
-        group_keywords = [kw.lower() for kw in keywords]
-        matched_in_group = [kw for kw in group_keywords if kw in combined]
-        if matched_in_group:
-            matched_groups.append({
-                "group": group_name,
-                "keywords": matched_in_group,
-                "count": len(matched_in_group)
-            })
+    for neg in NEGATIVE_SIGNALS:
+        if neg.lower() in combined:
+            negative_signals_found.append(neg)
+    
+    # Only penalize if ONLY negative signals (no positive workflow/case/records)
+    core_domains = {"EDMS", "Records", "Workflow", "Case", "ECM", "Forms", "ServiceDelivery"}
+    has_core_match = bool(matched_domains & core_domains)
+    
+    if negative_signals_found and not has_core_match:
+        negative_penalty = -2 * len(negative_signals_found)
+    
+    # ==========================================================================
+    # STEP 6: Calculate final score
+    # ==========================================================================
+    raw_score = base_score + domain_bonus + priority_bonus + negative_penalty
+    raw_score = max(5, raw_score)  # Minimum score of 5 (never hard-reject)
+    
+    # Normalize to 5-100 scale (for UI display)
+    # Expected range: 1-30 points → 5-100%
+    normalized_score = ((raw_score - 1) / 29) * 95 + 5
+    normalized_score = min(100, max(5, round(normalized_score, 1)))
+    
+    # ==========================================================================
+    # STEP 7: Determine F2 fit likelihood
+    # ==========================================================================
+    if priority_level == "HIGH" or normalized_score >= 60:
+        likely_fit = "true"
+    elif priority_level == "MEDIUM" or normalized_score >= 30:
+        likely_fit = "uncertain"
+    else:
+        likely_fit = "uncertain"  # Never false - let humans decide
+    
+    # ==========================================================================
+    # BUILD OUTPUT
+    # ==========================================================================
+    unique_keywords = sorted(set(matched_keywords))
     
     breakdown = {
+        "keywords_found": len(unique_keywords),
         "total_keywords_in_system": len(ALL_KEYWORDS),
-        "keywords_found": len(unique_matched),
-        "priority_phrases_matched": priority_matched,
+        "matched_keywords": unique_keywords[:20],  # Limit for display
+        "domains_matched": sorted(matched_domains),
+        "priority_phrases_matched": priority_phrases_found,
+        "negative_signals_found": negative_signals_found,
+        "base_score": base_score,
+        "domain_bonus": domain_bonus,
         "priority_bonus": priority_bonus,
-        "unique_keywords": unique_matched,
-        "raw_score": score,
+        "negative_penalty": negative_penalty,
+        "raw_score": raw_score,
         "normalized_score": normalized_score,
-        "matched_groups": matched_groups
+        "priority": priority_level,
+        "likely_fit_for_F2": likely_fit,
     }
     
-    # Return normalized_score (percentage), not raw score
-    return normalized_score, ", ".join(unique_matched), json.dumps(breakdown)
+    # Format matched keywords for display
+    keywords_display = ", ".join(unique_keywords[:15])
+    if len(unique_keywords) > 15:
+        keywords_display += f" (+{len(unique_keywords) - 15} more)"
+    
+    return normalized_score, keywords_display, json.dumps(breakdown)
+
+
+def classify_tender(title: str, text: str = ""):
+    """
+    Classify a tender with full F2 alignment output.
+    
+    Returns dict with:
+    - matched_keywords
+    - relevance_score (loose)
+    - inferred_domains (EDMS, Workflow, Case, Gov)
+    - likely_fit_for_F2 = true/false/uncertain
+    - priority = HIGH/MEDIUM/LOW
+    """
+    score, matched_str, breakdown_json = score_text(title, text)
+    breakdown = json.loads(breakdown_json)
+    
+    return {
+        "relevance_score": score,
+        "matched_keywords": breakdown.get("matched_keywords", []),
+        "inferred_domains": breakdown.get("domains_matched", []),
+        "priority": breakdown.get("priority", "LOW"),
+        "likely_fit_for_F2": breakdown.get("likely_fit_for_F2", "uncertain"),
+        "breakdown": breakdown,
+    }

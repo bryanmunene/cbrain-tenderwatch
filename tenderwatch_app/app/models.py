@@ -22,10 +22,17 @@ class TenderResult(db.Model):
     buyer = db.Column(db.String(200))
     country = db.Column(db.String(200))
     deadline = db.Column(db.String(200))
+    publication_date = db.Column(db.String(200))  # F2: for timing filter
     
     score = db.Column(db.Float)
     keywords_matched = db.Column(db.Text)
     scoring_breakdown = db.Column(db.Text, default="")
+    
+    # F2-ALIGNED CLASSIFICATION FIELDS
+    inferred_domains = db.Column(db.Text, default="")  # JSON: ["EDMS", "Workflow", "Gov"]
+    priority_level = db.Column(db.String(20), default="LOW")  # HIGH, MEDIUM, LOW
+    likely_fit_for_f2 = db.Column(db.String(20), default="uncertain")  # true, false, uncertain
+    timing_status = db.Column(db.String(100), default="")  # Timing constraint result
     
     # Discovery metadata
     discovery_method = db.Column(db.String(50), default="manual")  # 'manual', 'auto', 'priority'

@@ -1,318 +1,330 @@
 """
-TenderWatch Keywords
-=====================
-Comprehensive keyword groups for detecting cBrain-relevant tenders.
+TenderWatch Keywords — F2-Aligned (Non-Strict)
+===============================================
+Flat keyword domains for detecting cBrain F2-relevant tenders:
+EDMS + records + workflow + case handling + process automation + e-government.
 
-Philosophy:
-- Treat any occurrence as a signal, not a filter
-- Prioritize tenders where multiple terms appear close together
-- Prefer language describing movement of work, approvals, cases, or process automation
+Design Principles:
+- Favor recall over precision (miss nothing, rank later)
+- Any keyword hit is a signal, not a filter
+- Multiple hits increase relevance
+- Phrase proximity increases relevance
+- No single keyword is mandatory
 - Let scoring, not exclusion, decide relevance
-- Noise is cheaper to discard than missed signal
 
-This list catches:
-- EDMS tenders that don't say "EDMS"
-- Case systems hiding as "service platforms"
-- Workflow platforms disguised as "digitization"
-- Government projects that avoid technical labels
+Role Separation:
+- Scanner = capture + timing filter
+- AI = reasoning + ranking  
+- Human = decision
 """
 
-KEYWORD_GROUPS = {
-    "Records & Document Management": [
-        # Core EDMS/DMS terms
+# =============================================================================
+# FLAT KEYWORD DOMAINS (for domain tagging and scoring)
+# =============================================================================
+
+KEYWORD_DOMAINS = {
+    "EDMS": [
+        # Core terms
         "electronic document management",
-        "document management system",
-        "dms",
         "edms",
-        "electronic document and records management",
+        "dms",
+        "document management system",
+        "document management",
+        "document repository",
+        "document tracking",
+        "document capture",
+        "document digitization",
+        "intelligent document processing",
+        "optical character recognition",
+        "ocr",
+        "paperless",
+    ],
+    
+    "Records": [
+        # Core records
+        "records management",
+        "electronic records",
         "records management system",
-        "electronic records management",
-        "records information system",
+        "records information",
+        "records lifecycle",
+        "records retention",
+        "records disposal",
+        "records digitization",
+        "digital records",
+        # Archives & registry
+        "archives",
+        "archival system",
+        "archives management",
+        "registry",
+        "file registry",
+        "file tracking",
+        "file plan",
+        "classification scheme",
+        # Compliance
+        "information governance",
+        "audit trail",
+        "audit logging",
+        "legal hold",
+        "retention policy",
+        "data retention",
+        "compliance management",
+        "iso 15489",
+        "right to information",
+        "foia",
+    ],
+    
+    "ECM": [
         "enterprise content management",
         "ecm",
         "content services platform",
-        "document repository",
-        "digital records",
-        
-        # Archives & Registry
-        "archives management",
-        "archival system",
-        "file registry system",
-        "registry management",
-        "file tracking system",
-        "document tracking",
-        
-        # Records Lifecycle
-        "records lifecycle management",
-        "records retention",
-        "records disposal",
-        "classification scheme",
-        "file plan",
-        "information governance",
-        "legal hold",
-        "data retention policy",
-        
-        # Digitization
-        "digitization of records",
-        "scanning and indexing",
-        "document digitization",
-        "records digitization",
-        "document capture",
-        "optical character recognition",
-        "ocr system",
-        "intelligent document processing",
-        "paperless office",
-        
-        # Compliance & Standards
-        "compliance management",
-        "audit trail",
-        "audit logging",
-        "right to information",
-        "foia",
-        "iso 15489",
+        "content services",
+        "content management",
+        "unstructured data management",
     ],
     
-    "Correspondence & Communication": [
-        "correspondence management",
-        "digital correspondence",
-        "intranet solution",
-        "collaboration platform",
-        "electronic memos",
-        "e-memo",
-        "inward and outward correspondence",
-        "mail management system",
-    ],
-    
-    "Microsoft & Enterprise Platforms": [
-        "sharepoint",
-        "microsoft sharepoint online",
-        "microsoft 365",
-        "power platform",
-        "power automate",
-        "power apps",
-        "office 365",
-        "teams integration",
-        "azure",
-        "dynamics 365",
-    ],
-    
-    "Workflow & Process Automation": [
-        # Core Workflow
+    "Workflow": [
+        # Core workflow
+        "workflow",
         "workflow system",
         "workflow automation",
-        "workflow management system",
+        "workflow management",
+        "approval workflow",
+        "approval system",
+        "approval process",
+        # BPM
         "business process management",
         "bpm",
         "process automation",
         "digital process automation",
-        
-        # Task & Work Management
-        "service orchestration",
+        "process optimization",
+        "process orchestration",
+        # Tasks
         "task routing",
-        "work item management",
-        "approval workflows",
-        "task management system",
-        "approval system",
-        
-        # Forms
+        "task management",
+        "work item",
+        "service orchestration",
+    ],
+    
+    "Case": [
+        # Core case
+        "case management",
+        "case handling",
+        "case tracking",
+        "case management system",
+        "docket",
+        "docket management",
+        "matter management",
+        # Complaints & grievances
+        "complaint management",
+        "complaints handling",
+        "grievance",
+        "grievance redress",
+        "grm",
+        "feedback management",
+        # Legal/regulatory
+        "legal case management",
+        "litigation management",
+        "court management",
+        "judicial case management",
+        "regulatory case",
+        "inspection management",
+        "licensing system",
+        "permit management",
+    ],
+    
+    "Forms": [
         "electronic forms",
         "e-forms",
         "digital forms",
         "form automation",
-        
-        # Analytics
-        "process analytics",
-        "reports and dashboards",
-        "performance monitoring",
-        "decision support system",
-        "process optimization",
-        "business intelligence",
+        "e-memos",
+        "electronic memos",
+        "digital correspondence",
+        "correspondence management",
     ],
     
-    "Case & Matter Management": [
-        # Core Case Management
-        "case management system",
-        "case handling system",
-        "case tracking system",
-        "matter management",
-        "docket management",
-        
-        # Complaints & Grievances
-        "complaint management system",
-        "grievance redress system",
-        "grievance redress mechanism",
-        "grm system",
-        "complaints handling",
-        "feedback management",
-        
-        # Legal & Regulatory
-        "regulatory case management",
-        "inspection management system",
-        "licensing system",
-        "permit management system",
-        "legal case management",
-        "litigation management",
-        "court management system",
-        "judicial case management",
-    ],
-    
-    "E-Government & Citizen Services": [
-        # Service Delivery
-        "service request system",
-        "citizen services portal",
-        "e-services portal",
-        "service delivery platform",
+    "ServiceDelivery": [
+        "service request",
+        "citizen services",
+        "e-services",
+        "service delivery",
         "public service delivery",
-        
-        # E-Government
-        "e-government platform",
-        "digital government",
-        "public sector digitization",
-        "government workflow system",
-        "e-governance",
-        "smart government",
-        "government automation",
-        
-        # Citizen Engagement
         "citizen portal",
         "government portal",
         "citizen engagement",
-        "public grievance system",
+        "public grievance",
     ],
     
-    "Implementation & Services": [
-        # Deployment
-        "system implementation",
-        "solution deployment",
-        "system configuration",
-        "system integration",
-        "software implementation",
-        
-        # Change & Training
-        "change management",
-        "capacity building",
-        "user training",
-        "knowledge transfer",
-        
-        # Support
-        "post-implementation support",
-        "managed services",
-        "support and maintenance",
-        "system support",
-    ],
-    
-    "General ICT & Software": [
-        # ICT Terms
-        "ict consultancy",
-        "ict consulting",
-        "ict services",
-        "ict solution",
-        "ict system",
-        "ict infrastructure",
-        
-        # Software Development
-        "software development",
-        "software solution",
-        "software system",
-        "software consultancy",
-        "system development",
-        "enterprise software",
-        "enterprise application",
-        
-        # Digital Transformation
-        "digital platform",
-        "digital solution",
-        "digital system",
-        "digital transformation",
-        "digitalization",
-        "modernization",
-        
-        # Enterprise Systems
-        "management information system",
-        "mis",
-        "erp system",
-        "enterprise resource planning",
-        "database management",
-        "database system",
-        "web application",
-        "web portal",
-        "web-based system",
-        "online system",
-        
-        # Cloud & Infrastructure
-        "cloud platform",
-        "cloud solution",
-        "cloud migration",
-        "saas",
-        "software as a service",
-    ],
-    
-    "Government & Public Sector": [
-        # Government bodies
+    "Gov": [
+        # E-government
+        "e-government",
+        "egovernment",
+        "digital government",
+        "e-governance",
+        "egovernance",
+        "smart government",
+        "government automation",
+        "public sector digitization",
+        "public sector digitalisation",
+        "public sector transformation",
+        # Context signals
+        "government",
         "ministry",
-        "government agency",
         "county government",
         "public sector",
         "parastatal",
         "state corporation",
+        "government agency",
         "government department",
         "public institution",
         "local authority",
         "municipal",
         "regional government",
     ],
+    
+    "Collaboration": [
+        "intranet",
+        "sharepoint",
+        "microsoft sharepoint",
+        "microsoft 365",
+        "m365",
+        "power platform",
+        "power automate",
+        "power apps",
+        "office 365",
+        "teams",
+        "collaboration platform",
+    ],
+    
+    "Implementation": [
+        "system implementation",
+        "solution implementation",
+        "software implementation",
+        "solution deployment",
+        "system configuration",
+        "system integration",
+        "change management",
+        "capacity building",
+        "user training",
+        "knowledge transfer",
+        "post-implementation support",
+        "managed services",
+        "support and maintenance",
+    ],
 }
 
-# Flatten all keywords into a single list for matching
+# =============================================================================
+# NEGATIVE SIGNALS (reduce score, don't exclude)
+# =============================================================================
+
+NEGATIVE_SIGNALS = [
+    # Pure hosting/storage (no process/workflow)
+    "data center",
+    "data centre",
+    "colocation",
+    "hosting services",
+    "cloud hosting",
+    "storage infrastructure",
+    "backup services",
+    "disaster recovery only",
+    # Website-only
+    "website design",
+    "website development only",
+    "web design",
+    "social media management",
+    # Hardware-only
+    "hardware supply",
+    "computer supply",
+    "laptop supply",
+    "printer supply",
+    "networking equipment",
+    "cabling",
+]
+
+# =============================================================================
+# FLATTENED KEYWORDS (for simple matching)
+# =============================================================================
+
 ALL_KEYWORDS = sorted(
-    {kw.lower() for group in KEYWORD_GROUPS.values() for kw in group}
+    {kw.lower() for domain in KEYWORD_DOMAINS.values() for kw in domain}
 )
 
-# Keywords that are too generic on their own but valuable in context
-# These still contribute to scoring but with lower weight when alone
+# Map each keyword back to its domain(s)
+KEYWORD_TO_DOMAIN = {}
+for domain, keywords in KEYWORD_DOMAINS.items():
+    for kw in keywords:
+        kw_lower = kw.lower()
+        if kw_lower not in KEYWORD_TO_DOMAIN:
+            KEYWORD_TO_DOMAIN[kw_lower] = []
+        KEYWORD_TO_DOMAIN[kw_lower].append(domain)
+
+# =============================================================================
+# PRIORITY DOMAIN COMBINATIONS (bonus scoring)
+# =============================================================================
+
+# These combinations signal high relevance for F2
+PRIORITY_COMBINATIONS = [
+    # HIGH priority: workflow + records + government
+    (["Workflow", "Records", "Gov"], 10, "HIGH"),
+    (["Case", "Records", "Gov"], 10, "HIGH"),
+    (["Workflow", "Case", "Gov"], 10, "HIGH"),
+    
+    # MEDIUM priority: records OR workflow + public context
+    (["Records", "Gov"], 5, "MEDIUM"),
+    (["Workflow", "Gov"], 5, "MEDIUM"),
+    (["Case", "Gov"], 5, "MEDIUM"),
+    (["EDMS", "Gov"], 5, "MEDIUM"),
+    (["ECM", "Gov"], 5, "MEDIUM"),
+    
+    # Records + workflow/case (even without gov context)
+    (["Records", "Workflow"], 4, "MEDIUM"),
+    (["Records", "Case"], 4, "MEDIUM"),
+    (["EDMS", "Workflow"], 4, "MEDIUM"),
+    (["EDMS", "Case"], 4, "MEDIUM"),
+]
+
+# =============================================================================
+# LEGACY EXPORTS (for backward compatibility)
+# =============================================================================
+
+# Keep KEYWORD_GROUPS for categorizer.py compatibility
+KEYWORD_GROUPS = KEYWORD_DOMAINS
+
+# Generic standalone keywords (still count but with lower weight alone)
 GENERIC_STANDALONE_KEYWORDS = {
     "bid", "tender", "rfp", "rfq", "procurement", "contract",
     "ministry", "government", "agency", "department", "system",
     "platform", "solution", "software", "services", "management"
 }
 
-# Multi-word phrases get bonus scoring (more specific = more relevant)
-# Phrases with 3+ words are likely describing exactly what we want
+# Priority phrases (multi-word exact matches for bonus)
 PRIORITY_PHRASES = [
-    # 5+ word phrases (very specific, high bonus)
+    # 5+ word phrases (very specific)
     "electronic document and records management",
     "electronic document management system",
     "enterprise content management system",
     "business process management system",
     "case management system implementation",
-    "workflow management system implementation",
-    "citizen services portal development",
-    "public sector digitization project",
     
-    # 4 word phrases (specific, good bonus)
+    # 4 word phrases
     "document management system",
-    "records management system",
+    "records management system", 
     "case management system",
     "workflow management system",
     "content services platform",
     "business process automation",
     "digital government platform",
-    "e-government platform implementation",
     "complaint management system",
     "grievance redress system",
     "permit management system",
-    "licensing management system",
     
-    # 3 word phrases (moderately specific)
+    # 3 word phrases
     "workflow automation",
     "process automation",
     "case handling",
     "case tracking",
     "document tracking",
     "records digitization",
-    "approval workflows",
-    "task routing",
-    "service orchestration",
     "digital transformation",
     "system implementation",
 ]
