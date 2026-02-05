@@ -48,6 +48,31 @@ def scan_source(source: TenderSource):
 
     existing = {r.link for r in TenderResult.query.all()}
 
+    # Navigation/menu text patterns to exclude (case-insensitive)
+    NAV_PATTERNS = {
+        # Generic navigation
+        "about us", "about", "contact us", "contact", "home", "login", "sign in", "register",
+        "search", "help", "faq", "privacy", "terms", "cookie", "accessibility",
+        "menu", "navigation", "sitemap", "site map", "back to top", "read more", "learn more",
+        "click here", "view all", "see all", "show more", "load more",
+        # Organization info
+        "who we are", "what we do", "how we work", "our work", "our team", "our partners",
+        "our office", "our history", "our mission", "our vision", "our values",
+        "careers", "jobs", "employment", "vacancies", "work with us", "join us",
+        # Procurement info pages (not actual tenders)
+        "how we buy", "what we buy", "how to apply", "how to register", "how to submit",
+        "qualifications", "eligibility", "supplier", "vendor", "guidance", "guidelines",
+        "resources", "training", "certification", "statistics", "reports", "annual report",
+        "code of conduct", "protest", "sanctions", "policies", "procedures",
+        "guiding principles", "strategy", "sustainable", "framework",
+        # Social/sharing
+        "facebook", "twitter", "linkedin", "instagram", "youtube", "share", "follow us",
+        "subscribe", "newsletter", "email us", "call us",
+        # Document types (not tenders)
+        "press release", "news", "blog", "article", "publication", "brochure",
+        "annual report", "quarterly report", "financial report",
+    }
+    
     # Find all links - focus on specific tender/procurement pages
     links_to_process = []
     
@@ -58,14 +83,31 @@ def scan_source(source: TenderSource):
         if any(skip in href.lower() for skip in ["javascript:", "mailto:", "#", "back", "home", "login"]):
             continue
         
-        # UNDP-specific links
-        if "view_notice.cfm" in href:
+        # Get and clean link text
+        link_text = a.get_text(strip=True).lower()
+        
+        # Skip navigation/menu links
+        if any(nav in link_text for nav in NAV_PATTERNS):
+            continue
+        
+        # Skip very short or very long text (likely UI elements or paragraphs)
+        if len(link_text) < 15 or len(link_text) > 300:
+            continue
+        
+        # UNDP-specific links (known tender patterns)
+        if "view_notice.cfm" in href or "notice_id=" in href:
             links_to_process.append((a, href, True))
-        # Look for procurement/tender pages (but will still need keyword validation)
-        elif any(pattern in href.lower() for pattern in ["tender", "procurement", "opportunity"]):
+        # DevBusiness/UNDB patterns
+        elif any(p in href.lower() for p in ["/node/", "/tender/", "/opportunity/", "/notice/"]):
             links_to_process.append((a, href, True))
-        # Generic links with substantive text (likely tender titles)
-        elif len(a.get_text(strip=True)) > 30:  # Increased from 20 to 30 for more specificity
+        # Generic tender/procurement links
+        elif any(pattern in href.lower() for pattern in ["tender", "procurement", "rfp", "rfq", "bid"]):
+            links_to_process.append((a, href, True))
+        # Links with tender-like text patterns
+        elif any(kw in link_text for kw in ["tender", "rfp", "rfq", "bid", "procurement", "contract", "consultancy", "supply of", "provision of", "services for"]):
+            links_to_process.append((a, href, True))
+        # Generic links with substantive text (potential tender titles)
+        elif len(a.get_text(strip=True)) > 40:  # Increased threshold for more specificity
             links_to_process.append((a, href, False))
     
     for a, href, is_likely_tender in links_to_process:
@@ -81,7 +123,37 @@ def scan_source(source: TenderSource):
                 title = title[len(prefix):].strip()
         
         # Skip very short titles
-        if len(title) < 10:
+        if len(title) < 15:
+            continue
+        
+        # Final navigation check on title (double-check)
+        title_lower = title.lower()
+        if any(nav in title_lower for nav in NAV_PATTERNS):
+            continue
+        
+        # Skip generic info pages that aren't real tenders
+        GENERIC_INFO_PATTERNS = {
+            "procurement at undp", "office of procurement", "procurement office",
+            "how to do business", "doing business with", "become a supplier",
+            "vendor registration", "supplier registration", "procurement process",
+            "procurement policy", "procurement manual", "procurement guide",
+        }
+        if any(info in title_lower for info in GENERIC_INFO_PATTERNS):
+            continue
+        
+        # Check if this looks like a real tender (has reference number or specific patterns)
+        import re
+        has_ref_number = bool(re.search(r'(ref\s*no|undp-|unw-|unops-|rfp-|rfq-|\d{4,}[-/]\d+)', title_lower))
+        has_tender_keywords = any(kw in title_lower for kw in [
+            "supply of", "provision of", "services for", "consultancy", "consultant",
+            "construction", "renovation", "installation", "procurement of", "purchase of",
+            "request for proposal", "request for quotation", "invitation to bid",
+            "equipment", "vehicle", "furniture", "solar", "drilling", "training",
+            "lta for", "ita for", "ic/", "rfp for", "rfq for"
+        ])
+        
+        # For non-likely tenders (generic links), require stronger evidence
+        if not is_likely_tender and not has_ref_number and not has_tender_keywords:
             continue
         
         # AI-enhanced scoring
