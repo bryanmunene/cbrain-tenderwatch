@@ -298,6 +298,36 @@ def init_db():
             # Tender Aggregators
             ("DgMarket", "https://www.dgmarket.com/", False),
             ("Global Tenders", "https://www.globaltenders.com/", False),
+            
+            # Kenya Government Sources
+            ("Kenya PPIP", "https://tenders.go.ke/website/tenders/all", True),
+            ("Kenya eTender", "https://supplier.treasury.go.ke/site/tenders.go/public", True),
+            ("KRA Tenders", "https://www.kra.go.ke/en/helping-tax-payers/tenders", True),
+            ("KURA Tenders", "https://www.kura.go.ke/tenders", True),
+            ("KENHA Tenders", "https://www.kenha.co.ke/index.php/tenders", True),
+            ("Kenya Power Tenders", "https://www.kplc.co.ke/category/view/47/tenders", True),
+            ("NHIF Tenders", "https://www.nhif.or.ke/tenders/", True),
+            ("NSSF Tenders", "https://www.nssf.or.ke/tenders", True),
+            ("CBK Tenders", "https://www.centralbank.go.ke/tenders/", True),
+            
+            # Kenya Counties
+            ("Nairobi County Tenders", "https://nairobi.go.ke/tenders/", True),
+            ("Mombasa County Tenders", "https://www.mombasa.go.ke/tenders/", False),
+            ("Kisumu County Tenders", "https://kisumu.go.ke/tenders/", False),
+            ("Nakuru County Tenders", "https://nakuru.go.ke/tenders/", False),
+            ("Kiambu County Tenders", "https://kiambu.go.ke/tenders/", False),
+            
+            # Kenya Universities
+            ("UoN Procurement", "https://www.uonbi.ac.ke/content/procurement", False),
+            ("KU Tenders", "https://www.ku.ac.ke/schools/tenders", False),
+            ("JKUAT Tenders", "https://www.jkuat.ac.ke/tenders/", False),
+            
+            # Kenya Hospitals
+            ("KNH Tenders", "https://knh.or.ke/tenders/", False),
+            
+            # Kenya Aggregators
+            ("MyGov Kenya", "https://www.mygov.go.ke/?s=tender", True),
+            ("Tendersinfo Kenya", "https://www.tendersinfo.com/global-kenya-tenders.php", False),
         ]
         
         # Add missing sources (check by URL to avoid duplicates)

@@ -325,10 +325,11 @@ def run_scan(include_auto_discovery=True):
             new_tenders = scan_source(src)
             all_new_tenders.extend(new_tenders)
     
-    # Run auto-discovery if enabled
-    if include_auto_discovery:
-        auto_tenders = run_auto_discovery()
-        all_new_tenders.extend(auto_tenders)
+    # Auto-discovery is disabled (API setup was too complex)
+    # If you have valid API keys, you can re-enable by uncommenting:
+    # if include_auto_discovery:
+    #     auto_tenders = run_auto_discovery()
+    #     all_new_tenders.extend(auto_tenders)
     
     print("✅ Scan complete!")
     
