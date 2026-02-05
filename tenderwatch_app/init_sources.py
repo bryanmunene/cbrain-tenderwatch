@@ -19,50 +19,36 @@ def init_sources():
             print("Sources already initialized.")
             return
         
-        # Kenya-Specific Sources
-        kenya_sources = [
+        # Real Tender Listing Sources
+        sources = [
             {
-                "name": "UNDP Kenya Opportunities",
-                "url": "https://www.ug.undp.org/tenders"
+                "name": "UNDP Procurement Notices",
+                "url": "https://procurement-notices.undp.org/"
             },
             {
-                "name": "World Bank Kenya Tenders",
-                "url": "https://www.worldbank.org/en/projects-operations/products-and-services/brief/world-bank-tenders"
+                "name": "UN Global Marketplace",
+                "url": "https://www.ungm.org/Public/Notice"
             },
             {
-                "name": "USAID Kenya Procurement",
-                "url": "https://www.usaid.gov/kenya"
+                "name": "AfDB Procurement Notices",
+                "url": "https://www.afdb.org/en/about-us/corporate-procurement/procurement-notices"
             },
             {
-                "name": "AfDB Tender Portal",
-                "url": "https://www.afdb.org/en/projects/procurement/tenders"
-            },
-        ]
-        
-        # Global Sources
-        global_sources = [
-            {
-                "name": "UNDB Global",
-                "url": "https://www.undb.org/opportunities"
+                "name": "DevBusiness (World Bank)",
+                "url": "https://devbusiness.un.org/content/tenders"
             },
             {
-                "name": "GEF Procurement",
-                "url": "https://www.thegef.org/council-meeting-documents/procurement"
+                "name": "TED Europa (EU Tenders)",
+                "url": "https://ted.europa.eu/TED/browse/browseByMap.do"
             },
             {
-                "name": "IFC Tenders",
-                "url": "https://www.ifc.org/en/what-we-do/advisory-services"
-            },
-            {
-                "name": "UNOPS Tenders",
-                "url": "https://www.unops.org/who-we-are/our-office"
+                "name": "UNOPS Procurement",
+                "url": "https://www.unops.org/business-opportunities/procurement"
             },
         ]
         
         # Add all sources
-        all_sources = kenya_sources + global_sources
-        
-        for source_data in all_sources:
+        for source_data in sources:
             source = TenderSource(
                 name=source_data["name"],
                 url=source_data["url"],
@@ -72,9 +58,7 @@ def init_sources():
             db.session.add(source)
         
         db.session.commit()
-        print(f"✓ Added {len(all_sources)} tender sources")
-        print(f"  - {len(kenya_sources)} Kenya-specific sources")
-        print(f"  - {len(global_sources)} Global sources")
+        print(f"✓ Added {len(sources)} tender sources")
 
 if __name__ == "__main__":
     init_sources()

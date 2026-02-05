@@ -258,17 +258,13 @@ def init_db():
         # Ensure default sources exist
         if TenderSource.query.count() == 0:
             default_sources = [
-                # Kenya-specific sources
-                TenderSource(name="UNDP Kenya Opportunities", url="https://procurement-notices.undp.org/view_notices.cfm?static_type=notice_type&value=bid&x=19&y=12&country=&lng=", active=True, favorite=True),
-                TenderSource(name="World Bank Kenya Tenders", url="https://www.worldbank.org/en/projects-operations/products-and-services/brief/summary-and-detailed-borrower-procurement-reports", active=True, favorite=False),
-                TenderSource(name="USAID Kenya Procurement", url="https://www.usaid.gov/work-usaid/how-to-work-with-usaid/opportunities", active=True, favorite=False),
-                TenderSource(name="AfDB Tender Portal", url="https://www.afdb.org/en/projects-and-operations/procurement", active=True, favorite=False),
-                
-                # Global sources
-                TenderSource(name="UNDB Global", url="https://www.undb.org/", active=True, favorite=False),
-                TenderSource(name="GEF Procurement", url="https://www.thegef.org/projects-operations/procurement", active=True, favorite=False),
-                TenderSource(name="IFC Tenders", url="https://www.ifc.org/en/what-we-do", active=True, favorite=False),
-                TenderSource(name="UNOPS Tenders", url="https://www.unops.org/procurement-opportunities", active=True, favorite=True),
+                # Real Tender Listing Sources
+                TenderSource(name="UNDP Procurement Notices", url="https://procurement-notices.undp.org/", active=True, favorite=True),
+                TenderSource(name="UN Global Marketplace", url="https://www.ungm.org/Public/Notice", active=True, favorite=False),
+                TenderSource(name="AfDB Procurement Notices", url="https://www.afdb.org/en/about-us/corporate-procurement/procurement-notices", active=True, favorite=False),
+                TenderSource(name="DevBusiness (World Bank)", url="https://devbusiness.un.org/content/tenders", active=True, favorite=False),
+                TenderSource(name="TED Europa (EU Tenders)", url="https://ted.europa.eu/TED/browse/browseByMap.do", active=True, favorite=False),
+                TenderSource(name="UNOPS Procurement", url="https://www.unops.org/business-opportunities/procurement", active=True, favorite=True),
             ]
             for source in default_sources:
                 db.session.add(source)
