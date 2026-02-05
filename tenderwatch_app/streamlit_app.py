@@ -258,13 +258,23 @@ def init_db():
         # Ensure default sources exist
         if TenderSource.query.count() == 0:
             default_sources = [
-                # Real Tender Listing Sources
+                # UN/International Development Sources
                 TenderSource(name="UNDP Procurement Notices", url="https://procurement-notices.undp.org/", active=True, favorite=True),
                 TenderSource(name="UN Global Marketplace", url="https://www.ungm.org/Public/Notice", active=True, favorite=False),
-                TenderSource(name="AfDB Procurement Notices", url="https://www.afdb.org/en/about-us/corporate-procurement/procurement-notices", active=True, favorite=False),
                 TenderSource(name="DevBusiness (World Bank)", url="https://devbusiness.un.org/content/tenders", active=True, favorite=False),
-                TenderSource(name="TED Europa (EU Tenders)", url="https://ted.europa.eu/TED/browse/browseByMap.do", active=True, favorite=False),
-                TenderSource(name="UNOPS Procurement", url="https://www.unops.org/business-opportunities/procurement", active=True, favorite=True),
+                
+                # Regional Development Banks
+                TenderSource(name="AfDB Procurement", url="https://www.afdb.org/en/about-us/corporate-procurement/procurement-notices", active=True, favorite=False),
+                TenderSource(name="ADB Procurement", url="https://www.adb.org/projects/tenders/all", active=True, favorite=False),
+                TenderSource(name="IDB Procurement", url="https://www.iadb.org/en/procurement/current-opportunities", active=True, favorite=False),
+                
+                # Government Portals
+                TenderSource(name="TED Europa (EU)", url="https://ted.europa.eu/en/search/result", active=True, favorite=False),
+                TenderSource(name="SAM.gov (US Federal)", url="https://sam.gov/search/?index=opp&page=1&sort=-modifiedDate", active=True, favorite=False),
+                TenderSource(name="Contracts Finder (UK)", url="https://www.contractsfinder.service.gov.uk/Search/Results", active=True, favorite=False),
+                
+                # Development/NGO
+                TenderSource(name="DevEx Funding", url="https://www.devex.com/funding", active=True, favorite=False),
             ]
             for source in default_sources:
                 db.session.add(source)

@@ -19,32 +19,25 @@ def init_sources():
             print("Sources already initialized.")
             return
         
-        # Real Tender Listing Sources
+        # Global Tender Listing Sources
         sources = [
-            {
-                "name": "UNDP Procurement Notices",
-                "url": "https://procurement-notices.undp.org/"
-            },
-            {
-                "name": "UN Global Marketplace",
-                "url": "https://www.ungm.org/Public/Notice"
-            },
-            {
-                "name": "AfDB Procurement Notices",
-                "url": "https://www.afdb.org/en/about-us/corporate-procurement/procurement-notices"
-            },
-            {
-                "name": "DevBusiness (World Bank)",
-                "url": "https://devbusiness.un.org/content/tenders"
-            },
-            {
-                "name": "TED Europa (EU Tenders)",
-                "url": "https://ted.europa.eu/TED/browse/browseByMap.do"
-            },
-            {
-                "name": "UNOPS Procurement",
-                "url": "https://www.unops.org/business-opportunities/procurement"
-            },
+            # UN/International Development
+            {"name": "UNDP Procurement Notices", "url": "https://procurement-notices.undp.org/"},
+            {"name": "UN Global Marketplace", "url": "https://www.ungm.org/Public/Notice"},
+            {"name": "DevBusiness (World Bank)", "url": "https://devbusiness.un.org/content/tenders"},
+            
+            # Regional Development Banks
+            {"name": "AfDB Procurement", "url": "https://www.afdb.org/en/about-us/corporate-procurement/procurement-notices"},
+            {"name": "ADB Procurement", "url": "https://www.adb.org/projects/tenders/all"},
+            {"name": "IDB Procurement", "url": "https://www.iadb.org/en/procurement/current-opportunities"},
+            
+            # Government Portals
+            {"name": "TED Europa (EU)", "url": "https://ted.europa.eu/en/search/result"},
+            {"name": "SAM.gov (US Federal)", "url": "https://sam.gov/search/?index=opp&page=1&sort=-modifiedDate"},
+            {"name": "Contracts Finder (UK)", "url": "https://www.contractsfinder.service.gov.uk/Search/Results"},
+            
+            # Development/NGO
+            {"name": "DevEx Funding", "url": "https://www.devex.com/funding"},
         ]
         
         # Add all sources
