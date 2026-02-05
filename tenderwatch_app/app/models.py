@@ -30,9 +30,10 @@ class TenderResult(db.Model):
     
     # F2-ALIGNED CLASSIFICATION FIELDS
     inferred_domains = db.Column(db.Text, default="")  # JSON: ["EDMS", "Workflow", "Gov"]
-    priority_level = db.Column(db.String(20), default="LOW")  # HIGH, MEDIUM, LOW
-    likely_fit_for_f2 = db.Column(db.String(20), default="uncertain")  # true, false, uncertain
+    priority_level = db.Column(db.String(20), default="LOW")  # HIGH, MEDIUM, LOW, LOCKED
+    likely_fit_for_f2 = db.Column(db.String(20), default="uncertain")  # true, false, uncertain, no-go, discuss
     timing_status = db.Column(db.String(100), default="")  # Timing constraint result
+    procurement_status = db.Column(db.String(20), default="open")  # open, locked, locked_but_open
     
     # Discovery metadata
     discovery_method = db.Column(db.String(50), default="manual")  # 'manual', 'auto', 'priority'

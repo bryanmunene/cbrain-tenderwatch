@@ -26,6 +26,8 @@ from app.keywords import (
     NEGATIVE_SIGNALS,
     PRIORITY_PHRASES,
     GENERIC_STANDALONE_KEYWORDS,
+    PLATFORM_LOCKIN_SIGNALS,
+    OPEN_PROCUREMENT_SIGNALS,
 )
 
 
@@ -129,6 +131,32 @@ def score_text(title: str, text: str = ""):
         negative_penalty = -2 * len(negative_signals_found)
     
     # ==========================================================================
+    # STEP 5b: Platform lock-in detection (already chose a vendor)
+    # ==========================================================================
+    platform_lockin_found = []
+    open_procurement_found = []
+    procurement_status = "open"  # Default: assume open procurement
+    
+    for signal in PLATFORM_LOCKIN_SIGNALS:
+        if signal.lower() in combined:
+            platform_lockin_found.append(signal)
+    
+    for signal in OPEN_PROCUREMENT_SIGNALS:
+        if signal.lower() in combined:
+            open_procurement_found.append(signal)
+    
+    # Determine procurement status
+    if platform_lockin_found:
+        if open_procurement_found:
+            # Mixed signals - client may be open to alternatives
+            procurement_status = "locked_but_open"
+            negative_penalty -= 3  # Slight penalty but still viable
+        else:
+            # Strong lock-in signal - F2 unlikely to compete
+            procurement_status = "locked"
+            negative_penalty -= 10  # Significant penalty
+    
+    # ==========================================================================
     # STEP 6: Calculate final score
     # ==========================================================================
     raw_score = base_score + domain_bonus + priority_bonus + negative_penalty
@@ -142,7 +170,13 @@ def score_text(title: str, text: str = ""):
     # ==========================================================================
     # STEP 7: Determine F2 fit likelihood
     # ==========================================================================
-    if priority_level == "HIGH" or normalized_score >= 60:
+    # Consider platform lock-in when determining F2 fit
+    if procurement_status == "locked":
+        likely_fit = "no-go"  # Vendor already chosen, unlikely to compete
+        priority_level = "LOCKED"
+    elif procurement_status == "locked_but_open":
+        likely_fit = "discuss"  # Worth discussing if client open to alternatives
+    elif priority_level == "HIGH" or normalized_score >= 60:
         likely_fit = "true"
     elif priority_level == "MEDIUM" or normalized_score >= 30:
         likely_fit = "uncertain"
@@ -161,6 +195,11 @@ def score_text(title: str, text: str = ""):
         "domains_matched": sorted(matched_domains),
         "priority_phrases_matched": priority_phrases_found,
         "negative_signals_found": negative_signals_found,
+        # Platform lock-in analysis
+        "platform_lockin_signals": platform_lockin_found,
+        "open_procurement_signals": open_procurement_found,
+        "procurement_status": procurement_status,  # "open", "locked", "locked_but_open"
+        # Scoring
         "base_score": base_score,
         "domain_bonus": domain_bonus,
         "priority_bonus": priority_bonus,

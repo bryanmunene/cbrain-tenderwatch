@@ -27,6 +27,8 @@ KEYWORD_DOMAINS = {
         # Core terms
         "electronic document management",
         "edms",
+        "edrms",  # Electronic Document AND Records Management System
+        "electronic document and records management",
         "dms",
         "document management system",
         "document management",
@@ -184,15 +186,6 @@ KEYWORD_DOMAINS = {
     
     "Collaboration": [
         "intranet",
-        "sharepoint",
-        "microsoft sharepoint",
-        "microsoft 365",
-        "m365",
-        "power platform",
-        "power automate",
-        "power apps",
-        "office 365",
-        "teams",
         "collaboration platform",
     ],
     
@@ -212,6 +205,81 @@ KEYWORD_DOMAINS = {
         "support and maintenance",
     ],
 }
+
+# =============================================================================
+# PLATFORM LOCK-IN SIGNALS (already chose a vendor - F2 unlikely to compete)
+# Flag these but don't exclude - client may be open to alternatives
+# =============================================================================
+
+PLATFORM_LOCKIN_SIGNALS = [
+    # Microsoft ecosystem (if they're asking for implementation, not procurement)
+    "power platform implementation",
+    "power platform solution",
+    "power apps development",
+    "power automate implementation", 
+    "sharepoint implementation",
+    "sharepoint development",
+    "sharepoint solution",
+    "microsoft 365 implementation",
+    "dynamics 365 implementation",
+    "azure implementation",
+    "build solutions in power platform",
+    "develop on power platform",
+    "power platform developer",
+    "power platform consultant",
+    
+    # Oracle ecosystem
+    "oracle implementation",
+    "oracle consultant",
+    "oracle erp",
+    "oracle financials",
+    "oracle cloud",
+    "oracle fusion",
+    
+    # SAP ecosystem  
+    "sap implementation",
+    "sap consultant",
+    "sap erp",
+    "sap s/4hana",
+    "sap successfactors",
+    
+    # Salesforce ecosystem
+    "salesforce implementation",
+    "salesforce developer",
+    "salesforce consultant",
+    
+    # OpenText ecosystem
+    "opentext implementation",
+    "documentum implementation",
+    "opentext consultant",
+    
+    # Other specific platforms
+    "laserfiche implementation",
+    "alfresco implementation",
+    "m-files implementation",
+    "ibm filenet implementation",
+    "hyland onbase implementation",
+]
+
+# Signals that the client is OPEN to alternatives (good for F2)
+OPEN_PROCUREMENT_SIGNALS = [
+    "supply and implementation",
+    "supply, installation",
+    "provision of",
+    "procurement of",
+    "acquisition of",
+    "request for proposal",
+    "request for quotation",
+    "invitation to tender",
+    "expression of interest",
+    "prequalification",
+    "open tender",
+    "competitive bidding",
+    "best value",
+    "solution agnostic",
+    "platform agnostic",
+    "vendor neutral",
+]
 
 # =============================================================================
 # NEGATIVE SIGNALS (reduce score, don't exclude)

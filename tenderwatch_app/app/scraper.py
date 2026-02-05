@@ -273,10 +273,12 @@ def scan_source(source: TenderSource):
             r.inferred_domains = json.dumps(breakdown_data.get("domains_matched", []))
             r.priority_level = breakdown_data.get("priority", "LOW")
             r.likely_fit_for_f2 = breakdown_data.get("likely_fit_for_F2", "uncertain")
+            r.procurement_status = breakdown_data.get("procurement_status", "open")
         except:
             r.inferred_domains = "[]"
             r.priority_level = "LOW"
             r.likely_fit_for_f2 = "uncertain"
+            r.procurement_status = "open"
 
         try:
             db.session.add(r)

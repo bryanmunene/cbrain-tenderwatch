@@ -19,6 +19,7 @@ def migrate():
             ("priority_level", "VARCHAR(20)", "LOW"),
             ("likely_fit_for_f2", "VARCHAR(20)", "uncertain"),
             ("timing_status", "VARCHAR(100)", ""),
+            ("procurement_status", "VARCHAR(20)", "open"),  # open, locked, locked_but_open
         ]
         
         for col_name, col_type, default in new_columns:
