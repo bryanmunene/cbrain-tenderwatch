@@ -54,6 +54,19 @@ DEFAULT_SOURCES = [
     ("Rwanda RPPA", "https://umucyo.gov.rw/"),
     ("Ethiopia PPA", "https://ppa.gov.et/"),
     
+    # Kenya Parastatals (Priority - ICT/EDRMS tenders)
+    ("KAA Procurement", "https://www.kaa.go.ke/corporate/procurement/"),  # Kenya Airports Authority
+    ("Kenya Railways", "https://krc.co.ke/tenders/"),
+    ("KETRACO Tenders", "https://www.ketraco.co.ke/tenders/"),
+    ("KenGen Tenders", "https://www.kengen.co.ke/index.php/procurement.html"),
+    ("KEBS Tenders", "https://www.kebs.org/index.php?option=com_content&view=article&id=190"),
+    ("NTSA Tenders", "https://www.ntsa.go.ke/tenders/"),
+    ("KEMSA Tenders", "https://www.kemsa.co.ke/tenders/"),
+    ("KPA Tenders", "https://www.kpa.co.ke/Tenders/Pages/default.aspx"),
+    ("NEMA Tenders", "https://www.nema.go.ke/index.php/tenders"),
+    ("CAK Tenders", "https://cak.go.ke/tenders"),
+    ("ICT Authority", "https://icta.go.ke/tenders/"),
+    
     # Government Portals - Asia Pacific
     ("Australia AusTender", "https://www.tenders.gov.au/"),
     ("New Zealand GETS", "https://www.gets.govt.nz/ExternalIndex.htm"),

@@ -310,6 +310,19 @@ def init_db():
             ("NSSF Tenders", "https://www.nssf.or.ke/tenders", True),
             ("CBK Tenders", "https://www.centralbank.go.ke/tenders/", True),
             
+            # Kenya Parastatals (Priority - ICT/EDRMS tenders)
+            ("KAA Procurement", "https://www.kaa.go.ke/corporate/procurement/", True),  # Kenya Airports Authority - EDRMS, ICT
+            ("Kenya Railways", "https://krc.co.ke/tenders/", True),
+            ("KETRACO Tenders", "https://www.ketraco.co.ke/tenders/", True),  # Transmission company
+            ("KenGen Tenders", "https://www.kengen.co.ke/index.php/procurement.html", True),
+            ("KEBS Tenders", "https://www.kebs.org/index.php?option=com_content&view=article&id=190", False),
+            ("NTSA Tenders", "https://www.ntsa.go.ke/tenders/", True),  # Transport authority
+            ("KEMSA Tenders", "https://www.kemsa.co.ke/tenders/", True),  # Medical supplies
+            ("KPA Tenders", "https://www.kpa.co.ke/Tenders/Pages/default.aspx", True),  # Kenya Ports Authority
+            ("NEMA Tenders", "https://www.nema.go.ke/index.php/tenders", False),
+            ("CAK Tenders", "https://cak.go.ke/tenders", False),  # Communications Authority
+            ("ICT Authority", "https://icta.go.ke/tenders/", True),  # ICT Authority - high priority
+            
             # Kenya Counties
             ("Nairobi County Tenders", "https://nairobi.go.ke/tenders/", True),
             ("Mombasa County Tenders", "https://www.mombasa.go.ke/tenders/", False),

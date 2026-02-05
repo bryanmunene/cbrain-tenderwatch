@@ -246,7 +246,7 @@ All routes use Flask Blueprint `main` (registered in `__init__.py`):
       - Verify subscription: Check `PushSubscription.query.all()` in Flask shell
       - Test send: Use `test_push_notifications.py` script with sample data
 - **Deadline Parsing**: `deadlines.py` extracts dates from tender text
-  - Regex pattern: `(\d{1,2})[\/\-\s]([a-z]{3,9}|\d{1,2})[\/\-\s](\d{2,4})`
+  - Regex pattern matches date formats: day-month-year with various separators
   - Converts formats like "15-Jan-2026", "15/01/2026" → "2026-01-15" (ISO format)
   - Stored in `TenderResult.deadline` field for sorting
 - **Adaptive Learning**: `learner.py` stores matched keywords in `LearnedKeyword` table for future scoring improvements
