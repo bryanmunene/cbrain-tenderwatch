@@ -35,14 +35,14 @@ jobs:
       run: |
         cd tenderwatch_app
         python -c "
-from app import create_app
-from app.scraper import run_scan
+        from app import create_app
+        from app.scraper import run_scan
 
-app = create_app()
-with app.app_context():
-    print('🔍 Starting automated scan...')
-    results = run_scan()
-    print(f'✅ Scan complete! Found {len(results)} new tenders')
+        app = create_app()
+        with app.app_context():
+            print('Starting automated scan...')
+            results = run_scan()
+            print(f'Scan complete! Found {len(results)} new tenders')
         "
         
     - name: Upload database artifact

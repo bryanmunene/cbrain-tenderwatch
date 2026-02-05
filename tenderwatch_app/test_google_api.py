@@ -4,7 +4,7 @@ Test Google Custom Search API credentials directly
 import requests
 
 # Replace with your actual API key and CX
-API_KEY = "AIzaSyCx93DPr9QmJQKZu9MEOxKqQPnCPLDPwG4"
+API_KEY = "AIzaSyDyh1DFo-MkpO8piC3-HGWpaI-CyIPwuKofg"
 CX = "808d5448c489544e4"  # Correct CX from screenshot (no 'b')
 
 # Test URL
