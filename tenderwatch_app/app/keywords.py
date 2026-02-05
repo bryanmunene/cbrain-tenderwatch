@@ -391,6 +391,141 @@ QUALIFICATION_QUESTIONS = [
 ]
 
 # =============================================================================
+# IRRELEVANT TENDER SIGNALS (EXCLUDE - not F2 relevant at all)
+# These tenders should be excluded entirely, not just penalized
+# =============================================================================
+
+IRRELEVANT_SIGNALS = [
+    # Construction & Infrastructure
+    "construction of",
+    "rehabilitation of",
+    "building construction",
+    "road construction",
+    "bridge construction",
+    "housing unit",
+    "housing construction",
+    "civil works",
+    "building works",
+    "renovation of",
+    "repair of building",
+    "structural works",
+    "masonry",
+    "plumbing works",
+    "electrical works",
+    "roofing",
+    "paving",
+    "excavation",
+    "demolition",
+    
+    # Physical Supplies (non-IT)
+    "supply of furniture",
+    "office furniture",
+    "supply of vehicles",
+    "motor vehicle",
+    "ambulance",
+    "medical equipment",
+    "laboratory equipment",
+    "agricultural equipment",
+    "farming equipment",
+    "food supply",
+    "catering services",
+    "cleaning services",
+    "security guard",
+    "uniforms",
+    "stationery supply",
+    "fuel supply",
+    "petroleum",
+    
+    # Email / Security Tools (not EDMS)
+    "email protection",
+    "email security",
+    "antivirus",
+    "anti-virus",
+    "mimecast",
+    "spam filter",
+    "firewall",
+    "endpoint protection",
+    "intrusion detection",
+    "penetration testing",
+    "vulnerability assessment",
+    "siem",
+    "security operations center",
+    "soc services",
+    
+    # Networking / Telecom (not EDMS)
+    "network infrastructure",
+    "wan optimization",
+    "internet connectivity",
+    "isp services",
+    "bandwidth",
+    "fiber optic",
+    "mpls",
+    "vpn services",
+    "telephony",
+    "pbx",
+    "voip",
+    "unified communications",
+    "video conferencing only",
+    "cctv",
+    "access control",
+    
+    # Financial Services
+    "banking services",
+    "insurance services",
+    "actuarial",
+    "audit services",
+    "external audit",
+    "internal audit",
+    "tax advisory",
+    "accounting services",
+    "payroll services",
+    
+    # Marketing / Media
+    "advertising services",
+    "media buying",
+    "public relations",
+    "branding services",
+    "graphic design",
+    "video production",
+    "photography services",
+    
+    # HR / Recruitment
+    "recruitment services",
+    "headhunting",
+    "staff recruitment",
+    "hr consultancy",
+    "payroll outsourcing",
+    
+    # Legal
+    "legal services",
+    "legal advisory",
+    "law firm",
+    "litigation",
+    
+    # Environmental
+    "environmental assessment",
+    "eia study",
+    "waste management",
+    "garbage collection",
+    "sewage",
+    "water treatment",
+    
+    # Transportation
+    "transport services",
+    "logistics services",
+    "freight",
+    "shipping services",
+    "courier services",
+    
+    # Assessment/Evaluation Tools (not implementation)
+    "assessing",
+    "assessment tool",
+    "evaluation tool",
+    "benchmarking tool",
+    "maturity assessment",
+]
+
+# =============================================================================
 # NEGATIVE SIGNALS (reduce score, don't exclude)
 # =============================================================================
 

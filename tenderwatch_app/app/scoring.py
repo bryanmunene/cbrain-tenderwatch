@@ -21,6 +21,7 @@ Design Principles:
 - Use score only for ranking
 - Favor recall over precision
 - Let humans or downstream models decide final fit
+- EXCEPT: Exclude clearly irrelevant tenders (construction, email security, etc.)
 """
 
 import json
@@ -30,6 +31,7 @@ from app.keywords import (
     KEYWORD_TO_DOMAIN,
     PRIORITY_COMBINATIONS,
     NEGATIVE_SIGNALS,
+    IRRELEVANT_SIGNALS,
     PRIORITY_PHRASES,
     GENERIC_STANDALONE_KEYWORDS,
     PLATFORM_LOCKIN_SIGNALS,
@@ -48,8 +50,38 @@ def score_text(title: str, text: str = ""):
     
     Score is a relevance ranking (not a filter).
     Any keyword hit is a signal. Multiple hits increase relevance.
+    Irrelevant tenders (construction, email security, etc.) return score=0.
     """
     combined = f"{title} {text}".lower()
+    
+    # ==========================================================================
+    # STEP 0: Check for irrelevant signals (EXCLUDE these tenders)
+    # ==========================================================================
+    irrelevant_found = []
+    for signal in IRRELEVANT_SIGNALS:
+        if signal.lower() in combined:
+            irrelevant_found.append(signal)
+    
+    # If irrelevant signals found AND no core F2 keywords, return 0
+    # Core F2 keywords that override irrelevant signals
+    core_f2_terms = [
+        "document management", "records management", "case management",
+        "workflow", "edms", "edrms", "ecm", "bpm", "process automation",
+        "citizen portal", "e-services", "digital transformation"
+    ]
+    has_core_f2_term = any(term in combined for term in core_f2_terms)
+    
+    if irrelevant_found and not has_core_f2_term:
+        return 0, "", json.dumps({
+            "keywords_found": 0,
+            "domains_matched": [],
+            "irrelevant_signals": irrelevant_found,
+            "excluded": True,
+            "exclusion_reason": f"Irrelevant tender: {irrelevant_found[0]}",
+            "priority": "EXCLUDED",
+            "likely_fit_for_F2": "excluded",
+            "procurement_status": "excluded",
+        })
     
     # ==========================================================================
     # STEP 1: Find all keyword matches
