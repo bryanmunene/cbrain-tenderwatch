@@ -1,18 +1,16 @@
-from app.keywords import ALL_KEYWORDS, KEYWORD_GROUPS
+from app.keywords import ALL_KEYWORDS, KEYWORD_GROUPS, GENERIC_STANDALONE_KEYWORDS, PRIORITY_PHRASES
 import json
-
-# Standalone generic keywords to exclude (only if they appear alone, not as part of longer phrases)
-GENERIC_STANDALONE_KEYWORDS = {
-    "bid", "tender", "procurement", "rfp", "rfq", 
-    "invitation to bid", "request for proposal", "request for quotation",
-    "notice", "opportunity", "contract", "service", "services"
-}
 
 def score_text(title: str, text: str = ""):
     """
     Score text based on keyword matching with quality requirements.
     Returns: (score, matched_keywords, breakdown_dict)
-    Scoring: Allows all relevant keywords (1+ words), excludes generic standalone terms
+    
+    Philosophy:
+    - Treat any occurrence as a signal, not a filter
+    - Prioritize multi-term matches, especially around workflow, case, records, government
+    - Let scoring, not exclusion, decide relevance
+    - Noise is cheaper to discard than missed signal
     """
     combined = f"{title} {text}".lower()
     matched = [kw for kw in ALL_KEYWORDS if kw in combined]
@@ -20,16 +18,19 @@ def score_text(title: str, text: str = ""):
     if not matched:
         return 0, "", {"keywords_found": 0, "total_keywords": len(ALL_KEYWORDS), "match_percentage": 0}
 
+    # Check for priority phrases (high-value multi-word matches)
+    priority_matched = [phrase for phrase in PRIORITY_PHRASES if phrase.lower() in combined]
+    
     # Filter out standalone generic keywords (but keep phrases containing them)
     specific_matched = [kw for kw in matched if kw not in GENERIC_STANDALONE_KEYWORDS]
     
-    if not specific_matched:
-        # Only generic keywords matched = not relevant
-        return 0, "", {"keywords_found": 0, "reason": "Only generic keywords matched", "match_percentage": 0}
+    # If only generic keywords but no specific ones, still allow with lower score
+    if not specific_matched and not priority_matched:
+        return 5, ", ".join(matched[:5]), {"keywords_found": len(matched), "reason": "Generic keywords only", "match_percentage": 5}
     
     unique_matched = sorted(set(specific_matched))
     
-    # Score calculation: favor multi-word specific keywords but allow relevant 1-2 word terms
+    # Score calculation: favor multi-word specific keywords
     score = 0
     
     for kw in unique_matched:
@@ -43,10 +44,21 @@ def score_text(title: str, text: str = ""):
         else:
             score += 2  # Single word (like "edms", "dms", "ecm"): 2 points
     
-    # Normalize: Expect 8-40 points for relevant tenders, scale to 10-100%
-    # min_expected = 8 points = 10%
-    # max_expected = 40 points = 100%
-    normalized_score = ((score - 8) / (40 - 8)) * 90 + 10
+    # BONUS: Priority phrases (multi-term matches close together)
+    priority_bonus = 0
+    for phrase in priority_matched:
+        word_count = len(phrase.split())
+        if word_count >= 5:
+            priority_bonus += 15  # Very specific phrase
+        elif word_count >= 4:
+            priority_bonus += 10  # Specific phrase
+        else:
+            priority_bonus += 5   # Moderately specific
+    
+    score += priority_bonus
+    
+    # Normalize: Expect 8-50 points for relevant tenders, scale to 10-100%
+    normalized_score = ((score - 8) / (50 - 8)) * 90 + 10
     normalized_score = min(100, max(10, round(normalized_score, 2)))
     
     # Determine which groups matched
@@ -64,6 +76,8 @@ def score_text(title: str, text: str = ""):
     breakdown = {
         "total_keywords_in_system": len(ALL_KEYWORDS),
         "keywords_found": len(unique_matched),
+        "priority_phrases_matched": priority_matched,
+        "priority_bonus": priority_bonus,
         "unique_keywords": unique_matched,
         "raw_score": score,
         "normalized_score": normalized_score,

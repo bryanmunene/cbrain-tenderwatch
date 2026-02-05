@@ -1,283 +1,318 @@
+"""
+TenderWatch Keywords
+=====================
+Comprehensive keyword groups for detecting cBrain-relevant tenders.
+
+Philosophy:
+- Treat any occurrence as a signal, not a filter
+- Prioritize tenders where multiple terms appear close together
+- Prefer language describing movement of work, approvals, cases, or process automation
+- Let scoring, not exclusion, decide relevance
+- Noise is cheaper to discard than missed signal
+
+This list catches:
+- EDMS tenders that don't say "EDMS"
+- Case systems hiding as "service platforms"
+- Workflow platforms disguised as "digitization"
+- Government projects that avoid technical labels
+"""
+
 KEYWORD_GROUPS = {
     "Records & Document Management": [
-        "electronic document management system",
+        # Core EDMS/DMS terms
+        "electronic document management",
         "document management system",
-        "document management software",
-        "edms",
         "dms",
+        "edms",
+        "electronic document and records management",
+        "records management system",
+        "electronic records management",
+        "records information system",
         "enterprise content management",
         "ecm",
         "content services platform",
-        "content management system",
-        "cms platform",
-        "records management system",
-        "electronic records management system",
-        "erms",
-        "records information system",
-        "registry management system",
+        "document repository",
+        "digital records",
+        
+        # Archives & Registry
+        "archives management",
+        "archival system",
         "file registry system",
+        "registry management",
         "file tracking system",
-        "document tracking system",
-        "government registry system",
-        "records digitization",
-        "document digitization",
-        "scanning and archiving",
-        "electronic archiving system",
-        "archives management system",
-        "digital archives",
-        "records centre system",
-        "information repository",
-        "knowledge repository",
-        "retention and disposal system",
-        "document lifecycle management",
-        "information governance",
+        "document tracking",
+        
+        # Records Lifecycle
+        "records lifecycle management",
         "records retention",
+        "records disposal",
+        "classification scheme",
+        "file plan",
+        "information governance",
+        "legal hold",
+        "data retention policy",
+        
+        # Digitization
+        "digitization of records",
+        "scanning and indexing",
+        "document digitization",
+        "records digitization",
         "document capture",
         "optical character recognition",
         "ocr system",
         "intelligent document processing",
-        "document automation",
         "paperless office",
-        "digital transformation",
-        "document workflow",
-        "version control system",
-        "document collaboration",
-        "sharepoint alternative",
-        "cloud document management",
+        
+        # Compliance & Standards
+        "compliance management",
+        "audit trail",
+        "audit logging",
+        "right to information",
+        "foia",
+        "iso 15489",
     ],
-    "Case & Complaint Management": [
+    
+    "Correspondence & Communication": [
+        "correspondence management",
+        "digital correspondence",
+        "intranet solution",
+        "collaboration platform",
+        "electronic memos",
+        "e-memo",
+        "inward and outward correspondence",
+        "mail management system",
+    ],
+    
+    "Microsoft & Enterprise Platforms": [
+        "sharepoint",
+        "microsoft sharepoint online",
+        "microsoft 365",
+        "power platform",
+        "power automate",
+        "power apps",
+        "office 365",
+        "teams integration",
+        "azure",
+        "dynamics 365",
+    ],
+    
+    "Workflow & Process Automation": [
+        # Core Workflow
+        "workflow system",
+        "workflow automation",
+        "workflow management system",
+        "business process management",
+        "bpm",
+        "process automation",
+        "digital process automation",
+        
+        # Task & Work Management
+        "service orchestration",
+        "task routing",
+        "work item management",
+        "approval workflows",
+        "task management system",
+        "approval system",
+        
+        # Forms
+        "electronic forms",
+        "e-forms",
+        "digital forms",
+        "form automation",
+        
+        # Analytics
+        "process analytics",
+        "reports and dashboards",
+        "performance monitoring",
+        "decision support system",
+        "process optimization",
+        "business intelligence",
+    ],
+    
+    "Case & Matter Management": [
+        # Core Case Management
         "case management system",
-        "case management software",
         "case handling system",
         "case tracking system",
-        "matter management system",
-        "correspondence management system",
-        "correspondence tracking",
-        "inward and outward correspondence system",
-        "mail management system",
-        "docket management system",
+        "matter management",
+        "docket management",
+        
+        # Complaints & Grievances
         "complaint management system",
-        "complaint tracking",
+        "grievance redress system",
         "grievance redress mechanism",
         "grm system",
-        "complaints and case handling system",
-        "service request management system",
-        "service request tracking",
-        "service desk system",
-        "help desk software",
-        "ticketing system",
-        "issue tracking system",
-        "customer relationship management",
-        "crm system",
-        "citizen engagement platform",
-        "public grievance system",
-        "feedback management system",
-        "incident management system",
-        "inquiry management",
-        "queue management system",
-    ],
-    "Workflow & Process Management": [
-        "workflow management system",
-        "workflow automation",
-        "workflow software",
-        "business process management",
-        "bpm system",
-        "bpm software",
-        "process automation system",
-        "digital workflow solution",
-        "task management system",
-        "approval workflow",
-        "process orchestration",
-        "robotic process automation",
-        "rpa system",
-        "low code platform",
-        "no code platform",
-        "workflow engine",
-        "process optimization",
-        "business process automation",
-        "operational workflow",
-        "enterprise automation",
-    ],
-    "E-Government & Digital Services": [
-        "e-government platform",
-        "digital government platform",
-        "digital government solution",
-        "government information management system",
-        "public sector information system",
-        "digital public service platform",
-        "government workflow system",
-        "e-governance platform",
-        "citizen portal",
-        "government portal",
-        "public service delivery platform",
-        "digital service platform",
-        "government automation",
-        "public sector digitization",
-        "smart government",
-        "government cloud platform",
-        "g-cloud",
-        "government as a platform",
-        "digital infrastructure",
-        "interoperability platform",
-        "government integration platform",
-    ],
-    "Contract & Procurement Systems": [
-        "contract management system",
-        "contract management software",
-        "contract lifecycle management",
-        "clm system",
-        "procurement records system",
-        "procurement management system",
-        "tender management system",
-        "e-procurement records",
-        "e-procurement platform",
-        "supplier management system",
-        "vendor management system",
-        "purchase order system",
-        "sourcing platform",
-        "spend management",
-        "procurement automation",
-        "contract repository",
-        "agreement management",
-    ],
-    "Legal & Compliance Systems": [
-        "legal case management system",
-        "legal document management",
-        "legal matter management",
-        "compliance management system",
-        "regulatory compliance software",
-        "audit management system",
-        "policy management system",
-        "legal workflow automation",
+        "complaints handling",
+        "feedback management",
+        
+        # Legal & Regulatory
+        "regulatory case management",
+        "inspection management system",
+        "licensing system",
+        "permit management system",
+        "legal case management",
         "litigation management",
-        "legal operations platform",
         "court management system",
         "judicial case management",
-        "law practice management",
     ],
-    "Data & Information Management": [
-        "data management system",
-        "master data management",
-        "mdm system",
-        "data governance platform",
-        "metadata management",
-        "information management system",
-        "data catalog",
-        "data warehouse",
-        "business intelligence",
-        "bi system",
-        "analytics platform",
-        "reporting system",
-        "dashboard solution",
-        "data integration platform",
-        "etl system",
-        "data quality management",
+    
+    "E-Government & Citizen Services": [
+        # Service Delivery
+        "service request system",
+        "citizen services portal",
+        "e-services portal",
+        "service delivery platform",
+        "public service delivery",
+        
+        # E-Government
+        "e-government platform",
+        "digital government",
+        "public sector digitization",
+        "government workflow system",
+        "e-governance",
+        "smart government",
+        "government automation",
+        
+        # Citizen Engagement
+        "citizen portal",
+        "government portal",
+        "citizen engagement",
+        "public grievance system",
     ],
-    "Collaboration & Communication": [
-        "collaboration platform",
-        "team collaboration software",
-        "enterprise collaboration",
-        "unified communication",
-        "video conferencing system",
-        "project management software",
-        "project collaboration",
-        "shared workspace",
-        "intranet platform",
-        "employee portal",
-        "knowledge management system",
-        "wiki platform",
-        "discussion forum",
-        "enterprise social network",
+    
+    "Implementation & Services": [
+        # Deployment
+        "system implementation",
+        "solution deployment",
+        "system configuration",
+        "system integration",
+        "software implementation",
+        
+        # Change & Training
+        "change management",
+        "capacity building",
+        "user training",
+        "knowledge transfer",
+        
+        # Support
+        "post-implementation support",
+        "managed services",
+        "support and maintenance",
+        "system support",
     ],
-    "Security & Access Management": [
-        "identity management system",
-        "access control system",
-        "identity and access management",
-        "iam system",
-        "single sign-on",
-        "sso solution",
-        "authentication system",
-        "authorization platform",
-        "privileged access management",
-        "security information system",
-        "cybersecurity platform",
-        "data security software",
-        "encryption system",
-        "digital signature solution",
-    ],
-    "ICT Infrastructure & Platforms": [
-        "cloud infrastructure",
-        "cloud platform",
-        "cloud migration",
-        "server infrastructure",
-        "data center solution",
-        "virtualization platform",
-        "container platform",
-        "kubernetes",
-        "devops platform",
-        "it service management",
-        "itsm platform",
-        "it asset management",
-        "network management system",
-        "monitoring system",
-        "it operations platform",
-    ],
+    
     "General ICT & Software": [
-        # Broader ICT terms relevant to cBrain solutions
+        # ICT Terms
         "ict consultancy",
         "ict consulting",
         "ict services",
         "ict solution",
         "ict system",
         "ict infrastructure",
+        
+        # Software Development
         "software development",
         "software solution",
         "software system",
         "software consultancy",
         "system development",
-        "system implementation",
-        "system integration",
         "enterprise software",
-        "enterprise system",
         "enterprise application",
+        
+        # Digital Transformation
+        "digital platform",
+        "digital solution",
+        "digital system",
+        "digital transformation",
+        "digitalization",
+        "modernization",
+        
+        # Enterprise Systems
+        "management information system",
+        "mis",
+        "erp system",
+        "enterprise resource planning",
         "database management",
         "database system",
         "web application",
         "web portal",
         "web-based system",
         "online system",
-        "digital platform",
-        "digital solution",
-        "digital system",
-        "management information system",
-        "mis",
-        "erp system",
-        "enterprise resource planning",
-        "human resource information system",
-        "hris",
-        "hr management system",
-        "financial management system",
-        "accounting software",
-        "payroll system",
-        "inventory management",
-        "asset management system",
-        "fleet management",
-        "hospital management system",
-        "health information system",
-        "his",
-        "education management system",
-        "learning management system",
-        "lms",
-        "student information system",
-        "library management system",
+        
+        # Cloud & Infrastructure
+        "cloud platform",
+        "cloud solution",
+        "cloud migration",
+        "saas",
+        "software as a service",
+    ],
+    
+    "Government & Public Sector": [
+        # Government bodies
         "ministry",
         "government agency",
         "county government",
         "public sector",
         "parastatal",
+        "state corporation",
+        "government department",
+        "public institution",
+        "local authority",
+        "municipal",
+        "regional government",
     ],
 }
 
+# Flatten all keywords into a single list for matching
 ALL_KEYWORDS = sorted(
     {kw.lower() for group in KEYWORD_GROUPS.values() for kw in group}
 )
+
+# Keywords that are too generic on their own but valuable in context
+# These still contribute to scoring but with lower weight when alone
+GENERIC_STANDALONE_KEYWORDS = {
+    "bid", "tender", "rfp", "rfq", "procurement", "contract",
+    "ministry", "government", "agency", "department", "system",
+    "platform", "solution", "software", "services", "management"
+}
+
+# Multi-word phrases get bonus scoring (more specific = more relevant)
+# Phrases with 3+ words are likely describing exactly what we want
+PRIORITY_PHRASES = [
+    # 5+ word phrases (very specific, high bonus)
+    "electronic document and records management",
+    "electronic document management system",
+    "enterprise content management system",
+    "business process management system",
+    "case management system implementation",
+    "workflow management system implementation",
+    "citizen services portal development",
+    "public sector digitization project",
+    
+    # 4 word phrases (specific, good bonus)
+    "document management system",
+    "records management system",
+    "case management system",
+    "workflow management system",
+    "content services platform",
+    "business process automation",
+    "digital government platform",
+    "e-government platform implementation",
+    "complaint management system",
+    "grievance redress system",
+    "permit management system",
+    "licensing management system",
+    
+    # 3 word phrases (moderately specific)
+    "workflow automation",
+    "process automation",
+    "case handling",
+    "case tracking",
+    "document tracking",
+    "records digitization",
+    "approval workflows",
+    "task routing",
+    "service orchestration",
+    "digital transformation",
+    "system implementation",
+]
