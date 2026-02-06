@@ -1,4 +1,79 @@
+# Source-specific scoring bonuses
+# Applied after keyword scoring to boost high-value sources
+
 SOURCE_BIAS = {
-    "undp": 10,        # +10 points
+    # International organizations (high-value, formal procurement)
+    "undp": 10,
     "world bank": 8,
+    "african development bank": 8,
+    "afdb": 8,
+    "ifc": 7,
+    "un": 6,
+    
+    # Kenya sources (primary market - strong boost)
+    "kenya": 10,
+    "kaa": 12,  # Kenya Airports Authority
+    "kra": 10,  # Kenya Revenue Authority
+    "kebs": 10,  # Kenya Bureau of Standards
+    "nhif": 10,  # National Hospital Insurance Fund
+    "nssf": 10,  # National Social Security Fund
+    "ntsa": 10,  # National Transport and Safety Authority
+    "epra": 10,  # Energy and Petroleum Regulatory Authority
+    "ca": 8,    # Communications Authority
+    "kengen": 10,
+    "kplc": 10,  # Kenya Power
+    "kpc": 10,   # Kenya Pipeline Company
+    "kcaa": 10,  # Kenya Civil Aviation Authority
+    "kmtc": 10,  # Kenya Medical Training College
+    "kicd": 10,  # Kenya Institute of Curriculum Development
+    "ksg": 8,    # Kenya School of Government
+    "ppra": 10,  # Public Procurement Regulatory Authority
+    "tenders.go.ke": 10,
+    "ifmis": 10,
+    "mygov": 8,
+    
+    # East Africa (secondary market)
+    "uganda": 5,
+    "tanzania": 5,
+    "rwanda": 5,
+    "ethiopia": 5,
+    
+    # Other African countries
+    "nigeria": 4,
+    "ghana": 4,
+    "south africa": 4,
+}
+
+# Country mapping for source name -> country
+COUNTRY_MAP = {
+    "kenya": "Kenya",
+    "kaa": "Kenya",
+    "kra": "Kenya",
+    "kebs": "Kenya",
+    "nhif": "Kenya",
+    "nssf": "Kenya",
+    "ntsa": "Kenya",
+    "epra": "Kenya",
+    "kengen": "Kenya",
+    "kplc": "Kenya",
+    "kpc": "Kenya",
+    "kcaa": "Kenya",
+    "kmtc": "Kenya",
+    "kicd": "Kenya",
+    "ksg": "Kenya",
+    "ppra": "Kenya",
+    "ifmis": "Kenya",
+    "mygov": "Kenya",
+    "tenders.go.ke": "Kenya",
+    "uganda": "Uganda",
+    "tanzania": "Tanzania",
+    "rwanda": "Rwanda",
+    "ethiopia": "Ethiopia",
+    "nigeria": "Nigeria",
+    "ghana": "Ghana",
+    "south africa": "South Africa",
+    "undp": "Global",
+    "world bank": "Global",
+    "afdb": "Global",
+    "un": "Global",
 }

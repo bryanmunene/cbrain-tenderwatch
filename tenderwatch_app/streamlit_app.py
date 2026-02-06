@@ -416,6 +416,16 @@ def get_tenders(filters=None):
                 query = query.filter(TenderResult.favorite == True)
             if filters.get('saved_only'):
                 query = query.filter(TenderResult.saved == True)
+            
+            # New filters: Priority, Status, Country, F2 Fit
+            if filters.get('priority') and filters['priority'] != "All":
+                query = query.filter(TenderResult.priority_level == filters['priority'])
+            if filters.get('status') and filters['status'] != "All":
+                query = query.filter(TenderResult.procurement_status == filters['status'])
+            if filters.get('country') and filters['country'] != "All":
+                query = query.filter(TenderResult.country == filters['country'])
+            if filters.get('f2_fit') and filters['f2_fit'] != "All":
+                query = query.filter(TenderResult.likely_fit_for_f2 == filters['f2_fit'])
         
         # Sort
         sort_by = filters.get('sort_by', 'score') if filters else 'score'
@@ -883,9 +893,9 @@ elif page == "🔍 Scan & Results":
             # CSV Export button
             all_tenders_for_export = get_tenders()
             if all_tenders_for_export:
-                csv_data = "Title,Link,Score,Category,Country,Deadline,Description\n"
+                csv_data = "Title,Link,Score,Category,Country,Deadline,Priority,Status,F2_Fit\n"
                 for t in all_tenders_for_export:
-                    csv_data += f'"{t.title}","{t.link}",{t.score},"{t.category or ""}","{t.country or ""}","{t.deadline or ""}","{(t.description or "")[:200]}"\n'
+                    csv_data += f'"{t.title}","{t.link}",{t.score},"{t.category or ""}","{t.country or ""}","{t.deadline or ""}","{t.priority_level or ""}","{t.procurement_status or ""}","{t.likely_fit_for_f2 or ""}"\n'
             
                 st.download_button(
                     label="📥 Export CSV",
@@ -895,6 +905,7 @@ elif page == "🔍 Scan & Results":
                     help="Download all tenders as CSV"
                 )
     
+        # Row 1: Score, Category, Sort, Search
         col1, col2, col3, col4 = st.columns(4)
     
         with col1:
@@ -909,14 +920,37 @@ elif page == "🔍 Scan & Results":
             sort_by = st.selectbox("Sort By", ["score", "date", "deadline"])
     
         with col4:
-            search = st.text_input("🔍 Search", placeholder="Search titles & descriptions...", help="Search in tender titles and descriptions")
-    
+            search = st.text_input("🔍 Search", placeholder="Search titles...", help="Search in tender titles")
+        
+        # Row 2: Priority, Status, Country, F2 Fit
+        col5, col6, col7, col8 = st.columns(4)
+        
+        with col5:
+            priority_options = ["All", "HIGH", "MEDIUM", "LOW", "STRATEGIC", "CONDITIONAL", "LOCKED"]
+            priority_filter = st.selectbox("Priority", priority_options, help="Filter by F2 priority level")
+        
+        with col6:
+            status_options = ["All", "open", "locked", "locked_but_open", "conditional_nogo", "conditional_strategic", "conditional_discuss"]
+            status_filter = st.selectbox("Procurement Status", status_options, help="Filter by platform lock-in status")
+        
+        with col7:
+            countries = ["All"] + sorted(list(set([t.country for t in all_tenders if t.country and t.country != "Unknown"]))) if all_tenders else ["All"]
+            country_filter = st.selectbox("Country", countries, help="Filter by country")
+        
+        with col8:
+            f2_fit_options = ["All", "true", "strategic", "discuss", "uncertain", "conditional", "no-go"]
+            f2_fit_filter = st.selectbox("F2 Fit", f2_fit_options, help="Filter by F2 fit likelihood")
+
         # Get filtered tenders
         filters = {
             'min_score': min_score,
             'category': category,
             'sort_by': sort_by,
-            'search': search
+            'search': search,
+            'priority': priority_filter,
+            'status': status_filter,
+            'country': country_filter,
+            'f2_fit': f2_fit_filter,
         }
     
         tenders = get_tenders(filters)
@@ -1204,7 +1238,7 @@ elif page == "⚙️ Settings":
         st.markdown("---")
         
         # Notification Settings
-        st.subheader("⚙️ Notification Preferences")
+        st.subheader("🔔 Notification Preferences")
         
         notification_enabled = st.checkbox("Enable In-App Notifications", 
                                           value=settings.notifications_enabled if settings and hasattr(settings, 'notifications_enabled') else False,
@@ -1216,6 +1250,85 @@ elif page == "⚙️ Settings":
         
         st.markdown("---")
         
+        # Email Notification Settings
+        st.subheader("📧 Email Notifications")
+        
+        email_enabled = st.checkbox("Enable Email Notifications", 
+                                   value=settings.notify_email if settings and hasattr(settings, 'notify_email') else False,
+                                   help="Send email alerts for high-score tenders")
+        
+        if email_enabled:
+            st.info("📧 Email notifications will be sent for new tenders scoring above the threshold.")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                email_recipients = st.text_area("Recipients (comma-separated)", 
+                                               value=settings.email_recipients if settings and hasattr(settings, 'email_recipients') else "",
+                                               placeholder="email1@example.com, email2@example.com",
+                                               help="Enter email addresses separated by commas")
+                
+                smtp_server = st.text_input("SMTP Server",
+                                           value=settings.smtp_server if settings and hasattr(settings, 'smtp_server') else "smtp.gmail.com",
+                                           placeholder="smtp.gmail.com")
+            
+            with col2:
+                smtp_port = st.number_input("SMTP Port",
+                                           value=settings.smtp_port if settings and hasattr(settings, 'smtp_port') else 587,
+                                           min_value=1, max_value=65535)
+                
+                smtp_username = st.text_input("SMTP Username",
+                                             value=settings.smtp_username if settings and hasattr(settings, 'smtp_username') else "",
+                                             placeholder="your.email@gmail.com")
+                
+                smtp_password = st.text_input("SMTP Password", 
+                                             type="password",
+                                             value=settings.smtp_password if settings and hasattr(settings, 'smtp_password') else "",
+                                             placeholder="App Password (not regular password)",
+                                             help="For Gmail, use an App Password from your Google Account settings")
+            
+            # Test email button
+            if st.button("📤 Send Test Email", key="test_email_btn"):
+                if smtp_username and smtp_password and email_recipients:
+                    try:
+                        from app.notifications import send_email_notification
+                        
+                        # Create a mock tender for testing
+                        class MockTender:
+                            def __init__(self):
+                                self.title = "TEST: Sample Tender Title"
+                                self.title_translated = "TEST: Sample Tender Title"
+                                self.score = 85.0
+                                self.category = "Case & Complaint Management"
+                                self.buyer = "Test Organization"
+                                self.country = "Kenya"
+                                self.deadline = "2025-12-31"
+                                self.link = "https://example.com/tender/123"
+                        
+                        # Create mock settings with current values
+                        class MockSettings:
+                            pass
+                        
+                        mock_settings = MockSettings()
+                        mock_settings.email_recipients = email_recipients
+                        mock_settings.smtp_server = smtp_server
+                        mock_settings.smtp_port = smtp_port
+                        mock_settings.smtp_username = smtp_username
+                        mock_settings.smtp_password = smtp_password
+                        
+                        # Send test email
+                        success = send_email_notification(mock_settings, [MockTender()])
+                        if success:
+                            st.success("✅ Test email sent successfully! Check your inbox.")
+                        else:
+                            st.error("❌ Failed to send test email. Check your SMTP settings.")
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+                else:
+                    st.warning("⚠️ Please fill in SMTP settings and recipients first.")
+        
+        st.markdown("---")
+        
         # Save button
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
@@ -1223,13 +1336,27 @@ elif page == "⚙️ Settings":
                 if settings:
                     settings.notifications_enabled = notification_enabled
                     settings.min_score_to_notify = float(min_score)
+                    settings.notify_email = email_enabled if 'email_enabled' in dir() else False
+                    if email_enabled:
+                        settings.email_recipients = email_recipients
+                        settings.smtp_server = smtp_server
+                        settings.smtp_port = smtp_port
+                        settings.smtp_username = smtp_username
+                        settings.smtp_password = smtp_password
                     db.session.commit()
                     st.success("✅ Settings saved!")
                 else:
                     new_settings = AppSettings(
                         notifications_enabled=notification_enabled,
-                        min_score_to_notify=float(min_score)
+                        min_score_to_notify=float(min_score),
+                        notify_email=email_enabled if 'email_enabled' in dir() else False
                     )
+                    if email_enabled:
+                        new_settings.email_recipients = email_recipients
+                        new_settings.smtp_server = smtp_server
+                        new_settings.smtp_port = smtp_port
+                        new_settings.smtp_username = smtp_username
+                        new_settings.smtp_password = smtp_password
                     db.session.add(new_settings)
                     db.session.commit()
                     st.success("✅ Settings saved!")

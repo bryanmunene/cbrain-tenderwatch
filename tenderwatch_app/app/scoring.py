@@ -65,9 +65,22 @@ def score_text(title: str, text: str = ""):
     # If irrelevant signals found AND no core F2 keywords, return 0
     # Core F2 keywords that override irrelevant signals
     core_f2_terms = [
-        "document management", "records management", "case management",
-        "workflow", "edms", "edrms", "ecm", "bpm", "process automation",
-        "citizen portal", "e-services", "digital transformation"
+        # EDMS & Records
+        "document management", "records management", "edms", "edrms", "ecm",
+        "electronic document", "electronic records", "digital records",
+        "document repository", "file registry", "archives management",
+        # Case & Workflow
+        "case management", "case handling", "case tracking",
+        "workflow", "workflow automation", "process automation", "bpm",
+        "complaint management", "grievance", "docket",
+        # Digitalization & Government
+        "paperless", "paperless office", "paperless government",
+        "digital transformation", "digitalization", "digitalisation",
+        "e-government", "egovernment", "e-governance", "digital government",
+        "government modernization", "public sector reform",
+        # Service Delivery
+        "citizen portal", "e-services", "service delivery platform",
+        "one-stop-shop", "citizen services",
     ]
     has_core_f2_term = any(term in combined for term in core_f2_terms)
     
@@ -82,6 +95,32 @@ def score_text(title: str, text: str = ""):
             "likely_fit_for_F2": "excluded",
             "procurement_status": "excluded",
         })
+    
+        # STRICT F2-ONLY FILTER: Require at least one core F2 keyword, always exclude if not present
+        if not has_core_f2_term:
+            return 0, "", json.dumps({
+                "keywords_found": 0,
+                "domains_matched": [],
+                "irrelevant_signals": irrelevant_found,
+                "excluded": True,
+                "exclusion_reason": "No F2 core keyword present",
+                "priority": "EXCLUDED",
+                "likely_fit_for_F2": "excluded",
+                "procurement_status": "excluded",
+            })
+    
+        # If irrelevant signals found, always exclude (even if F2 term present)
+        if irrelevant_found:
+            return 0, "", json.dumps({
+                "keywords_found": 0,
+                "domains_matched": [],
+                "irrelevant_signals": irrelevant_found,
+                "excluded": True,
+                "exclusion_reason": f"Irrelevant tender: {irrelevant_found[0]}",
+                "priority": "EXCLUDED",
+                "likely_fit_for_F2": "excluded",
+                "procurement_status": "excluded",
+            })
     
     # ==========================================================================
     # STEP 1: Find all keyword matches
