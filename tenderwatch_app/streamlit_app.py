@@ -3,10 +3,22 @@ TenderWatch - Streamlit Version
 Simple, powerful tender scanning for cBrain F2 Platform
 """
 
-import streamlit as st
-import pandas as pd
-from datetime import datetime, timedelta
 import json
+import importlib
+import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import pandas as pd
+import streamlit as st
+
+# Ensure project root is on sys.path and avoid module name collisions.
+PROJECT_ROOT = Path(__file__).resolve().parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if "app" in sys.modules and not hasattr(sys.modules["app"], "__path__"):
+    del sys.modules["app"]
+importlib.invalidate_caches()
 
 # Initialize database
 from app import create_app
