@@ -17,6 +17,7 @@ from app.extensions import db
 from app.models import TenderSource, TenderResult
 from app.scoring import score_text
 from app.source_bias import COUNTRY_MAP
+from app.keywords import ALL_KEYWORDS
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,20 @@ logger = logging.getLogger(__name__)
 
 # Reduced timeout for faster scans
 HTTP_TIMEOUT = 5  # seconds (was 30, then 10)
+
+CLOSED_HINTS = [
+    "awarded", "award", "awarding", "award notice", "contract award",
+    "winner", "winners", "successful bidder", "successful bidders",
+    "evaluation", "evaluated", "results", "result", "list of awardees",
+    "notice of award", "award of tender", "tender results",
+]
+
+CORE_F2_TERMS = [
+    "document management", "records management", "edms", "edrms", "ecm",
+    "case management", "workflow", "workflow automation", "process automation", "bpm",
+    "paperless", "digital transformation", "digitalization", "digital government",
+    "e-government", "e-governance", "citizen portal", "e-services",
+]
 
 
 def _source_country(source_name: str, url: str):
@@ -41,6 +56,40 @@ def _source_bias_bonus(source_name: str, url: str):
         if key in haystack:
             return bonus
     return 0
+
+
+def _has_f2_keywords(text: str) -> bool:
+    if not text:
+        return False
+    t = text.lower()
+    return any(kw in t for kw in ALL_KEYWORDS)
+
+
+def _is_closed_award(text: str) -> bool:
+    if not text:
+        return False
+    t = text.lower()
+    return any(hint in t for hint in CLOSED_HINTS)
+
+
+def cleanup_irrelevant_tenders():
+    """Remove tenders that are awards/results or not F2-related."""
+    one_month_ago = datetime.utcnow() - timedelta(days=30)
+    tenders = TenderResult.query.filter(TenderResult.created_at >= one_month_ago).all()
+    removed = 0
+    for tender in tenders:
+        combined = f"{tender.title} {tender.description} {tender.link}".lower()
+        has_core_f2 = any(term in combined for term in CORE_F2_TERMS)
+        if _is_closed_award(combined):
+            db.session.delete(tender)
+            removed += 1
+            continue
+        if not has_core_f2 and not _has_f2_keywords(combined):
+            db.session.delete(tender)
+            removed += 1
+    if removed:
+        db.session.commit()
+        print(f"🧹 Removed {removed} non-F2 or closed tenders")
 
 
 def scan_source(source: TenderSource, app):
@@ -120,127 +169,135 @@ def scan_source(source: TenderSource, app):
             "tenders", "tender", "global tenders", "govt tenders", "government tenders",
             "tenders country", "tender notices", "procurement notices", "opportunities",
         }
-        closed_hints = [
-            "awarded", "award", "awarding", "award notice", "contract award",
-            "winner", "winners", "successful bidder", "successful bidders",
-            "evaluation", "evaluated", "results", "result", "list of awardees",
-            "notice of award", "award of tender", "tender results",
-        ]
-        core_f2_terms = [
-            "document management", "records management", "edms", "edrms", "ecm",
-            "case management", "workflow", "workflow automation", "process automation", "bpm",
-            "paperless", "digital transformation", "digitalization", "digital government",
-            "e-government", "e-governance", "citizen portal", "e-services",
-        ]
+        closed_hints = CLOSED_HINTS
+        core_f2_terms = CORE_F2_TERMS
 
         for a in soup.find_all("a", href=True):
-            href = a.get("href", "").strip()
-            if not href or href.startswith("#") or href.startswith("javascript"):
-                continue
-
-            link = urljoin(source.url, href)
-            if not link.startswith(("http://", "https://")):
-                continue
-
-            if link in existing or link in seen:
-                continue
-
-            raw_title = a.get_text(" ", strip=True)
-            parent_text = a.parent.get_text(" ", strip=True) if a.parent else ""
-            aria_title = a.get("title", "") or a.get("aria-label", "")
-            context_text = " ".join([raw_title, aria_title, parent_text]).strip()
-
-            if not context_text:
-                continue
-
-            # If the anchor text is too short (e.g., "View", "Details"), fall back to row text.
-            title = raw_title
-            if not title or len(title) < 8:
-                title = parent_text if len(parent_text) >= 20 else raw_title
-            if not title or len(title) < 8:
-                continue
-
-            lower_title = title.lower()
-            if lower_title.strip() in generic_titles:
-                continue
-            if any(pat in lower_title for pat in nav_patterns):
-                continue
-
-            description = parent_text if parent_text and parent_text != title else ""
-            combined = f"{title} {description} {aria_title}".strip()
-
-            combined_lower = combined.lower()
-            link_lower = link.lower()
-            has_tender_term = any(term in combined_lower for term in tender_terms)
-            has_url_term = any(term in link_lower for term in url_terms)
-            has_detail_url = any(term in link_lower for term in detail_url_terms)
-            has_closed_hint = any(term in combined_lower for term in closed_hints) or any(
-                term in link_lower for term in closed_hints
-            )
-            is_pdf = link_lower.endswith(".pdf")
-
-            deadline = parse_deadline(combined)
-            has_ref = any(term in combined_lower for term in ref_terms) or any(ch.isdigit() for ch in lower_title)
-            has_date_hint = any(term in combined_lower for term in date_terms)
-            has_ref_code = bool(ref_code.search(combined))
-
-            if not (has_tender_term or has_detail_url or has_ref_code or deadline):
-                continue
-            if not deadline and not has_ref_code and not has_detail_url and not (has_ref and has_date_hint):
-                # Skip generic listings without concrete tender signals.
-                continue
-            if has_closed_hint:
-                # Skip award/results and already-closed material.
-                continue
-            if is_pdf and not deadline and not has_ref_code and not has_detail_url:
-                # Avoid dumping generic PDFs without tender-specific signals.
-                continue
-            if deadline and not is_deadline_valid(deadline):
-                continue
-
-            score, matched, scoring_breakdown = score_text(title, description)
             try:
-                breakdown = json_lib.loads(scoring_breakdown)
-            except Exception:
-                breakdown = {}
-            keywords_found = breakdown.get("keywords_found", 0)
-            has_core_f2 = any(term in combined_lower for term in core_f2_terms)
-            if keywords_found == 0 and not has_core_f2:
-                # Enforce F2 relevance (no keywords matched).
+                href = a.get("href", "").strip()
+                if not href or href.startswith("#") or href.startswith("javascript"):
+                    continue
+
+                link = urljoin(source.url, href)
+                if not link.startswith(("http://", "https://")):
+                    continue
+
+                if link in existing or link in seen:
+                    continue
+
+                raw_title = a.get_text(" ", strip=True)
+                parent_text = a.parent.get_text(" ", strip=True) if a.parent else ""
+                aria_title = a.get("title", "") or a.get("aria-label", "")
+                context_text = " ".join([raw_title, aria_title, parent_text]).strip()
+
+                if not context_text:
+                    continue
+
+                # If the anchor text is too short (e.g., "View", "Details"), fall back to row text.
+                title = raw_title
+                if not title or len(title) < 8:
+                    title = parent_text if len(parent_text) >= 20 else raw_title
+                if not title or len(title) < 8:
+                    continue
+
+                lower_title = title.lower()
+                if lower_title.strip() in generic_titles:
+                    continue
+                if any(pat in lower_title for pat in nav_patterns):
+                    continue
+
+                description = parent_text if parent_text and parent_text != title else ""
+                combined = f"{title} {description} {aria_title}".strip()
+
+                combined_lower = combined.lower()
+                link_lower = link.lower()
+                has_tender_term = any(term in combined_lower for term in tender_terms)
+                has_url_term = any(term in link_lower for term in url_terms)
+                has_detail_url = any(term in link_lower for term in detail_url_terms)
+                has_closed_hint = any(term in combined_lower for term in closed_hints) or any(
+                    term in link_lower for term in closed_hints
+                )
+                is_pdf = link_lower.endswith(".pdf")
+
+                deadline = parse_deadline(combined)
+                has_ref = any(term in combined_lower for term in ref_terms) or any(ch.isdigit() for ch in lower_title)
+                has_date_hint = any(term in combined_lower for term in date_terms)
+                has_ref_code = bool(ref_code.search(combined))
+
+                if not (has_tender_term or has_detail_url or has_ref_code or deadline):
+                    continue
+                if not deadline and not has_ref_code and not has_detail_url and not (has_ref and has_date_hint):
+                    # Skip generic listings without concrete tender signals.
+                    continue
+                if has_closed_hint:
+                    # Skip award/results and already-closed material.
+                    continue
+                if is_pdf and not deadline and not has_ref_code and not has_detail_url:
+                    # Avoid dumping generic PDFs without tender-specific signals.
+                    continue
+                if deadline and not is_deadline_valid(deadline):
+                    continue
+
+                score, matched, scoring_breakdown = score_text(title, description)
+                try:
+                    breakdown = json_lib.loads(scoring_breakdown)
+                except Exception:
+                    breakdown = {}
+                keywords_found = breakdown.get("keywords_found", 0)
+                has_core_f2 = any(term in combined_lower for term in core_f2_terms)
+                if keywords_found == 0 and not has_core_f2 and not _has_f2_keywords(combined):
+                    # Enforce F2 relevance (no keywords matched).
+                    continue
+
+                bonus = _source_bias_bonus(source.name, link)
+                if bonus:
+                    score = min(100, score + bonus)
+                    breakdown["source_bias"] = bonus
+                    breakdown["final_score"] = score
+                    scoring_breakdown = json_lib.dumps(breakdown)
+
+                category, _, confidence = categorize(title, description)
+                title_translated = translate_to_english(title)
+                description_translated = translate_to_english(description) if description else ""
+
+                country = _source_country(source.name, link)
+                inferred_domains = json_lib.dumps(breakdown.get("domains_matched", []))
+                priority_level = breakdown.get("priority", "LOW")
+                likely_fit = breakdown.get("likely_fit_for_F2", "uncertain")
+                procurement_status = breakdown.get("procurement_status", "open")
+                requires_qualification = bool(breakdown.get("requires_qualification", False))
+                qualification_reason = breakdown.get("qualification_reason", "")
+                platform_signals = json_lib.dumps(breakdown.get("microsoft_commitment_signals", []))
+
+                tender = TenderResult(
+                    title=title,
+                    title_translated=title_translated,
+                    link=link,
+                    description=description,
+                    description_translated=description_translated,
+                    score=score,
+                    keywords_matched=matched,
+                    scoring_breakdown=scoring_breakdown,
+                    category=category,
+                    confidence=confidence,
+                    deadline=deadline or "",
+                    buyer=source.name,
+                    country=country,
+                    inferred_domains=inferred_domains,
+                    priority_level=priority_level,
+                    likely_fit_for_f2=likely_fit,
+                    procurement_status=procurement_status,
+                    requires_qualification=requires_qualification,
+                    qualification_reason=qualification_reason,
+                    platform_commitment_signals=platform_signals,
+                    source_id=source.id,
+                )
+                db.session.add(tender)
+                new_tenders.append(tender)
+                seen.add(link)
+            except Exception as e:
+                logger.debug("Skipping link from %s due to error: %s", source.name, str(e)[:120])
                 continue
-
-            bonus = _source_bias_bonus(source.name, link)
-            if bonus:
-                score = min(100, score + bonus)
-                breakdown["source_bias"] = bonus
-                breakdown["final_score"] = score
-                scoring_breakdown = json_lib.dumps(breakdown)
-
-            category, _, confidence = categorize(title, description)
-            title_translated = translate_to_english(title)
-            description_translated = translate_to_english(description) if description else ""
-
-            country = _source_country(source.name, link)
-
-            tender = TenderResult(
-                title=title,
-                title_translated=title_translated,
-                link=link,
-                description=description,
-                description_translated=description_translated,
-                score=score,
-                keywords_matched=matched,
-                scoring_breakdown=scoring_breakdown,
-                category=category,
-                confidence=confidence,
-                deadline=deadline or "",
-                buyer=source.name,
-                country=country,
-                source_id=source.id,
-            )
-            db.session.add(tender)
-            new_tenders.append(tender)
-            seen.add(link)
 
         if new_tenders:
             db.session.commit()
@@ -276,8 +333,9 @@ def run_scan(flask_app=None):
     
     start_time = time.time()
     
-    # First, clean up old tenders
+    # First, clean up old and irrelevant tenders
     cleanup_old_tenders()
+    cleanup_irrelevant_tenders()
     
     sources = TenderSource.query.filter_by(active=True).all()
     

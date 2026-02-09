@@ -25,8 +25,10 @@ def parse_deadline(text: str):
         mth = MONTHS.get(mth[:3])
         if not mth:
             return None
-
-    return datetime(y, mth, d).strftime("%Y-%m-%d")
+    try:
+        return datetime(y, mth, d).strftime("%Y-%m-%d")
+    except ValueError:
+        return None
 
 
 def check_timing_constraints(deadline_str: str, publication_date: datetime = None):
