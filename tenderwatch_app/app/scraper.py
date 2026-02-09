@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 
 # Reduced timeout for faster scans
 HTTP_TIMEOUT = 5  # seconds (was 30, then 10)
-PDF_MAX_BYTES = 2_500_000  # 2.5 MB
-PDF_MAX_PAGES = 2
+PDF_MAX_BYTES = 1_200_000  # 1.2 MB
+PDF_MAX_PAGES = 1
 
 # Prefer PDF parsing for these high-signal sources (plus any favorites).
 PDF_SOURCE_ALLOW = {
