@@ -697,7 +697,7 @@ bootstrap_once()
 # Sidebar
 with st.sidebar:
     st.title("TenderWatch")
-    st.markdown("**cBrain F2 Tenderwatch**")
+    st.markdown("**cBrain F2 TenderWatch**")
     st.markdown("---")
     
     page = st.radio(
@@ -717,8 +717,8 @@ with st.sidebar:
 
 # Main content based on selected page
 if page == "Dashboard":
-    st.title("Your Opportunity Hub!")
-    st.markdown("Let's find some amazing tenders today! ")
+    st.title("Dashboard")
+    st.markdown("Tender intelligence overview for cBrain F2 opportunities.")
     
     stats = get_stats()
     
@@ -728,7 +728,7 @@ if page == "Dashboard":
     with col1:
         st.markdown("""
             <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);'>
-                <div style='font-size: 2.5rem; margin-bottom: 0.5rem;'></div>
+                <div style='font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 700; letter-spacing: 1px;'>TOTAL</div>
                 <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['total']) + """</div>
                 <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>Total Tenders</div>
             </div>
@@ -737,16 +737,16 @@ if page == "Dashboard":
     with col2:
         st.markdown("""
             <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);'>
-                <div style='font-size: 2.5rem; margin-bottom: 0.5rem;'></div>
+                <div style='font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 700; letter-spacing: 1px;'>HIGH</div>
                 <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['high_score']) + """</div>
-                <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>High Score (70%)</div>
+                <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>High Score (>=70%)</div>
             </div>
         """, unsafe_allow_html=True)
     
     with col3:
         st.markdown("""
             <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);'>
-                <div style='font-size: 2.5rem; margin-bottom: 0.5rem;'></div>
+                <div style='font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 700; letter-spacing: 1px;'>SAVED</div>
                 <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['saved']) + """</div>
                 <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>Saved</div>
             </div>
@@ -755,7 +755,7 @@ if page == "Dashboard":
     with col4:
         st.markdown("""
             <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);'>
-                <div style='font-size: 2.5rem; margin-bottom: 0.5rem;'></div>
+                <div style='font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 700; letter-spacing: 1px;'>FAVORITES</div>
                 <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['favorites']) + """</div>
                 <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>Favorites</div>
             </div>
@@ -764,7 +764,7 @@ if page == "Dashboard":
     with col5:
         st.markdown("""
             <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);'>
-                <div style='font-size: 2.5rem; margin-bottom: 0.5rem;'></div>
+                <div style='font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 700; letter-spacing: 1px;'>SOURCES</div>
                 <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['active_sources']) + """</div>
                 <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>Active Sources</div>
             </div>
@@ -774,7 +774,7 @@ if page == "Dashboard":
     
     # Category breakdown
     if stats['categories']:
-        st.subheader(" Tenders by Category")
+        st.subheader("Tenders by Category")
         
         col1, col2 = st.columns([2, 1])
         
@@ -796,7 +796,7 @@ if page == "Dashboard":
     
     # Recent tenders
     st.markdown("---")
-    st.subheader(" Recent Tenders (Top 10)")
+    st.subheader("Recent Tenders (Top 10)")
     
     recent = get_tenders({'sort_by': 'date'})[:10]
     
@@ -809,13 +809,13 @@ if page == "Dashboard":
                 
                 with col1:
                     st.markdown(f"**{tender.title}**")
-                    st.caption(f"{tender.category}  {tender.created_at.strftime('%Y-%m-%d %H:%M')}")
+                    st.caption(f"{tender.category} | {tender.created_at.strftime('%Y-%m-%d %H:%M')}")
                 
                 with col2:
                     st.markdown(f"<span class='{score_class}'>{tender.score:.1f}%</span>", unsafe_allow_html=True)
                 
                 with col3:
-                    st.link_button("View ", tender.link, width="stretch")
+                    st.link_button("View", tender.link, width="stretch")
                 
                 st.markdown("---")
     else:
@@ -823,9 +823,9 @@ if page == "Dashboard":
         <div style='text-align: center; padding: 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
                     border-radius: 30px; margin: 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);'>
             <div style='font-size: 4rem; margin-bottom: 1rem; animation: bounce 2s infinite;'></div>
-            <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>Ready to Get Started?</h3>
+            <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>No Recent Tenders</h3>
             <p style='color: #6b7280; font-size: 1.1rem;'>
-                Let's find some amazing opportunities! Click the button in the sidebar 
+                Start a new scan or review configured sources.
             </p>
         </div>
         <style>
@@ -835,14 +835,14 @@ if page == "Dashboard":
         }
         </style>
         """, unsafe_allow_html=True)
-        st.info("""**Get started:**
-1. Click ** Scan & Results** in the sidebar
-2. Click ** Let's Go!** to find tenders
-3. Or add tender sources in ** Sources**
+        st.info("""**Quick start**
+1. Open **Scan & Results**
+2. Click **Run Scan**
+3. Add or adjust data sources in **Sources**
         """)
 
 elif page == "Scan & Results":
-    st.title("Find Your Perfect Match!")
+    st.title("Scan & Results")
 
     st.markdown("""
     <div class="hero-banner">
@@ -871,7 +871,7 @@ elif page == "Scan & Results":
             tender = TenderResult.query.get(tender_id)
             if tender:
                 # Back button
-                if st.button(" Back to Results", key="back_from_detail"):
+                if st.button("Back to Results", key="back_from_detail"):
                     st.session_state['selected_tender'] = None
                     st.rerun()
                 
@@ -893,17 +893,17 @@ elif page == "Scan & Results":
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.markdown("###  Basic Information")
+                    st.markdown("### Basic Information")
                     st.markdown(f"**Category:** {tender.category or 'Uncategorized'}")
                     st.markdown(f"**Country:** {tender.country or 'Not specified'}")
                     st.markdown(f"**Deadline:** {tender.deadline or 'Not specified'}")
                     st.markdown(f"**Found on:** {tender.created_at.strftime('%Y-%m-%d %H:%M') if tender.created_at else 'Unknown'}")
                     
-                    st.markdown("###  Source")
-                    st.link_button(" View Original Tender", tender.link, width="stretch")
+                    st.markdown("### Source")
+                    st.link_button("View Original Tender", tender.link, width="stretch")
                 
                 with col2:
-                    st.markdown("###  Scoring Details")
+                    st.markdown("### Scoring Details")
                     st.markdown(f"**Match Score:** {tender.score:.1f}%")
                     st.markdown(f"**Confidence:** {(tender.confidence or 0) * 100:.0f}%")
                     
@@ -911,21 +911,21 @@ elif page == "Scan & Results":
                         st.markdown("**Matched Keywords:**")
                         keywords = tender.keywords_matched.split(", ") if tender.keywords_matched else []
                         for kw in keywords[:10]:
-                            st.markdown(f" {kw}")
+                            st.markdown(f"- {kw}")
                         if len(keywords) > 10:
                             st.markdown(f"*...and {len(keywords) - 10} more*")
                 
                 st.markdown("---")
                 
                 # Description (prefer translated if available)
-                st.markdown("###  Description")
+                st.markdown("### Description")
                 display_description = tender.description_translated if tender.description_translated and tender.description_translated != tender.description else tender.description
                 st.markdown(display_description or "No description available.")
                 
                 # Show original language notice if translated
                 if tender.title_translated and tender.title_translated != tender.title:
                     st.markdown("---")
-                    st.markdown("###  Original Language")
+                    st.markdown("### Original Language")
                     with st.expander("View Original (Non-English)"):
                         st.markdown(f"**Original Title:** {tender.title}")
                         if tender.description and tender.description != tender.description_translated:
@@ -933,7 +933,7 @@ elif page == "Scan & Results":
                 
                 # Scoring breakdown
                 if tender.scoring_breakdown:
-                    st.markdown("###  Scoring Breakdown")
+                    st.markdown("### Scoring Breakdown")
                     try:
                         import json
                         breakdown = json.loads(tender.scoring_breakdown) if isinstance(tender.scoring_breakdown, str) else tender.scoring_breakdown
@@ -944,7 +944,7 @@ elif page == "Scan & Results":
                             if 'matched_groups' in breakdown:
                                 st.markdown("**Matched Categories:**")
                                 for group in breakdown.get('matched_groups', []):
-                                    st.markdown(f" **{group.get('group', 'Unknown')}**: {group.get('count', 0)} keywords")
+                                    st.markdown(f"- **{group.get('group', 'Unknown')}**: {group.get('count', 0)} keywords")
                     except:
                         st.code(tender.scoring_breakdown)
                 
@@ -953,17 +953,17 @@ elif page == "Scan & Results":
                 # Action buttons
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    fav_label = " Unfavorite" if tender.favorite else " Favorite"
+                    fav_label = "Remove Favorite" if tender.favorite else "Add Favorite"
                     if st.button(fav_label, key="detail_fav", width="stretch"):
                         toggle_favorite(tender.id)
                         st.rerun()
                 with col2:
-                    save_label = " Unsave" if tender.saved else " Save"
+                    save_label = "Unsave" if tender.saved else "Save"
                     if st.button(save_label, key="detail_save", width="stretch"):
                         toggle_saved(tender.id)
                         st.rerun()
                 with col3:
-                    if st.button(" Back to Results", key="detail_back", width="stretch"):
+                    if st.button("Back to Results", key="detail_back", width="stretch"):
                         st.session_state['selected_tender'] = None
                         st.rerun()
             else:
@@ -974,10 +974,10 @@ elif page == "Scan & Results":
         col1, col2 = st.columns([3, 1])
     
         with col1:
-            st.markdown(" Let's discover some amazing opportunities together!")
+            st.markdown("Run a source scan and review matched opportunities.")
     
         with col2:
-            if st.button(" Let's Go!", key="top_scan_button", type="primary", width="stretch"):
+            if st.button("Run Scan", key="top_scan_button", type="primary", width="stretch"):
                 started = time.time()
                 with st.spinner("Scanning sources..."):
                     new_tenders = run_tender_scan()
@@ -988,10 +988,9 @@ elif page == "Scan & Results":
                     "duration_s": elapsed,
                 }
                 if new_tenders:
-                    st.success(f" Woohoo! Found {len(new_tenders)} awesome opportunities!")
-                    st.balloons()
+                    st.success(f"Scan completed. Found {len(new_tenders)} new tenders.")
                 else:
-                    st.info(" Hmm, nothing new right now. Check back soon!")
+                    st.info("Scan completed. No new tenders were found.")
                 st.rerun()
     
         st.markdown("---")
@@ -1000,7 +999,7 @@ elif page == "Scan & Results":
         col_filter, col_export = st.columns([4, 1])
     
         with col_filter:
-            st.subheader(" Filters")
+            st.subheader("Filters")
     
         with col_export:
             # CSV Export button
@@ -1011,7 +1010,7 @@ elif page == "Scan & Results":
                     csv_data += f'"{t.title}","{t.link}",{t.score},"{t.category or ""}","{t.country or ""}","{t.deadline or ""}","{t.priority_level or ""}","{t.procurement_status or ""}","{t.likely_fit_for_f2 or ""}"\n'
             
                 st.download_button(
-                    label=" Export CSV",
+                    label="Export CSV",
                     data=csv_data,
                     file_name=f"tenders_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                     mime="text/csv",
@@ -1033,7 +1032,7 @@ elif page == "Scan & Results":
             sort_by = st.selectbox("Sort By", ["score", "date", "deadline"])
     
         with col4:
-            search = st.text_input(" Search", placeholder="Search titles...", help="Search in tender titles")
+            search = st.text_input("Search", placeholder="Search titles...", help="Search in tender titles")
         
         # Row 2: Priority, Status, Country, F2 Fit
         col5, col6, col7, col8, col9, col10 = st.columns(6)
@@ -1080,7 +1079,7 @@ elif page == "Scan & Results":
             st.warning(fallback_message)
         elif f2_only and not applied_f2_only:
             st.warning("F2-only filter returned 0 results. Showing all tenders instead.")
-        st.markdown(f"**{len(tenders)} tenders found**")
+            st.markdown(f"**{len(tenders)} tenders found**")
         st.markdown("---")
     
         # Display tenders
@@ -1156,11 +1155,11 @@ elif page == "Scan & Results":
             <div style='text-align: center; padding: 3rem 3rem 3rem 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
                         border-radius: 30px; margin: 2rem 0 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2); position: relative;'>
                 <div style='font-size: 4rem; margin-bottom: 1rem; animation: bounce 2s infinite; cursor: pointer;'></div>
-                <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>Ready for the Hunt?</h3>
+                <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>No Matching Results</h3>
                 <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 0.5rem;'>
-                    Let's discover some amazing tenders together! 
+                    No tenders match the current filters.
                 </p>
-                <p style='color: #a3a3a3; font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;'>Click "Let's Go!" above to scan!</p>
+                <p style='color: #a3a3a3; font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;'>Use "Run Scan" to fetch new results.</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -1196,13 +1195,13 @@ elif page == "Sources":
                     with col4:
                         if st.button("Delete", key=f"del_{source.id}"):
                             delete_source(source.id)
-                            st.success("Source deleted!")
+                            st.success("Source deleted.")
                             st.rerun()
                     
                     st.markdown("---")
         else:
-            st.warning("No sources configured yet!")
-            st.info("Tip: Switch to the 'Add New Source' tab to add your first tender source.")
+            st.warning("No sources configured.")
+            st.info("Use 'Add New Source' to configure your first tender source.")
     
     with tab2:
         st.markdown("### Add New Tender Source")
@@ -1316,18 +1315,18 @@ elif page == "Settings":
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("""
-            ** Mobile (Android/iOS):**
+            **Mobile (Android/iOS):**
             1. Open this app in Chrome/Safari
-            2. Tap the **Share** button (iOS) or ** Menu** (Android)
+            2. Tap the **Share** button (iOS) or browser menu (Android)
             3. Select **"Add to Home Screen"**
             4. The app icon will appear on your home screen!
             """)
         
         with col2:
             st.markdown("""
-            ** Desktop (Chrome/Edge):**
-            1. Look for the ** Install** button in the address bar
-            2. Or click the floating **** button (bottom-right)
+            **Desktop (Chrome/Edge):**
+            1. Look for the install button in the address bar
+            2. Or click the floating install button (bottom-right)
             3. Click **"Install"** when prompted
             4. TenderWatch will open as a standalone app!
             """)
@@ -1345,7 +1344,7 @@ elif page == "Settings":
         
         st.markdown("""
         **How it works:**
-        - Click the **** button (bottom-right corner) to set up daily reminders
+        - Click the notification setup button below
         - Choose your preferred time (e.g., 8:00 AM)
         - You'll receive a notification every day to scan for new tenders
         - Works on both mobile and desktop (after installing the app)
@@ -1377,7 +1376,7 @@ elif page == "Settings":
         st.markdown("---")
         
         # Notification Settings
-        st.subheader(" Notification Preferences")
+        st.subheader("Notification Preferences")
         
         notification_enabled = st.checkbox("Enable In-App Notifications", 
                                           value=settings.notifications_enabled if settings and hasattr(settings, 'notifications_enabled') else False,
@@ -1390,14 +1389,14 @@ elif page == "Settings":
         st.markdown("---")
         
         # Email Notification Settings
-        st.subheader(" Email Notifications")
+        st.subheader("Email Notifications")
         
         email_enabled = st.checkbox("Enable Email Notifications", 
                                    value=settings.notify_email if settings and hasattr(settings, 'notify_email') else False,
                                    help="Send email alerts for high-score tenders")
         
         if email_enabled:
-            st.info(" Email notifications will be sent for new tenders scoring above the threshold.")
+            st.info("Email notifications will be sent for new tenders above the configured score threshold.")
             
             col1, col2 = st.columns(2)
             
@@ -1427,7 +1426,7 @@ elif page == "Settings":
                                              help="For Gmail, use an App Password from your Google Account settings")
             
             # Test email button
-            if st.button(" Send Test Email", key="test_email_btn"):
+            if st.button("Send Test Email", key="test_email_btn"):
                 if smtp_username and smtp_password and email_recipients:
                     try:
                         from app.notifications import send_email_notification
@@ -1458,20 +1457,20 @@ elif page == "Settings":
                         # Send test email
                         success = send_email_notification(mock_settings, [MockTender()])
                         if success:
-                            st.success(" Test email sent successfully! Check your inbox.")
+                            st.success("Test email sent successfully.")
                         else:
-                            st.error(" Failed to send test email. Check your SMTP settings.")
+                            st.error("Failed to send test email. Verify SMTP settings.")
                     except Exception as e:
-                        st.error(f" Error: {str(e)}")
+                        st.error(f"Error: {str(e)}")
                 else:
-                    st.warning(" Please fill in SMTP settings and recipients first.")
+                    st.warning("Please provide SMTP settings and recipients first.")
         
         st.markdown("---")
         
         # Save button
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button(" Save Settings", key="save_settings_button", type="primary", width="stretch"):
+            if st.button("Save Settings", key="save_settings_button", type="primary", width="stretch"):
                 if settings:
                     settings.notifications_enabled = notification_enabled
                     settings.min_score_to_notify = float(min_score)
@@ -1484,7 +1483,7 @@ elif page == "Settings":
                         if smtp_password:
                             settings.smtp_password = smtp_password
                     db.session.commit()
-                    st.success(" Settings saved!")
+                    st.success("Settings saved.")
                 else:
                     new_settings = AppSettings(
                         notifications_enabled=notification_enabled,
@@ -1500,12 +1499,12 @@ elif page == "Settings":
                             new_settings.smtp_password = smtp_password
                     db.session.add(new_settings)
                     db.session.commit()
-                    st.success(" Settings saved!")
+                    st.success("Settings saved.")
         
         st.markdown("---")
         
         # ML Learning Section
-        st.subheader(" Machine Learning")
+        st.subheader("Machine Learning")
         st.markdown("""
         TenderWatch learns from your saved and favorited tenders to improve relevance scoring.
         The more tenders you save, the smarter it gets!
@@ -1537,28 +1536,28 @@ elif page == "Settings":
                     with st.spinner("Updating embeddings..."):
                         success = update_golden_embeddings()
                         if success:
-                            st.success(" Golden embeddings updated!")
+                            st.success("Golden embeddings updated.")
                         else:
-                            st.warning(" No saved/favorited tenders to learn from yet")
+                            st.warning("No saved or favorited tenders available for learning.")
             
             with col2:
-                if st.button(" Train Ranker Model", help="Train ML model to rank tenders based on your preferences"):
+                if st.button("Train Ranker Model", help="Train ML model to rank tenders based on your preferences"):
                     with st.spinner("Training model..."):
                         success, message = train_ranker_model()
                         if success:
-                            st.success(f" {message}")
+                            st.success(message)
                         else:
-                            st.warning(f" {message}")
+                            st.warning(message)
         
         except ImportError as e:
-            st.warning(f" ML features not available: {e}")
+            st.warning(f"ML features not available: {e}")
             st.caption("Install with: pip install sentence-transformers lightgbm")
         except Exception as e:
             st.error(f"ML error: {e}")
         
         st.markdown("---")
         
-        st.subheader(" Database Statistics")
+        st.subheader("Database Statistics")
         stats = get_stats()
         
         col1, col2 = st.columns(2)
@@ -1572,18 +1571,18 @@ elif page == "Settings":
         
         st.markdown("---")
         
-        st.subheader(" About")
+        st.subheader("About")
         st.markdown("""
         **TenderWatch v2.0** - Streamlit Edition
         
         Automated tender scanning and opportunity tracking for cBrain's F2 platform.
         
-        -  Intelligent keyword-based scoring
-        -  Automatic categorization
-        -  Multi-source scanning
-        -  Persistent storage
-        -  Installable as app (PWA)
-        -  Daily notification reminders
+        - Intelligent keyword-based scoring
+        - Automatic categorization
+        - Multi-source scanning
+        - Persistent storage
+        - Installable as app (PWA)
+        - Daily notification reminders
         
         For support, see the documentation.
         """)
