@@ -792,60 +792,8 @@ elif page == "🔍 Scan & Results":
                     ("🌈", "Following the tender rainbow..."),
                 ]
                 
-                import time
-                import random
-                import threading
-                
-                # Create a placeholder for the loading message
-                loading_placeholder = st.empty()
-                progress_bar = st.progress(0)
-                
-                # Shuffle messages for variety
-                random.shuffle(cooking_messages)
-                
-                # Run scan in background while showing messages
-                result_container = {'tenders': None, 'done': False}
-                
-                def do_scan():
-                    with app.app_context():
-                        result_container['tenders'] = run_tender_scan()
-                        result_container['done'] = True
-                
-                scan_thread = threading.Thread(target=do_scan)
-                scan_thread.start()
-                
-                # Show rotating messages while scanning
-                message_index = 0
-                elapsed = 0
-                while not result_container['done']:
-                    emoji, message = cooking_messages[message_index % len(cooking_messages)]
-                    
-                    loading_placeholder.markdown(f"""
-                    <div style='display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px;'>
-                        <span style='font-size: 1rem;'>{emoji}</span>
-                        <span style='color: white; font-size: 0.8rem;'>{message}</span>
-                        <span style='color: rgba(255,255,255,0.6); font-size: 0.7rem;'>({elapsed}s)</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Update progress (fake progress that slows down)
-                    progress = min(0.95, elapsed / 120)  # Max 95% until done
-                    progress_bar.progress(progress)
-                    
-                    time.sleep(3)  # Update every 3 seconds
-                    elapsed += 3
-                    
-                    # Change message every 15 seconds
-                    if elapsed % 15 == 0:
-                        message_index += 1
-                
-                # Scan complete
-                scan_thread.join()
-                progress_bar.progress(1.0)
-                loading_placeholder.empty()
-                progress_bar.empty()
-                
-                new_tenders = result_container['tenders']
+                with st.spinner("Scanning sources..."):
+                    new_tenders = run_tender_scan()
                 if new_tenders:
                     st.success(f"🎉 Woohoo! Found {len(new_tenders)} awesome opportunities!")
                     st.balloons()
