@@ -28,7 +28,12 @@ def scan_source(source: TenderSource):
     # Import Flask app instance here to avoid circular import
     from app import app
     # Ensure Flask app context in this thread
-    with app.app_context():
+    def scan_source(source: TenderSource, app):
+        import time
+        new_tenders = []
+        t0 = time.time()
+        # Ensure Flask app context in this thread
+        with app.app_context():
         try:
             # Try with SSL verification first, fallback to no verification if it fails
             try:

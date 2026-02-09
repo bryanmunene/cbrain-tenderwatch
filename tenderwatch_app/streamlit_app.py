@@ -526,7 +526,8 @@ def delete_source(source_id):
 
 def run_tender_scan():
     """Run tender scan"""
-    new_tenders = run_scan()
+    from app import app
+    new_tenders = run_scan(app=app)
     print(f"[DEBUG] run_tender_scan: Found {len(new_tenders)} new tenders.")
     return new_tenders
 
