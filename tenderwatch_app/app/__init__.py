@@ -89,4 +89,8 @@ def create_app():
     from app.scheduler import start_scheduler
     start_scheduler(app)
 
+
     return app
+
+# Expose the app instance for imports
+app = create_app()
