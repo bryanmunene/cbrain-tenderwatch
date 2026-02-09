@@ -15,8 +15,7 @@ from app.models import TenderSource, TenderResult
 from app.scoring import score_text
 from app.source_bias import COUNTRY_MAP
 
-# Import the Flask app instance for context management
-from app import app
+
 
 # Reduced timeout for faster scans
 HTTP_TIMEOUT = 5  # seconds (was 30, then 10)
@@ -26,6 +25,8 @@ def scan_source(source: TenderSource):
     import time
     new_tenders = []
     t0 = time.time()
+    # Import Flask app instance here to avoid circular import
+    from app import app
     # Ensure Flask app context in this thread
     with app.app_context():
         try:
