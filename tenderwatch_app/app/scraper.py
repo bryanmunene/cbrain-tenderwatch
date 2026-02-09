@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime, timedelta
 import logging
-import os
 from flask import current_app
 
 
@@ -27,8 +26,25 @@ logger = logging.getLogger(__name__)
 HTTP_TIMEOUT = 5  # seconds (was 30, then 10)
 
 
+def _source_country(source_name: str, url: str):
+    haystack = f"{source_name} {url}".lower()
+    for key, country in COUNTRY_MAP.items():
+        if key in haystack:
+            return country
+    return "Global"
+
+
+def _source_bias_bonus(source_name: str, url: str):
+    haystack = f"{source_name} {url}".lower()
+    for key, bonus in SOURCE_BIAS.items():
+        if key in haystack:
+            return bonus
+    return 0
+
+
 def scan_source(source: TenderSource, app):
     import time
+    import json as json_lib
 
     new_tenders = []
     t0 = time.time()
@@ -51,9 +67,107 @@ def scan_source(source: TenderSource, app):
         else:
             logger.info("Source %s took %.1fs", source.name, elapsed)
 
-        # Keep parser/bootstrap calls in place for compatibility with existing workflow.
-        BeautifulSoup(html, "html.parser")
-        _ = {r.link for r in TenderResult.query.all()}
+        soup = BeautifulSoup(html, "html.parser")
+        existing = {r.link for r in TenderResult.query.all()}
+        seen = set()
+
+        nav_patterns = {
+            "about us", "about", "contact us", "contact", "home", "login", "sign in", "register",
+            "search", "help", "faq", "privacy", "terms", "cookie", "accessibility",
+            "menu", "navigation", "sitemap", "site map", "back to top", "read more", "learn more",
+            "click here", "view all", "see all", "show more", "load more",
+            "who we are", "what we do", "how we work", "our work", "our team", "our partners",
+            "our office", "our history", "our mission", "our vision", "our values",
+            "careers", "jobs", "employment", "vacancies", "work with us", "join us",
+            "how we buy", "what we buy", "how to apply", "how to register", "how to submit",
+            "qualifications", "eligibility", "supplier", "vendor", "guidance", "guidelines",
+            "resources", "training", "certification", "statistics", "reports", "annual report",
+            "code of conduct", "protest", "sanctions", "policies", "procedures",
+            "guiding principles", "strategy", "sustainable", "framework",
+            "facebook", "twitter", "linkedin", "instagram", "youtube", "share", "follow us",
+            "subscribe", "newsletter", "email us", "call us",
+            "press release", "news", "blog", "article", "publication", "brochure",
+            "annual report", "quarterly report", "financial report",
+        }
+
+        tender_terms = [
+            "tender", "rfp", "rfq", "procurement", "bid", "invitation to bid",
+            "request for proposal", "request for quotation", "expression of interest",
+            "eoi", "notice of", "call for", "solicitation",
+        ]
+
+        for a in soup.find_all("a", href=True):
+            href = a.get("href", "").strip()
+            if not href or href.startswith("#") or href.startswith("javascript"):
+                continue
+
+            link = urljoin(source.url, href)
+            if not link.startswith(("http://", "https://")):
+                continue
+
+            if link in existing or link in seen:
+                continue
+
+            title = a.get_text(" ", strip=True)
+            if not title or len(title) < 6:
+                continue
+
+            lower_title = title.lower()
+            if any(pat in lower_title for pat in nav_patterns):
+                continue
+
+            parent_text = a.parent.get_text(" ", strip=True) if a.parent else ""
+            description = parent_text if parent_text and parent_text != title else ""
+            combined = f"{title} {description}".strip()
+
+            if not any(term in combined.lower() for term in tender_terms):
+                continue
+
+            deadline = parse_deadline(combined)
+            if deadline and not is_deadline_valid(deadline):
+                continue
+
+            score, matched, scoring_breakdown = score_text(title, description)
+            try:
+                breakdown = json_lib.loads(scoring_breakdown)
+            except Exception:
+                breakdown = {}
+
+            bonus = _source_bias_bonus(source.name, link)
+            if bonus:
+                score = min(100, score + bonus)
+                breakdown["source_bias"] = bonus
+                breakdown["final_score"] = score
+                scoring_breakdown = json_lib.dumps(breakdown)
+
+            category, _, confidence = categorize(title, description)
+            title_translated = translate_to_english(title)
+            description_translated = translate_to_english(description) if description else ""
+
+            country = _source_country(source.name, link)
+
+            tender = TenderResult(
+                title=title,
+                title_translated=title_translated,
+                link=link,
+                description=description,
+                description_translated=description_translated,
+                score=score,
+                keywords_matched=matched,
+                scoring_breakdown=scoring_breakdown,
+                category=category,
+                confidence=confidence,
+                deadline=deadline or "",
+                buyer=source.name,
+                country=country,
+                source_id=source.id,
+            )
+            db.session.add(tender)
+            new_tenders.append(tender)
+            seen.add(link)
+
+        if new_tenders:
+            db.session.commit()
 
     return new_tenders
 
