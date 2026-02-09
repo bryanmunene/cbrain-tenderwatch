@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+from sqlalchemy import or_
 
 # Ensure project root is on sys.path and avoid module name collisions.
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -199,6 +200,35 @@ st.markdown(f"""
         border-radius: 12px;
         padding: 0.75rem 1.5rem;
         font-weight: 600;
+    }}
+
+    /* Banner */
+    .hero-banner {{
+        background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 45%, #ec4899 100%);
+        border-radius: 18px;
+        padding: 1.25rem 1.5rem;
+        color: white;
+        box-shadow: 0 12px 30px rgba(14, 165, 233, 0.25);
+        margin-bottom: 1.25rem;
+    }}
+    .hero-banner .title {{
+        font-size: 1.4rem;
+        font-weight: 800;
+        margin: 0;
+    }}
+    .hero-banner .subtitle {{
+        font-size: 0.95rem;
+        opacity: 0.9;
+        margin-top: 0.25rem;
+    }}
+    .pill {{
+        display: inline-block;
+        padding: 0.25rem 0.6rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.15);
+        margin-right: 0.5rem;
+        font-size: 0.8rem;
+        font-weight: 700;
     }}
     
     /* Dataframe styling */
@@ -408,6 +438,13 @@ def get_tenders(filters=None):
                 query = query.filter(TenderResult.country == filters['country'])
             if filters.get('f2_fit') and filters['f2_fit'] != "All":
                 query = query.filter(TenderResult.likely_fit_for_f2 == filters['f2_fit'])
+            if filters.get('f2_only'):
+                f2_statuses = ["true", "strategic", "discuss", "conditional"]
+                f2_clause = or_(
+                    TenderResult.likely_fit_for_f2.in_(f2_statuses),
+                    (TenderResult.keywords_matched.isnot(None) & (TenderResult.keywords_matched != ""))
+                )
+                query = query.filter(f2_clause)
         
         # Sort
         sort_by = filters.get('sort_by', 'score') if filters else 'score'
@@ -419,6 +456,23 @@ def get_tenders(filters=None):
             query = query.order_by(TenderResult.deadline.asc())
         
         return query.all()
+
+
+def get_tenders_with_fallback(filters=None):
+    """Get tenders with F2-only fallback to all results if empty."""
+    if not filters:
+        return get_tenders(), True
+
+    if not filters.get('f2_only'):
+        return get_tenders(filters), False
+
+    filtered = get_tenders(filters)
+    if filtered:
+        return filtered, True
+
+    relaxed = dict(filters)
+    relaxed['f2_only'] = False
+    return get_tenders(relaxed), False
 
 def get_sources():
     """Get all tender sources"""
@@ -613,7 +667,7 @@ if page == "📊 Dashboard":
             st.dataframe(
                 cat_df,
                 hide_index=True,
-                use_container_width=True
+                width="stretch"
             )
     
     # Recent tenders
@@ -637,7 +691,7 @@ if page == "📊 Dashboard":
                     st.markdown(f"<span class='{score_class}'>{tender.score:.1f}%</span>", unsafe_allow_html=True)
                 
                 with col3:
-                    st.link_button("View →", tender.link, use_container_width=True)
+                    st.link_button("View →", tender.link, width="stretch")
                 
                 st.markdown("---")
     else:
@@ -665,6 +719,18 @@ if page == "📊 Dashboard":
 
 elif page == "🔍 Scan & Results":
     st.title("🎯 Find Your Perfect Match!")
+
+    st.markdown("""
+    <div class="hero-banner">
+        <div class="title">cBrain F2 Opportunity Radar</div>
+        <div class="subtitle">
+            <span class="pill">F2-first</span>
+            <span class="pill">Auto fallback</span>
+            <span class="pill">30-day window</span>
+            Stay focused on records, workflow, and case modernization.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     # Check if a tender is selected for detail view
     if 'selected_tender' in st.session_state and st.session_state['selected_tender']:
@@ -702,7 +768,7 @@ elif page == "🔍 Scan & Results":
                     st.markdown(f"**Found on:** {tender.created_at.strftime('%Y-%m-%d %H:%M') if tender.created_at else 'Unknown'}")
                     
                     st.markdown("### 🔗 Source")
-                    st.link_button("🌐 View Original Tender", tender.link, use_container_width=True)
+                    st.link_button("🌐 View Original Tender", tender.link, width="stretch")
                 
                 with col2:
                     st.markdown("### 🎯 Scoring Details")
@@ -756,16 +822,16 @@ elif page == "🔍 Scan & Results":
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     fav_label = "💛 Unfavorite" if tender.favorite else "⭐ Favorite"
-                    if st.button(fav_label, key="detail_fav", use_container_width=True):
+                    if st.button(fav_label, key="detail_fav", width="stretch"):
                         toggle_favorite(tender.id)
                         st.rerun()
                 with col2:
                     save_label = "📤 Unsave" if tender.saved else "💾 Save"
-                    if st.button(save_label, key="detail_save", use_container_width=True):
+                    if st.button(save_label, key="detail_save", width="stretch"):
                         toggle_saved(tender.id)
                         st.rerun()
                 with col3:
-                    if st.button("← Back to Results", key="detail_back", use_container_width=True):
+                    if st.button("← Back to Results", key="detail_back", width="stretch"):
                         st.session_state['selected_tender'] = None
                         st.rerun()
             else:
@@ -779,7 +845,7 @@ elif page == "🔍 Scan & Results":
             st.markdown("✨ Let's discover some amazing opportunities together!")
     
         with col2:
-            if st.button("🚀 Let's Go!", key="top_scan_button", type="primary", use_container_width=True):
+            if st.button("🚀 Let's Go!", key="top_scan_button", type="primary", width="stretch"):
                 # Fun loading messages that rotate every few seconds
                 cooking_messages = [
                     ("🍳", "Something delicious is cooking..."),
@@ -855,7 +921,7 @@ elif page == "🔍 Scan & Results":
             search = st.text_input("🔍 Search", placeholder="Search titles...", help="Search in tender titles")
         
         # Row 2: Priority, Status, Country, F2 Fit
-        col5, col6, col7, col8 = st.columns(4)
+        col5, col6, col7, col8, col9 = st.columns(5)
         
         with col5:
             priority_options = ["All", "HIGH", "MEDIUM", "LOW", "STRATEGIC", "CONDITIONAL", "LOCKED"]
@@ -872,6 +938,9 @@ elif page == "🔍 Scan & Results":
         with col8:
             f2_fit_options = ["All", "true", "strategic", "discuss", "uncertain", "conditional", "no-go"]
             f2_fit_filter = st.selectbox("F2 Fit", f2_fit_options, help="Filter by F2 fit likelihood")
+        
+        with col9:
+            f2_only = st.checkbox("F2-only (auto fallback)", value=True, help="Show only F2-relevant tenders. If none found, it will show all.")
 
         # Get filtered tenders
         filters = {
@@ -883,10 +952,13 @@ elif page == "🔍 Scan & Results":
             'status': status_filter,
             'country': country_filter,
             'f2_fit': f2_fit_filter,
+            'f2_only': f2_only,
         }
     
-        tenders = get_tenders(filters)
+        tenders, applied_f2_only = get_tenders_with_fallback(filters)
     
+        if f2_only and not applied_f2_only:
+            st.warning("F2-only filter returned 0 results. Showing all tenders instead.")
         st.markdown(f"**{len(tenders)} tenders found**")
         st.markdown("---")
     
@@ -992,13 +1064,13 @@ elif page == "📁 Sources":
                     
                     with col2:
                         toggle_label = "⏸️ Disable" if source.active else "✅ Enable"
-                        if st.button(toggle_label, key=f"toggle_{source.id}", use_container_width=True):
+                        if st.button(toggle_label, key=f"toggle_{source.id}", width="stretch"):
                             toggle_source(source.id)
                             st.success(f"✅ Source {'disabled' if source.active else 'enabled'}!")
                             st.rerun()
                     
                     with col3:
-                        st.link_button("Visit", source.url, use_container_width=True)
+                        st.link_button("Visit", source.url, width="stretch")
                     
                     with col4:
                         if st.button("🗑️ Delete", key=f"del_{source.id}"):
@@ -1264,7 +1336,7 @@ elif page == "⚙️ Settings":
         # Save button
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("💾 Save Settings", key="save_settings_button", type="primary", use_container_width=True):
+            if st.button("💾 Save Settings", key="save_settings_button", type="primary", width="stretch"):
                 if settings:
                     settings.notifications_enabled = notification_enabled
                     settings.min_score_to_notify = float(min_score)
