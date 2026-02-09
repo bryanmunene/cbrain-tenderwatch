@@ -526,9 +526,9 @@ def delete_source(source_id):
 
 def run_tender_scan():
     """Run tender scan"""
-    with app.app_context():
-        new_tenders = run_scan()
-        return new_tenders
+    new_tenders = run_scan()
+    print(f"[DEBUG] run_tender_scan: Found {len(new_tenders)} new tenders.")
+    return new_tenders
 
 # Initialize database
 init_db()
@@ -836,8 +836,9 @@ elif page == "🔍 Scan & Results":
                 result_container = {'tenders': None, 'done': False}
                 
                 def do_scan():
-                    result_container['tenders'] = run_tender_scan()
-                    result_container['done'] = True
+                    with app.app_context():
+                        result_container['tenders'] = run_tender_scan()
+                        result_container['done'] = True
                 
                 scan_thread = threading.Thread(target=do_scan)
                 scan_thread.start()
