@@ -39,7 +39,7 @@ def scan_source(source: TenderSource):
             print(f"❌ Failed to fetch {source.name}: {str(e)[:50]}")
             print(f"⏱️  {source.name} took {time.time()-t0:.1f}s (FAILED)")
             return new_tenders
-        
+
         elapsed = time.time() - t0
         if elapsed > 5:
             print(f"🐢 SLOW: {source.name} took {elapsed:.1f}s")
@@ -73,15 +73,9 @@ def scan_source(source: TenderSource):
             "press release", "news", "blog", "article", "publication", "brochure",
             "annual report", "quarterly report", "financial report",
         }
-        
+
         # ...existing code...
-                learn_keywords(tender.title, tender.category)
-            except:
-                pass  # Ignore learning errors
-    except Exception as e:
-        print(f"⚠️  Error committing tenders: {e}")
-        db.session.rollback()
-    print(f"✅ Scanned {source.name}: Found {len(links_to_process)} potential tenders")
+
     return new_tenders
 
 
