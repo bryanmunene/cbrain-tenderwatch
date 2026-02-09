@@ -290,6 +290,59 @@ def _canonicalize_url(url: str) -> str:
     except Exception:
         return raw.rstrip("/").lower()
 
+
+def _parse_deadline_value(deadline_str):
+    value = (deadline_str or "").strip()
+    if not value:
+        return None
+    # Most stored values are YYYY-MM-DD; tolerate trailing text.
+    token = value[:10]
+    try:
+        return datetime.strptime(token, "%Y-%m-%d").date()
+    except Exception:
+        return None
+
+
+def _deadline_meta(deadline_str):
+    deadline_date = _parse_deadline_value(deadline_str)
+    if not deadline_date:
+        return {
+            "label": "No deadline",
+            "style": "none",
+            "days_left": None,
+            "date": None,
+        }
+    today = _utcnow().date()
+    days_left = (deadline_date - today).days
+    if days_left < 0:
+        return {"label": f"Overdue ({abs(days_left)}d)", "style": "overdue", "days_left": days_left, "date": deadline_date}
+    if days_left <= 3:
+        return {"label": f"Urgent ({days_left}d)", "style": "urgent", "days_left": days_left, "date": deadline_date}
+    if days_left <= 14:
+        return {"label": f"Upcoming ({days_left}d)", "style": "upcoming", "days_left": days_left, "date": deadline_date}
+    return {"label": deadline_date.strftime("%Y-%m-%d"), "style": "scheduled", "days_left": days_left, "date": deadline_date}
+
+
+def _apply_deadline_window(tenders, deadline_window):
+    if not deadline_window or deadline_window == "All":
+        return tenders
+    if deadline_window == "No deadline":
+        return [t for t in tenders if _parse_deadline_value(getattr(t, "deadline", "")) is None]
+
+    window_map = {"Next 7 days": 7, "Next 14 days": 14, "Next 30 days": 30}
+    max_days = window_map.get(deadline_window)
+    if max_days is None:
+        return tenders
+
+    filtered = []
+    for tender in tenders:
+        meta = _deadline_meta(getattr(tender, "deadline", ""))
+        if meta["days_left"] is None:
+            continue
+        if 0 <= meta["days_left"] <= max_days:
+            filtered.append(tender)
+    return filtered
+
 def init_db(perform_translation=False):
     """Initialize database with app context"""
     with app.app_context():
@@ -628,6 +681,25 @@ def get_stats():
             'categories': dict(categories) if categories else {}
         }
 
+
+def get_upcoming_deadlines(limit=8, horizon_days=30):
+    with app.app_context():
+        since = _utcnow() - timedelta(days=30)
+        tenders = (
+            TenderResult.query
+            .filter(TenderResult.created_at >= since)
+            .all()
+        )
+    upcoming = []
+    for tender in tenders:
+        meta = _deadline_meta(tender.deadline)
+        if meta["days_left"] is None:
+            continue
+        if 0 <= meta["days_left"] <= horizon_days:
+            upcoming.append((meta["days_left"], tender, meta))
+    upcoming.sort(key=lambda item: item[0])
+    return upcoming[:limit]
+
 def toggle_favorite(tender_id):
     """Toggle favorite status"""
     with app.app_context():
@@ -796,6 +868,23 @@ if page == "Dashboard":
     
     # Recent tenders
     st.markdown("---")
+    st.subheader("Upcoming Deadlines")
+
+    upcoming_deadlines = get_upcoming_deadlines(limit=8, horizon_days=30)
+    if upcoming_deadlines:
+        for _, tender, meta in upcoming_deadlines:
+            col_a, col_b, col_c = st.columns([6, 2, 2])
+            with col_a:
+                st.markdown(f"**{tender.title}**")
+                st.caption(f"{tender.country or 'Global'} | {tender.category or 'Unclassified'}")
+            with col_b:
+                st.markdown(f"**{meta['label']}**")
+            with col_c:
+                st.link_button("Open", tender.link, width="stretch")
+            st.markdown("---")
+    else:
+        st.caption("No active deadlines in the next 30 days.")
+
     st.subheader("Recent Tenders (Top 10)")
     
     recent = get_tenders({'sort_by': 'date'})[:10]
@@ -809,7 +898,8 @@ if page == "Dashboard":
                 
                 with col1:
                     st.markdown(f"**{tender.title}**")
-                    st.caption(f"{tender.category} | {tender.created_at.strftime('%Y-%m-%d %H:%M')}")
+                    d_meta = _deadline_meta(tender.deadline)
+                    st.caption(f"{tender.category} | Added {tender.created_at.strftime('%Y-%m-%d %H:%M')} | Deadline: {d_meta['label']}")
                 
                 with col2:
                     st.markdown(f"<span class='{score_class}'>{tender.score:.1f}%</span>", unsafe_allow_html=True)
@@ -893,10 +983,12 @@ elif page == "Scan & Results":
                 col1, col2 = st.columns(2)
                 
                 with col1:
+                    detail_deadline = _deadline_meta(tender.deadline)
                     st.markdown("### Basic Information")
                     st.markdown(f"**Category:** {tender.category or 'Uncategorized'}")
                     st.markdown(f"**Country:** {tender.country or 'Not specified'}")
                     st.markdown(f"**Deadline:** {tender.deadline or 'Not specified'}")
+                    st.markdown(f"**Deadline Status:** {detail_deadline['label']}")
                     st.markdown(f"**Found on:** {tender.created_at.strftime('%Y-%m-%d %H:%M') if tender.created_at else 'Unknown'}")
                     
                     st.markdown("### Source")
@@ -1035,7 +1127,7 @@ elif page == "Scan & Results":
             search = st.text_input("Search", placeholder="Search titles...", help="Search in tender titles")
         
         # Row 2: Priority, Status, Country, F2 Fit
-        col5, col6, col7, col8, col9, col10 = st.columns(6)
+        col5, col6, col7, col8, col9, col10, col11 = st.columns(7)
         
         with col5:
             priority_options = ["All", "HIGH", "MEDIUM", "LOW", "STRATEGIC", "CONDITIONAL", "LOCKED"]
@@ -1059,6 +1151,13 @@ elif page == "Scan & Results":
         with col10:
             open_only = st.checkbox("Open-only", value=True, help="Hide locked or no-go opportunities.")
 
+        with col11:
+            deadline_window = st.selectbox(
+                "Deadline Window",
+                ["All", "Next 7 days", "Next 14 days", "Next 30 days", "No deadline"],
+                help="Filter tenders by submission deadline window."
+            )
+
         # Get filtered tenders
         filters = {
             'min_score': min_score,
@@ -1074,12 +1173,19 @@ elif page == "Scan & Results":
         }
     
         tenders, applied_f2_only, fallback_message = get_tenders_with_fallback(filters)
+        tenders = _apply_deadline_window(tenders, deadline_window)
+
+        if sort_by == "deadline":
+            tenders = sorted(
+                tenders,
+                key=lambda t: (_parse_deadline_value(getattr(t, "deadline", "")) is None, _parse_deadline_value(getattr(t, "deadline", "")) or datetime.max.date())
+            )
 
         if fallback_message:
             st.warning(fallback_message)
         elif f2_only and not applied_f2_only:
             st.warning("F2-only filter returned 0 results. Showing all tenders instead.")
-            st.markdown(f"**{len(tenders)} tenders found**")
+        st.markdown(f"**{len(tenders)} tenders found**")
         st.markdown("---")
     
         # Display tenders
@@ -1102,11 +1208,22 @@ elif page == "Scan & Results":
                     display_title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
                     is_translated = tender.title_translated and tender.title_translated != tender.title
                     col_title, col_score = st.columns([5, 1])
+                    deadline_meta = _deadline_meta(tender.deadline)
                     with col_title:
                         title_suffix = " [Translated]" if is_translated else ""
                         st.markdown(f"### {display_title}{title_suffix}")
                     with col_score:
                         st.markdown(f"<span style='background: {score_color}; color: white; padding: 0.5rem 1rem; border-radius: 12px; font-weight: bold;'>{score_emoji} {tender.score:.0f}%</span>", unsafe_allow_html=True)
+                        if deadline_meta["style"] == "overdue":
+                            st.markdown("<span style='background:#991b1b;color:white;padding:0.25rem 0.6rem;border-radius:10px;font-size:0.75rem;font-weight:700;'>OVERDUE</span>", unsafe_allow_html=True)
+                        elif deadline_meta["style"] == "urgent":
+                            st.markdown("<span style='background:#b45309;color:white;padding:0.25rem 0.6rem;border-radius:10px;font-size:0.75rem;font-weight:700;'>URGENT</span>", unsafe_allow_html=True)
+                        elif deadline_meta["style"] == "upcoming":
+                            st.markdown("<span style='background:#1d4ed8;color:white;padding:0.25rem 0.6rem;border-radius:10px;font-size:0.75rem;font-weight:700;'>UPCOMING</span>", unsafe_allow_html=True)
+                        elif deadline_meta["style"] == "scheduled":
+                            st.markdown("<span style='background:#334155;color:white;padding:0.25rem 0.6rem;border-radius:10px;font-size:0.75rem;font-weight:700;'>SCHEDULED</span>", unsafe_allow_html=True)
+                        else:
+                            st.markdown("<span style='background:#6b7280;color:white;padding:0.25rem 0.6rem;border-radius:10px;font-size:0.75rem;font-weight:700;'>NO DEADLINE</span>", unsafe_allow_html=True)
                 
                     # Tags row
                     tags = []
@@ -1114,8 +1231,7 @@ elif page == "Scan & Results":
                         tags.append(f"Category: {tender.category}")
                     if tender.country:
                         tags.append(f"Country: {tender.country}")
-                    if tender.deadline:
-                        tags.append(f"Deadline: {tender.deadline}")
+                    tags.append(f"Deadline: {deadline_meta['label']}")
                 
                     if tags:
                         st.markdown(" | ".join(tags))
