@@ -73,18 +73,13 @@ def _is_closed_award(text: str) -> bool:
 
 
 def cleanup_irrelevant_tenders():
-    """Remove tenders that are awards/results or not F2-related."""
+    """Remove tenders that are awards/results (closed)."""
     one_month_ago = datetime.utcnow() - timedelta(days=30)
     tenders = TenderResult.query.filter(TenderResult.created_at >= one_month_ago).all()
     removed = 0
     for tender in tenders:
         combined = f"{tender.title} {tender.description} {tender.link}".lower()
-        has_core_f2 = any(term in combined for term in CORE_F2_TERMS)
         if _is_closed_award(combined):
-            db.session.delete(tender)
-            removed += 1
-            continue
-        if not has_core_f2 and not _has_f2_keywords(combined):
             db.session.delete(tender)
             removed += 1
     if removed:
@@ -245,9 +240,7 @@ def scan_source(source: TenderSource, app):
                     breakdown = {}
                 keywords_found = breakdown.get("keywords_found", 0)
                 has_core_f2 = any(term in combined_lower for term in core_f2_terms)
-                if keywords_found == 0 and not has_core_f2 and not _has_f2_keywords(combined):
-                    # Enforce F2 relevance (no keywords matched).
-                    continue
+                # Do not hard-drop on F2 keywords; keep for ranking/filtering in UI.
 
                 bonus = _source_bias_bonus(source.name, link)
                 if bonus:
