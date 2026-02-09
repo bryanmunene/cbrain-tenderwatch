@@ -1,4 +1,4 @@
-﻿import requests
+import requests
 import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -185,7 +185,7 @@ def cleanup_irrelevant_tenders():
             removed += 1
     if removed:
         db.session.commit()
-        print(f"🧹 Removed {removed} non-F2 or closed tenders")
+        print(f" Removed {removed} non-F2 or closed tenders")
 
 
 def scan_source(source: TenderSource, app, existing_links=None):
@@ -442,9 +442,9 @@ def cleanup_old_tenders():
         for tender in old_tenders:
             db.session.delete(tender)
         db.session.commit()
-        print(f"ðŸ—‘ï¸  Removed {count} tender(s) older than 1 month")
+        print(f"  Removed {count} tender(s) older than 1 month")
     else:
-        print("âœ… No old tenders to remove")
+        print(" No old tenders to remove")
 
 
 def run_scan(flask_app=None):
@@ -467,7 +467,7 @@ def run_scan(flask_app=None):
     sources = TenderSource.query.filter_by(active=True).all()
     
     if not sources:
-        print("âš ï¸  No active sources found. Add sources and mark them as active to start scanning.")
+        print("  No active sources found. Add sources and mark them as active to start scanning.")
         return []
     
     all_new_ids = []
@@ -481,7 +481,7 @@ def run_scan(flask_app=None):
 
     # Scan sources in parallel.
     if sources:
-        print(f"\nðŸš€ FAST PARALLEL scan: {len(sources)} sources with 15 workers...")
+        print(f"\n FAST PARALLEL scan: {len(sources)} sources with 15 workers...")
         
         with ThreadPoolExecutor(max_workers=15) as executor:
             future_to_source = {executor.submit(scan_source, src, flask_app, existing_links): src for src in sources}
@@ -494,16 +494,16 @@ def run_scan(flask_app=None):
                     new_ids = future.result()
                     if new_ids:
                         all_new_ids.extend(new_ids)
-                        print(f"âœ“ [{completed}/{len(sources)}] {source.name}: {len(new_ids)} new")
+                        print(f" [{completed}/{len(sources)}] {source.name}: {len(new_ids)} new")
                 except Exception as e:
-                    print(f"âœ— [{completed}/{len(sources)}] {source.name}: {str(e)[:30]}")
+                    print(f" [{completed}/{len(sources)}] {source.name}: {str(e)[:30]}")
             print("\n--- SLOW SOURCES REPORT ---")
             # Print slow sources summary
             # (Already printed per-source above)
-            print("(Any source above marked ðŸ¢ SLOW is a bottleneck)")
+            print("(Any source above marked  SLOW is a bottleneck)")
     
     elapsed = time.time() - start_time
-    print(f"âœ… Scan complete in {elapsed:.1f}s! Found {len(all_new_ids)} new tenders.")
+    print(f" Scan complete in {elapsed:.1f}s! Found {len(all_new_ids)} new tenders.")
 
     fresh_tenders = []
     if all_new_ids:
@@ -519,7 +519,7 @@ def run_scan(flask_app=None):
             push_service = PushNotificationService(flask_app)
             push_service.notify_new_tenders(fresh_tenders)
         except Exception as e:
-            print(f"âš ï¸ Push notification failed: {e}")
+            print(f" Push notification failed: {e}")
     
     return fresh_tenders
 
