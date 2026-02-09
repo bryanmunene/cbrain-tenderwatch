@@ -198,41 +198,11 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # Initialize Flask app context for database
-app = create_app()
+app = create_app(start_scheduler=False, init_db=True)
 
 def init_db():
     """Initialize database with app context"""
     with app.app_context():
-        db.create_all()
-        
-        # Run AI database migration on startup
-        try:
-            from sqlalchemy import text
-            # Try to add AI columns if they don't exist
-            ai_columns = [
-                "ALTER TABLE tender_result ADD COLUMN semantic_score FLOAT DEFAULT 0.0",
-                "ALTER TABLE tender_result ADD COLUMN ai_confidence FLOAT DEFAULT 0.0",
-                "ALTER TABLE tender_result ADD COLUMN entities_extracted TEXT DEFAULT ''",
-                "ALTER TABLE tender_result ADD COLUMN ai_summary TEXT DEFAULT ''",
-                "ALTER TABLE app_settings ADD COLUMN ai_scoring_enabled BOOLEAN DEFAULT 1",
-                "ALTER TABLE app_settings ADD COLUMN ai_learning_enabled BOOLEAN DEFAULT 1",
-                "ALTER TABLE app_settings ADD COLUMN entity_extraction_enabled BOOLEAN DEFAULT 1",
-            ]
-            for sql in ai_columns:
-                try:
-                    db.session.execute(text(sql))
-                    db.session.commit()
-                except:
-                    db.session.rollback()  # Column already exists, continue
-        except:
-            pass  # Migration not critical for startup
-        
-        # Ensure settings exist
-        if not AppSettings.query.first():
-            settings = AppSettings()
-            db.session.add(settings)
-            db.session.commit()
-        
         # Define all default sources
         default_sources_data = [
             # UN System
@@ -526,8 +496,8 @@ def delete_source(source_id):
 
 def run_tender_scan():
     """Run tender scan"""
-    from app import app
-    new_tenders = run_scan(app=app)
+    with app.app_context():
+        new_tenders = run_scan()
     print(f"[DEBUG] run_tender_scan: Found {len(new_tenders)} new tenders.")
     return new_tenders
 
@@ -1285,7 +1255,7 @@ elif page == "⚙️ Settings":
                 
                 smtp_password = st.text_input("SMTP Password", 
                                              type="password",
-                                             value=settings.smtp_password if settings and hasattr(settings, 'smtp_password') else "",
+                                             value="",
                                              placeholder="App Password (not regular password)",
                                              help="For Gmail, use an App Password from your Google Account settings")
             
@@ -1344,7 +1314,8 @@ elif page == "⚙️ Settings":
                         settings.smtp_server = smtp_server
                         settings.smtp_port = smtp_port
                         settings.smtp_username = smtp_username
-                        settings.smtp_password = smtp_password
+                        if smtp_password:
+                            settings.smtp_password = smtp_password
                     db.session.commit()
                     st.success("✅ Settings saved!")
                 else:
@@ -1358,7 +1329,8 @@ elif page == "⚙️ Settings":
                         new_settings.smtp_server = smtp_server
                         new_settings.smtp_port = smtp_port
                         new_settings.smtp_username = smtp_username
-                        new_settings.smtp_password = smtp_password
+                        if smtp_password:
+                            new_settings.smtp_password = smtp_password
                     db.session.add(new_settings)
                     db.session.commit()
                     st.success("✅ Settings saved!")

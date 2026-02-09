@@ -5,7 +5,7 @@ from io import StringIO
 from datetime import datetime, timedelta
 
 from app.extensions import db
-from app.models import TenderSource, TenderResult, AppSettings, DiscoveryLog
+from app.models import TenderSource, TenderResult, AppSettings
 from app.scraper import run_scan
 from app.translator import translate_to_english, detect_language
 
@@ -332,24 +332,6 @@ def settings():
         settings.auto_scan_enabled = request.form.get("auto_scan_enabled") == "on"
         settings.scan_interval_minutes = int(request.form.get("scan_interval_minutes", 60))
         
-        # Update auto-discovery settings
-        settings.auto_discovery_enabled = request.form.get("auto_discovery_enabled") == "on"
-        settings.google_api_key = request.form.get("google_api_key", "").strip()
-        settings.google_cx = request.form.get("google_cx", "").strip()
-        settings.bing_api_key = request.form.get("bing_api_key", "").strip()
-        settings.results_per_query = int(request.form.get("results_per_query", 10))
-        
-        # Update custom discovery queries (JSON array)
-        custom_queries = request.form.get("discovery_queries", "").strip()
-        if custom_queries:
-            try:
-                # Validate JSON
-                json.loads(custom_queries)
-                settings.discovery_queries = custom_queries
-            except json.JSONDecodeError:
-                # If not valid JSON, ignore
-                pass
-        
         # Update notification settings
         settings.notifications_enabled = request.form.get("notifications_enabled") == "on"
         settings.notify_desktop = request.form.get("notify_desktop") == "on"
@@ -521,101 +503,6 @@ def export_csv():
     output.headers["Content-type"] = "text/csv"
     
     return output
-
-
-@main.route("/api/discovery/status")
-def discovery_status():
-    """API endpoint to check auto-discovery quota and status"""
-    from app.auto_discovery import get_search_manager
-    
-    manager = get_search_manager()
-    if not manager:
-        return jsonify({
-            'enabled': False,
-            'message': 'Auto-discovery not initialized'
-        })
-    
-    quota = manager.get_quota_status()
-    
-    # Get recent discovery logs
-    recent_logs = DiscoveryLog.query.order_by(DiscoveryLog.created_at.desc()).limit(10).all()
-    logs_data = [{
-        'created_at': log.created_at.isoformat(),
-        'run_type': log.run_type,
-        'results_found': log.results_found,
-        'results_saved': log.results_saved,
-        'google_quota_used': log.google_quota_used,
-        'bing_quota_used': log.bing_quota_used,
-        'execution_time': log.execution_time_seconds,
-        'error': log.error_message
-    } for log in recent_logs]
-    
-    return jsonify({
-        'enabled': True,
-        'quota': quota,
-        'recent_logs': logs_data
-    })
-
-
-@main.route("/api/discovery/run", methods=["POST"])
-def run_discovery():
-    """Manually trigger auto-discovery scan"""
-    from app.scraper import run_auto_discovery
-    
-    try:
-        new_tenders = run_auto_discovery()
-        return jsonify({
-            'success': True,
-            'tenders_found': len(new_tenders),
-            'message': f'Auto-discovery complete: {len(new_tenders)} new tenders found'
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
-
-
-@main.route("/discovery")
-def discovery_dashboard():
-    """View auto-discovery statistics and controls"""
-    settings = AppSettings.query.first()
-    if not settings:
-        settings = AppSettings()
-        db.session.add(settings)
-        db.session.commit()
-    
-    # Get discovery logs
-    logs = DiscoveryLog.query.order_by(DiscoveryLog.created_at.desc()).limit(20).all()
-    
-    # Get stats
-    total_discovered = db.session.query(db.func.sum(DiscoveryLog.results_saved)).scalar() or 0
-    total_runs = DiscoveryLog.query.count()
-    avg_execution_time = db.session.query(db.func.avg(DiscoveryLog.execution_time_seconds)).scalar() or 0
-    
-    # Get quota status if initialized
-    quota_status = None
-    try:
-        from app.auto_discovery import get_search_manager
-        manager = get_search_manager()
-        if manager:
-            quota_status = manager.get_quota_status()
-    except:
-        pass
-    
-    # Count auto-discovered tenders
-    auto_tenders_count = TenderResult.query.filter_by(discovery_method='auto').count()
-    
-    return render_template(
-        'discovery.html',
-        settings=settings,
-        logs=logs,
-        total_discovered=total_discovered,
-        total_runs=total_runs,
-        avg_execution_time=avg_execution_time,
-        quota_status=quota_status,
-        auto_tenders_count=auto_tenders_count
-    )
 
 
 from app.translator import translate_to_english, detect_language

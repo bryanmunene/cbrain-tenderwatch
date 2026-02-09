@@ -1,4 +1,4 @@
-"""
+﻿"""
 Database migration script for F2-aligned fields.
 Adds new columns for F2 classification without losing existing data.
 """
@@ -9,7 +9,7 @@ from app.extensions import db
 
 def migrate():
     """Add F2-aligned columns to tender_result table"""
-    app = create_app()
+    app = create_app(start_scheduler=False)
     
     with app.app_context():
         # New F2 columns to add
@@ -33,7 +33,7 @@ def migrate():
                 result = db.session.execute(
                     text(f"SELECT {col_name} FROM tender_result LIMIT 1")
                 )
-                print(f"✓ Column '{col_name}' already exists")
+                print(f"âœ“ Column '{col_name}' already exists")
             except Exception:
                 # Column doesn't exist, add it
                 try:
@@ -42,13 +42,14 @@ def migrate():
                         text(f"ALTER TABLE tender_result ADD COLUMN {col_name} {col_type} {default_clause}")
                     )
                     db.session.commit()
-                    print(f"✓ Added column '{col_name}'")
+                    print(f"âœ“ Added column '{col_name}'")
                 except Exception as e:
-                    print(f"⚠️  Could not add column '{col_name}': {e}")
+                    print(f"âš ï¸  Could not add column '{col_name}': {e}")
                     db.session.rollback()
         
-        print("\n✅ F2-aligned migration complete!")
+        print("\nâœ… F2-aligned migration complete!")
 
 
 if __name__ == "__main__":
     migrate()
+

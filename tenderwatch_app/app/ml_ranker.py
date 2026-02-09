@@ -1,4 +1,4 @@
-"""
+﻿"""
 ML-powered Tender Ranker using LightGBM + Sentence Embeddings
 =============================================================
 
@@ -47,12 +47,12 @@ def get_sentence_model():
         try:
             from sentence_transformers import SentenceTransformer
             _sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
-            logger.info("✅ Sentence transformer loaded")
+            logger.info("âœ… Sentence transformer loaded")
         except ImportError:
-            logger.warning("⚠️ sentence-transformers not installed")
+            logger.warning("âš ï¸ sentence-transformers not installed")
             _sentence_model = False
         except Exception as e:
-            logger.error(f"❌ Failed to load sentence model: {e}")
+            logger.error(f"âŒ Failed to load sentence model: {e}")
             _sentence_model = False
     return _sentence_model if _sentence_model is not False else None
 
@@ -206,7 +206,7 @@ def _load_golden_embeddings():
                 data = pickle.load(f)
                 _golden_embeddings = data.get('embeddings')
                 _golden_titles = data.get('titles', [])
-                logger.info(f"✅ Loaded {len(_golden_titles)} golden embeddings")
+                logger.info(f"âœ… Loaded {len(_golden_titles)} golden embeddings")
         except Exception as e:
             logger.error(f"Failed to load golden embeddings: {e}")
             _golden_embeddings = np.array([])
@@ -232,7 +232,7 @@ def update_golden_embeddings():
         from app import create_app
         from app.models import TenderResult
         
-        app = create_app()
+        app = create_app(start_scheduler=False)
         with app.app_context():
             # Get saved and favorited tenders
             golden_tenders = TenderResult.query.filter(
@@ -262,7 +262,7 @@ def update_golden_embeddings():
             _golden_embeddings = embeddings
             _golden_titles = titles
             
-            logger.info(f"✅ Updated golden embeddings: {len(titles)} tenders")
+            logger.info(f"âœ… Updated golden embeddings: {len(titles)} tenders")
             return True
             
     except Exception as e:
@@ -295,7 +295,7 @@ def train_ranker_model(min_samples: int = 10):
         from app.models import TenderResult
         from app.scoring import score_text
         
-        app = create_app()
+        app = create_app(start_scheduler=False)
         with app.app_context():
             # Get all tenders
             all_tenders = TenderResult.query.all()
@@ -375,7 +375,7 @@ def train_ranker_model(min_samples: int = 10):
             importance = dict(zip(feature_names, model.feature_importances_))
             top_features = sorted(importance.items(), key=lambda x: x[1], reverse=True)[:5]
             
-            logger.info(f"✅ Trained ranker on {len(y)} samples ({positive_count} positive)")
+            logger.info(f"âœ… Trained ranker on {len(y)} samples ({positive_count} positive)")
             logger.info(f"Top features: {top_features}")
             
             return True, f"Trained on {len(y)} tenders. Top features: {[f[0] for f in top_features]}"
@@ -397,7 +397,7 @@ def load_ranker_model():
             with open(RANKER_MODEL_PATH, 'rb') as f:
                 data = pickle.load(f)
                 _ranker_model = data['model']
-                logger.info(f"✅ Loaded ranker model (trained on {data['sample_count']} samples)")
+                logger.info(f"âœ… Loaded ranker model (trained on {data['sample_count']} samples)")
                 return _ranker_model
         except Exception as e:
             logger.error(f"Failed to load ranker model: {e}")
@@ -524,11 +524,11 @@ def _generate_explanation(features: dict, breakdown: dict, semantic_sim: float, 
         if features.get('openness_signals_count', 0) > 0:
             parts.append("Microsoft mentioned but may be open to alternatives")
         else:
-            parts.append("⚠️ Microsoft platform appears mandated - requires qualification")
+            parts.append("âš ï¸ Microsoft platform appears mandated - requires qualification")
     
     # Priority
     if features.get('priority_strategic'):
-        parts.append("🎯 HIGH STRATEGIC VALUE opportunity")
+        parts.append("ðŸŽ¯ HIGH STRATEGIC VALUE opportunity")
     elif features.get('priority_high'):
         parts.append("High priority match")
     
@@ -570,3 +570,4 @@ def get_model_status() -> dict:
             pass
     
     return status
+

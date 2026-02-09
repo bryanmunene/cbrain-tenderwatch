@@ -1,4 +1,4 @@
-"""
+﻿"""
 Re-score all existing tenders with the latest scoring logic.
 Run this after updating scoring.py to refresh all tender scores.
 """
@@ -10,7 +10,7 @@ from app.categorizer import categorize
 import json
 
 def rescore_all_tenders():
-    app = create_app()
+    app = create_app(start_scheduler=False)
     
     with app.app_context():
         tenders = TenderResult.query.all()
@@ -77,3 +77,4 @@ def rescore_all_tenders():
 
 if __name__ == "__main__":
     rescore_all_tenders()
+

@@ -26,21 +26,29 @@ class PushNotificationService:
     
     def _load_vapid_private_key(self):
         """Load VAPID private key from file or environment"""
+        env_key = os.getenv("VAPID_PRIVATE_KEY")
+        if env_key:
+            return env_key
+
+        key_path = os.getenv("VAPID_PRIVATE_KEY_PATH", "vapid_private.pem")
         try:
-            # Try loading from file first
-            with open('vapid_private.pem', 'r') as f:
+            with open(key_path, 'r') as f:
                 return f.read()
         except FileNotFoundError:
-            # Fall back to environment variable
-            return os.getenv('VAPID_PRIVATE_KEY')
+            return None
     
     def _load_vapid_public_key(self):
         """Load VAPID public key from file or environment"""
+        env_key = os.getenv("VAPID_PUBLIC_KEY")
+        if env_key:
+            return env_key
+
+        key_path = os.getenv("VAPID_PUBLIC_KEY_PATH", "vapid_public.pem")
         try:
-            with open('vapid_public.pem', 'r') as f:
+            with open(key_path, 'r') as f:
                 return f.read()
         except FileNotFoundError:
-            return os.getenv('VAPID_PUBLIC_KEY')
+            return None
     
     def get_subscriptions(self):
         """Get all active push subscriptions from database"""

@@ -1,9 +1,9 @@
-"""Disable AI features without removing code"""
+﻿"""Disable AI features without removing code"""
 from app import create_app
 from app.extensions import db
 from app.models import AppSettings
 
-app = create_app()
+app = create_app(start_scheduler=False)
 
 with app.app_context():
     settings = AppSettings.query.first()
@@ -12,9 +12,10 @@ with app.app_context():
         settings.ai_learning_enabled = False
         settings.entity_extraction_enabled = False
         db.session.commit()
-        print("✅ AI features disabled")
+        print("âœ… AI features disabled")
         print(f"   - Semantic scoring: {settings.ai_scoring_enabled}")
         print(f"   - Adaptive learning: {settings.ai_learning_enabled}")
         print(f"   - Entity extraction: {settings.entity_extraction_enabled}")
     else:
-        print("❌ No settings found")
+        print("âŒ No settings found")
+

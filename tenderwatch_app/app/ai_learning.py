@@ -1,4 +1,4 @@
-"""
+﻿"""
 Adaptive learning system that improves scoring based on user feedback
 Learns from saved/favorited tenders to personalize relevance
 """
@@ -86,7 +86,7 @@ class AdaptiveLearner:
                     self.model = pickle.load(f)
                 with open(SCALER_PATH, 'rb') as f:
                     self.scaler = pickle.load(f)
-                logger.info("✅ Loaded existing learning model")
+                logger.info("âœ… Loaded existing learning model")
                 return True
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
@@ -99,7 +99,7 @@ class AdaptiveLearner:
                 pickle.dump(self.model, f)
             with open(SCALER_PATH, 'wb') as f:
                 pickle.dump(self.scaler, f)
-            logger.info("✅ Saved learning model")
+            logger.info("âœ… Saved learning model")
         except Exception as e:
             logger.error(f"Failed to save model: {e}")
     
@@ -112,7 +112,7 @@ class AdaptiveLearner:
             negative_samples: List of tender data for dismissed/low-scored tenders
         """
         if len(positive_samples) < 5:
-            logger.info("⚠️ Not enough positive samples to train (need at least 5)")
+            logger.info("âš ï¸ Not enough positive samples to train (need at least 5)")
             return False
         
         try:
@@ -141,7 +141,7 @@ class AdaptiveLearner:
             self.last_trained = datetime.now()
             self.training_size = len(X)
             
-            logger.info(f"✅ Model trained on {len(X)} samples ({len(X_pos)} positive, {len(X_neg)} negative)")
+            logger.info(f"âœ… Model trained on {len(X)} samples ({len(X_pos)} positive, {len(X_neg)} negative)")
             return True
             
         except Exception as e:
@@ -226,7 +226,7 @@ def train_from_database():
         from app.models import TenderResult
         from app import create_app
         
-        app = create_app()
+        app = create_app(start_scheduler=False)
         with app.app_context():
             # Get positive examples (saved or favorited)
             positive = TenderResult.query.filter(
@@ -278,3 +278,4 @@ def tender_to_dict(tender) -> dict:
         'deadline': tender.deadline,
         'created_at': tender.created_at
     }
+

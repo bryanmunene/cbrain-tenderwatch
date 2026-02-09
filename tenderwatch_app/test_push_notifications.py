@@ -1,4 +1,4 @@
-"""
+﻿"""
 Test script for push notification system
 Verifies all components are working correctly
 """
@@ -7,79 +7,80 @@ from app.extensions import db
 from app.models import PushSubscription, AppSettings
 from app.push_notifications import PushNotificationService
 
-app = create_app()
+app = create_app(start_scheduler=False)
 
-print("🧪 Testing Push Notification System\n")
+print("ðŸ§ª Testing Push Notification System\n")
 
 with app.app_context():
     # Test 1: Check database table exists
-    print("1️⃣ Testing database setup...")
+    print("1ï¸âƒ£ Testing database setup...")
     try:
         subscription_count = PushSubscription.query.count()
-        print(f"   ✅ PushSubscription table exists ({subscription_count} subscriptions)")
+        print(f"   âœ… PushSubscription table exists ({subscription_count} subscriptions)")
     except Exception as e:
-        print(f"   ❌ Database error: {e}")
+        print(f"   âŒ Database error: {e}")
         exit(1)
     
     # Test 2: Check AppSettings has notification fields
-    print("\n2️⃣ Testing AppSettings...")
+    print("\n2ï¸âƒ£ Testing AppSettings...")
     try:
         settings = AppSettings.query.first()
         if settings:
-            print(f"   ✅ Settings found")
-            print(f"   📊 Notifications enabled: {settings.notifications_enabled}")
-            print(f"   📊 Min score to notify: {settings.min_score_to_notify}")
+            print(f"   âœ… Settings found")
+            print(f"   ðŸ“Š Notifications enabled: {settings.notifications_enabled}")
+            print(f"   ðŸ“Š Min score to notify: {settings.min_score_to_notify}")
         else:
-            print("   ⚠️  No settings found, creating defaults...")
+            print("   âš ï¸  No settings found, creating defaults...")
             settings = AppSettings()
             db.session.add(settings)
             db.session.commit()
-            print("   ✅ Default settings created")
+            print("   âœ… Default settings created")
     except Exception as e:
-        print(f"   ❌ Settings error: {e}")
+        print(f"   âŒ Settings error: {e}")
         exit(1)
     
     # Test 3: Check VAPID keys loaded
-    print("\n3️⃣ Testing VAPID keys...")
+    print("\n3ï¸âƒ£ Testing VAPID keys...")
     try:
         push_service = PushNotificationService(app)
         if push_service.vapid_private_key:
-            print("   ✅ VAPID private key loaded")
-            print(f"   📄 Key preview: {push_service.vapid_private_key[:50]}...")
+            print("   âœ… VAPID private key loaded")
+            print(f"   ðŸ“„ Key preview: {push_service.vapid_private_key[:50]}...")
         else:
-            print("   ⚠️  VAPID private key not found")
+            print("   âš ï¸  VAPID private key not found")
         
         if push_service.vapid_public_key:
-            print("   ✅ VAPID public key loaded")
-            print(f"   📄 Key preview: {push_service.vapid_public_key[:50]}...")
+            print("   âœ… VAPID public key loaded")
+            print(f"   ðŸ“„ Key preview: {push_service.vapid_public_key[:50]}...")
         else:
-            print("   ⚠️  VAPID public key not found")
+            print("   âš ï¸  VAPID public key not found")
     except Exception as e:
-        print(f"   ❌ VAPID key error: {e}")
+        print(f"   âŒ VAPID key error: {e}")
     
     # Test 4: Check pywebpush installed
-    print("\n4️⃣ Testing pywebpush package...")
+    print("\n4ï¸âƒ£ Testing pywebpush package...")
     try:
         from pywebpush import webpush
-        print("   ✅ pywebpush is installed")
+        print("   âœ… pywebpush is installed")
     except ImportError:
-        print("   ❌ pywebpush not installed. Run: pip install pywebpush")
+        print("   âŒ pywebpush not installed. Run: pip install pywebpush")
     
     # Test 5: Test notification service initialization
-    print("\n5️⃣ Testing PushNotificationService...")
+    print("\n5ï¸âƒ£ Testing PushNotificationService...")
     try:
         service = PushNotificationService(app)
         subscriptions = service.get_subscriptions()
-        print(f"   ✅ Service initialized successfully")
-        print(f"   📊 Active subscriptions: {len(subscriptions)}")
+        print(f"   âœ… Service initialized successfully")
+        print(f"   ðŸ“Š Active subscriptions: {len(subscriptions)}")
     except Exception as e:
-        print(f"   ⚠️  Service initialization warning: {e}")
+        print(f"   âš ï¸  Service initialization warning: {e}")
 
 print("\n" + "="*60)
-print("✅ All tests passed! Push notification system is ready.")
+print("âœ… All tests passed! Push notification system is ready.")
 print("="*60)
-print("\n📚 Next Steps:")
+print("\nðŸ“š Next Steps:")
 print("1. Deploy to Streamlit Cloud/Railway/Render for HTTPS")
 print("2. Add VAPID keys to environment variables (optional)")
 print("3. Test on mobile device")
 print("4. See PUSH_NOTIFICATIONS_COMPLETE.md for full guide")
+

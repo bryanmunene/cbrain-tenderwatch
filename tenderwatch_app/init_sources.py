@@ -1,4 +1,4 @@
-"""
+﻿"""
 TenderWatch Initialization Script
 Adds default tender sources for Kenya and global opportunities
 """
@@ -90,7 +90,7 @@ DEFAULT_SOURCES = [
 def init_sources():
     """Initialize default tender sources"""
     
-    app = create_app()
+    app = create_app(start_scheduler=False)
     
     with app.app_context():
         # Check if sources already exist
@@ -105,7 +105,8 @@ def init_sources():
             db.session.add(source)
         
         db.session.commit()
-        print(f"✓ Added {len(DEFAULT_SOURCES)} tender sources")
+        print(f"âœ“ Added {len(DEFAULT_SOURCES)} tender sources")
 
 if __name__ == "__main__":
     init_sources()
+

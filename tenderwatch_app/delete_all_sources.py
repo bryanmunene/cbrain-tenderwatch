@@ -1,4 +1,4 @@
-"""
+﻿"""
 Delete ALL manual tender sources from database
 """
 
@@ -6,7 +6,7 @@ from app import create_app
 from app.extensions import db
 from app.models import TenderSource
 
-app = create_app()
+app = create_app(start_scheduler=False)
 
 with app.app_context():
     # Delete all sources
@@ -16,10 +16,11 @@ with app.app_context():
     if count > 0:
         TenderSource.query.delete()
         db.session.commit()
-        print(f"✅ Deleted all {count} sources")
+        print(f"âœ… Deleted all {count} sources")
     else:
-        print("✅ No sources to delete")
+        print("âœ… No sources to delete")
     
     # Verify
     remaining = TenderSource.query.count()
     print(f"Sources remaining: {remaining}")
+

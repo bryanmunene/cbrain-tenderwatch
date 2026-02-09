@@ -1,4 +1,4 @@
-"""
+﻿"""
 Database migration script to add AI/ML fields
 Run this to update existing database schema
 """
@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 
 def migrate_database():
     """Add new AI fields to existing database"""
-    app = create_app()
+    app = create_app(start_scheduler=False)
     
     with app.app_context():
-        logger.info("🔄 Starting database migration for AI features...")
+        logger.info("ðŸ”„ Starting database migration for AI features...")
         
         migrations = [
             # Add AI fields to TenderResult
@@ -43,21 +43,22 @@ def migrate_database():
             try:
                 db.session.execute(text(sql))
                 db.session.commit()
-                logger.info(f"✅ {description}")
+                logger.info(f"âœ… {description}")
                 success_count += 1
             except Exception as e:
                 error_msg = str(e).lower()
                 if 'duplicate column' in error_msg or 'already exists' in error_msg:
-                    logger.info(f"⏭️  {description} - Already exists")
+                    logger.info(f"â­ï¸  {description} - Already exists")
                 else:
-                    logger.error(f"❌ {description} - Failed: {e}")
+                    logger.error(f"âŒ {description} - Failed: {e}")
                 db.session.rollback()
         
-        logger.info(f"\n✅ Migration complete! {success_count}/{len(migrations)} changes applied")
-        logger.info("\n🎯 Next steps:")
+        logger.info(f"\nâœ… Migration complete! {success_count}/{len(migrations)} changes applied")
+        logger.info("\nðŸŽ¯ Next steps:")
         logger.info("1. Install AI libraries: pip install -r requirements.txt")
         logger.info("2. Download spaCy model: python -m spacy download en_core_web_sm")
         logger.info("3. Restart your app to use AI features")
 
 if __name__ == "__main__":
     migrate_database()
+

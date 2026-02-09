@@ -1,10 +1,10 @@
-"""Analyze current tenders for improvement opportunities"""
+﻿"""Analyze current tenders for improvement opportunities"""
 from app import create_app
 from app.models import TenderResult, TenderSource
 from app.scoring import score_text
 import json
 
-app = create_app()
+app = create_app(start_scheduler=False)
 with app.app_context():
     # Stats
     total = TenderResult.query.count()
@@ -68,3 +68,4 @@ with app.app_context():
     
     for status, count in sorted(statuses.items(), key=lambda x: -x[1]):
         print(f"  {status}: {count}")
+

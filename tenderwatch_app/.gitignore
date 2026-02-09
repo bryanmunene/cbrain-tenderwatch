@@ -1,0 +1,25 @@
+﻿# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
+.venv312/
+
+# Local runtime data
+instance/
+*.db
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+vapid_private.pem
+vapid_public.pem
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
