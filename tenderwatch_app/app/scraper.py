@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import logging
 from io import BytesIO
 from flask import current_app
+from sqlalchemy.exc import IntegrityError
 
 
 from app.deadlines import parse_deadline, check_timing_constraints, is_deadline_valid
@@ -51,13 +52,10 @@ CLOSED_HINTS = [
     "notice of award", "award of tender", "tender results",
 ]
 
-CORE_F2_TERMS = [
-    "document management", "records management", "edms", "edrms", "ecm",
-    "case management", "workflow", "workflow automation", "process automation", "bpm",
-    "paperless", "digital transformation", "digitalization", "digital government",
-    "e-government", "e-governance", "citizen portal", "e-services",
-]
 
+def _utcnow():
+    # Keep naive UTC to match DB columns while avoiding utcnow() deprecation.
+    return datetime.now(datetime.UTC).replace(tzinfo=None)
 
 def _source_country(source_name: str, url: str):
     haystack = f"{source_name} {url}".lower()
@@ -128,7 +126,7 @@ def _pdf_text_from_url(url: str) -> str:
 
 def cleanup_irrelevant_tenders():
     """Remove tenders that are awards/results (closed)."""
-    one_month_ago = datetime.utcnow() - timedelta(days=30)
+    one_month_ago = _utcnow() - timedelta(days=30)
     tenders = TenderResult.query.filter(TenderResult.created_at >= one_month_ago).all()
     removed = 0
     for tender in tenders:
@@ -141,7 +139,7 @@ def cleanup_irrelevant_tenders():
         print(f"🧹 Removed {removed} non-F2 or closed tenders")
 
 
-def scan_source(source: TenderSource, app):
+def scan_source(source: TenderSource, app, existing_links=None):
     import time
     import json as json_lib
 
@@ -167,7 +165,7 @@ def scan_source(source: TenderSource, app):
             logger.info("Source %s took %.1fs", source.name, elapsed)
 
         soup = BeautifulSoup(html, "html.parser")
-        existing = {r.link for r in TenderResult.query.all()}
+        existing = set(existing_links or ())
         seen = set()
 
         nav_patterns = {
@@ -219,7 +217,6 @@ def scan_source(source: TenderSource, app):
             "tenders country", "tender notices", "procurement notices", "opportunities",
         }
         closed_hints = CLOSED_HINTS
-        core_f2_terms = CORE_F2_TERMS
 
         for a in soup.find_all("a", href=True):
             try:
@@ -303,8 +300,6 @@ def scan_source(source: TenderSource, app):
                     breakdown = json_lib.loads(scoring_breakdown)
                 except Exception:
                     breakdown = {}
-                keywords_found = breakdown.get("keywords_found", 0)
-                has_core_f2 = any(term in combined_lower for term in core_f2_terms)
                 # Do not hard-drop on F2 keywords; keep for ranking/filtering in UI.
 
                 bonus = _source_bias_bonus(source.name, link)
@@ -358,14 +353,25 @@ def scan_source(source: TenderSource, app):
                 continue
 
         if new_tenders:
-            db.session.commit()
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback()
+                logger.debug("Integrity error while saving %s results; duplicates were skipped", source.name)
+                return []
+            except Exception as e:
+                db.session.rollback()
+                logger.debug("Unexpected DB error while saving %s results: %s", source.name, str(e)[:120])
+                return []
 
-    return new_tenders
+        return [t.id for t in new_tenders if getattr(t, "id", None)]
+
+    return []
 
 
 def cleanup_old_tenders():
     """Remove tenders older than 1 month"""
-    one_month_ago = datetime.utcnow() - timedelta(days=30)
+    one_month_ago = _utcnow() - timedelta(days=30)
     old_tenders = TenderResult.query.filter(TenderResult.created_at < one_month_ago).all()
     
     if old_tenders:
@@ -401,28 +407,31 @@ def run_scan(flask_app=None):
         print("âš ï¸  No active sources found. Add sources and mark them as active to start scanning.")
         return []
     
-    all_new_tenders = []
+    all_new_ids = []
     
     # Resolve Flask app (Streamlit passes it explicitly).
     if flask_app is None:
         flask_app = current_app._get_current_object()
+
+    # Snapshot existing links once to avoid re-querying for every source.
+    existing_links = {link for (link,) in db.session.query(TenderResult.link).all()}
 
     # Scan sources in parallel.
     if sources:
         print(f"\nðŸš€ FAST PARALLEL scan: {len(sources)} sources with 15 workers...")
         
         with ThreadPoolExecutor(max_workers=15) as executor:
-            future_to_source = {executor.submit(scan_source, src, flask_app): src for src in sources}
+            future_to_source = {executor.submit(scan_source, src, flask_app, existing_links): src for src in sources}
             
             completed = 0
             for future in as_completed(future_to_source):
                 source = future_to_source[future]
                 completed += 1
                 try:
-                    new_tenders = future.result()
-                    if new_tenders:
-                        all_new_tenders.extend(new_tenders)
-                        print(f"âœ“ [{completed}/{len(sources)}] {source.name}: {len(new_tenders)} new")
+                    new_ids = future.result()
+                    if new_ids:
+                        all_new_ids.extend(new_ids)
+                        print(f"âœ“ [{completed}/{len(sources)}] {source.name}: {len(new_ids)} new")
                 except Exception as e:
                     print(f"âœ— [{completed}/{len(sources)}] {source.name}: {str(e)[:30]}")
             print("\n--- SLOW SOURCES REPORT ---")
@@ -431,19 +440,25 @@ def run_scan(flask_app=None):
             print("(Any source above marked ðŸ¢ SLOW is a bottleneck)")
     
     elapsed = time.time() - start_time
-    print(f"âœ… Scan complete in {elapsed:.1f}s! Found {len(all_new_tenders)} new tenders.")
+    print(f"âœ… Scan complete in {elapsed:.1f}s! Found {len(all_new_ids)} new tenders.")
+
+    fresh_tenders = []
+    if all_new_ids:
+        # Re-query in the main app context to avoid detached-session issues.
+        with flask_app.app_context():
+            fresh_tenders = TenderResult.query.filter(TenderResult.id.in_(all_new_ids)).all()
     
     # Send push notifications for new high-score tenders
-    if all_new_tenders:
+    if fresh_tenders:
         try:
             from app.push_notifications import PushNotificationService
             
             push_service = PushNotificationService(flask_app)
-            push_service.notify_new_tenders(all_new_tenders)
+            push_service.notify_new_tenders(fresh_tenders)
         except Exception as e:
             print(f"âš ï¸ Push notification failed: {e}")
     
-    return all_new_tenders
+    return fresh_tenders
 
 
 

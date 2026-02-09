@@ -6,6 +6,11 @@ MONTHS = {
     "jul":7,"aug":8,"sep":9,"oct":10,"nov":11,"dec":12
 }
 
+
+def _utcnow():
+    # Keep naive UTC for compatibility with existing DB datetime usage.
+    return datetime.now(datetime.UTC).replace(tzinfo=None)
+
 def parse_deadline(text: str):
     if not text:
         return None
@@ -45,7 +50,7 @@ def check_timing_constraints(deadline_str: str, publication_date: datetime = Non
         - confidence_modifier: 0 (pass), -0.1 to -0.3 (warning), or -0.5 (fail but include)
         - reason: Human-readable explanation
     """
-    now = datetime.utcnow()
+    now = _utcnow()
     min_deadline = now + timedelta(days=7)
     max_publication_age = now - timedelta(days=90)  # 3 months ago
     
@@ -89,7 +94,7 @@ def is_deadline_valid(deadline_str: str):
     
     try:
         deadline = datetime.strptime(deadline_str, "%Y-%m-%d")
-        min_deadline = datetime.utcnow() + timedelta(days=7)
+        min_deadline = _utcnow() + timedelta(days=7)
         return deadline >= min_deadline
     except ValueError:
         return True  # Don't exclude on parse error

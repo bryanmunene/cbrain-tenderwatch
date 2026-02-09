@@ -160,7 +160,24 @@ def score_text(title: str, text: str = ""):
     domain_bonus = 0
     priority_level = "LOW"
     
-    for combo_domains, bonus, priority in PRIORITY_COMBINATIONS:
+    for combo in PRIORITY_COMBINATIONS:
+        # Backward-compatible parsing:
+        # - (domains, bonus, priority)
+        # - (domains, priority)
+        combo_domains = []
+        bonus = 0
+        priority = "LOW"
+        if isinstance(combo, (list, tuple)):
+            if len(combo) == 3:
+                combo_domains, bonus, priority = combo
+            elif len(combo) == 2:
+                combo_domains, priority = combo
+                bonus = 6 if priority == "HIGH" else 3 if priority == "MEDIUM" else 1
+            else:
+                continue
+        else:
+            continue
+
         if all(d in matched_domains for d in combo_domains):
             domain_bonus = max(domain_bonus, bonus)
             if priority == "HIGH":

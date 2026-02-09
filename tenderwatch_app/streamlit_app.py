@@ -242,6 +242,11 @@ st.markdown(f"""
 # Initialize Flask app context for database
 app = create_app(start_scheduler=False, init_db=True)
 
+
+def _utcnow():
+    # Keep naive UTC for DB compatibility while avoiding utcnow() deprecation.
+    return datetime.now(datetime.UTC).replace(tzinfo=None)
+
 def init_db():
     """Initialize database with app context"""
     with app.app_context():
@@ -404,7 +409,7 @@ def get_tenders(filters=None):
     """Get tenders with optional filters - only from last month"""
     with app.app_context():
         # Filter tenders from last month only
-        one_month_ago = datetime.utcnow() - timedelta(days=30)
+        one_month_ago = _utcnow() - timedelta(days=30)
         query = TenderResult.query.filter(TenderResult.created_at >= one_month_ago)
         
         if filters:
@@ -478,7 +483,7 @@ def get_sources():
 def get_stats():
     """Get dashboard statistics - only from last month"""
     with app.app_context():
-        one_month_ago = datetime.utcnow() - timedelta(days=30)
+        one_month_ago = _utcnow() - timedelta(days=30)
         
         total = TenderResult.query.filter(TenderResult.created_at >= one_month_ago).count()
         high_score = TenderResult.query.filter(
