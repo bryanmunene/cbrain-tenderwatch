@@ -13,7 +13,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import pandas as pd
 import streamlit as st
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 
 # Ensure project root is on sys.path and avoid module name collisions.
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -241,10 +241,32 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize Flask app context for database
-@st.cache_resource
+# Initialize Flask app context for database.
+# Avoid long-lived global cache mismatches between Flask app and SQLAlchemy instance
+# across Streamlit hot reloads by validating binding each run.
+def _is_db_bound(flask_app) -> bool:
+    try:
+        with flask_app.app_context():
+            db.session.execute(text("SELECT 1"))
+        return True
+    except RuntimeError as exc:
+        if "not registered with this 'SQLAlchemy' instance" in str(exc):
+            return False
+        raise
+
+
 def get_flask_app():
-    return create_app(start_scheduler=False, init_db=True)
+    cached_app = st.session_state.get("_flask_app")
+    cached_db_id = st.session_state.get("_flask_app_db_id")
+    current_db_id = id(db)
+
+    if cached_app is not None and cached_db_id == current_db_id and _is_db_bound(cached_app):
+        return cached_app
+
+    flask_app = create_app(start_scheduler=False, init_db=True)
+    st.session_state["_flask_app"] = flask_app
+    st.session_state["_flask_app_db_id"] = current_db_id
+    return flask_app
 
 
 app = get_flask_app()
