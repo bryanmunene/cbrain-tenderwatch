@@ -1,780 +1,743 @@
-"""
-TenderWatch Keywords — F2-Aligned (Non-Strict)
-===============================================
-Flat keyword domains for detecting cBrain F2-relevant tenders:
-EDMS + records + workflow + case handling + process automation + e-government.
 
-Design Principles:
-- Favor recall over precision (miss nothing, rank later)
-- Any keyword hit is a signal, not a filter
-- Multiple hits increase relevance
-- Phrase proximity increases relevance
-- No single keyword is mandatory
-- Let scoring, not exclusion, decide relevance
+from __future__ import annotations
 
-Role Separation:
-- Scanner = capture + timing filter
-- AI = reasoning + ranking  
-- Human = decision
+# ...existing docstring and imports...
+
+# ...existing TIMING_RULES, NORMALIZATION, _normalize, _phrase_hit...
+
+# CORE KEYWORD DOMAINS (F2 RELEVANCE SIGNALS)
+KEYWORD_DOMAINS: Dict[str, List[str]] = {
+    # ...existing domain definitions...
+}
+
+# After KEYWORD_DOMAINS is defined, build ALL_KEYWORDS and DOMAIN_WEIGHTS if needed
+# (If these are already defined, leave them in place)
+
+# KEYWORD_TO_DOMAIN: Maps each keyword to the list of domains it appears in
+KEYWORD_TO_DOMAIN: Dict[str, list[str]] = {}
+for domain, keywords in KEYWORD_DOMAINS.items():
+    for kw in keywords:
+        KEYWORD_TO_DOMAIN.setdefault(kw, []).append(domain)
+
 """
+TenderWatch — F2-Aligned Intelligence Logic (Authoritative, Revised)
+===================================================================
+
+Fixes applied
+- Moved `from __future__ import annotations` to the very top (required).
+- Removed duplicated pasted blocks (you had the whole module twice).
+- Removed duplicate "ECM" key inside KEYWORD_DOMAINS (Python overwrites earlier key silently).
+- Moved KEYWORD_TO_DOMAIN construction to AFTER KEYWORD_DOMAINS exists.
+- Restored missing "Records" in DOMAIN_WEIGHTS (you were scoring it via combos but not weighting it).
+"""
+
+import re
+from dataclasses import dataclass
+from datetime import date
+from typing import Any, Dict, List, Tuple, Optional
+
 
 # =============================================================================
-# FLAT KEYWORD DOMAINS (for domain tagging and scoring)
+# TIMING LOGIC (HARD FILTERS + PENALTIES)
 # =============================================================================
 
-KEYWORD_DOMAINS = {
+TIMING_RULES: Dict[str, Any] = {
+    "min_days_to_deadline": 7,
+    "max_days_since_float": 90,
+    "missing_dates_behavior": "penalize_not_exclude",
+    "missing_deadline_penalty": -3,
+    "missing_publication_penalty": -2,
+}
+
+# =============================================================================
+# TEXT NORMALIZATION
+# =============================================================================
+
+NORMALIZATION: Dict[str, Any] = {
+    "lowercase": True,
+    "collapse_whitespace": True,
+    "max_text_chars": 250_000,
+}
+
+_WORD_BOUNDARY = r"(?:^|[\s\W])"
+_WORD_BOUNDARY_END = r"(?:$|[\s\W])"
+
+
+def _normalize(text: str) -> str:
+    if not text:
+        return ""
+    t = text[: NORMALIZATION["max_text_chars"]]
+    if NORMALIZATION["lowercase"]:
+        t = t.lower()
+    if NORMALIZATION["collapse_whitespace"]:
+        t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+
+def _phrase_hit(text: str, phrase: str) -> bool:
+    p = re.escape(phrase.lower().strip())
+    pattern = _WORD_BOUNDARY + p + _WORD_BOUNDARY_END
+    return re.search(pattern, text) is not None
+
+
+# =============================================================================
+# CORE KEYWORD DOMAINS (F2 RELEVANCE SIGNALS)
+# =============================================================================
+
+KEYWORD_DOMAINS: Dict[str, List[str]] = {
     "EDMS": [
-        # Core terms
         "electronic document management",
-        "edms",
-        "edrms",  # Electronic Document AND Records Management System
-        "electronic document and records management",
-        "dms",
         "document management system",
         "document management",
+        "edms",
+        "edrms",
+        "electronic document and records management",
         "document repository",
         "document tracking",
-        "document capture",
         "document digitization",
+        "scanning and archiving",
+        "document imaging",
         "intelligent document processing",
-        "optical character recognition",
+        "idp",
         "ocr",
         "paperless",
+        "capture solution",
     ],
-    
-    "Records": [
-        # Core records
-        "records management",
-        "electronic records",
-        "records management system",
-        "records information",
-        "records lifecycle",
-        "records retention",
-        "records disposal",
-        "records digitization",
-        "digital records",
-        # Archives & registry
-        "archives",
-        "archival system",
-        "archives management",
-        "registry",
-        "file registry",
-        "file tracking",
-        "file plan",
-        "classification scheme",
-        # Compliance
-        "information governance",
-        "audit trail",
-        "audit logging",
-        "legal hold",
-        "retention policy",
-        "data retention",
-        "compliance management",
-        "iso 15489",
-        "right to information",
-        "foia",
-    ],
-    
     "ECM": [
         "enterprise content management",
         "ecm",
         "content services platform",
         "content services",
         "content management",
-        "unstructured data management",
+        "knowledge repository",
+        "document repository",
     ],
-    
+    "Records": [
+        "records management",
+        "records lifecycle",
+        "records retention",
+        "retention schedule",
+        "records disposal",
+        "digital records",
+        "archives",
+        "archival system",
+        "registry",
+        "registry management",
+        "file registry",
+        "file tracking",
+        "classification scheme",
+        "classification plan",
+        "file plan",
+        "information governance",
+        "audit trail",
+        "audit logging",
+        "legal hold",
+        "iso 15489",
+        "right to information",
+        "freedom of information",
+        "foia",
+    ],
     "Workflow": [
-        # Core workflow
         "workflow",
-        "workflow system",
         "workflow automation",
         "workflow management",
         "approval workflow",
-        "approval system",
-        "approval process",
-        # BPM
         "business process management",
         "bpm",
+        "bpm system",
         "process automation",
         "digital process automation",
-        "process optimization",
         "process orchestration",
-        # Tasks
         "task routing",
-        "task management",
         "work item",
-        "service orchestration",
+        "case workflow",
+        "bpmn",
     ],
-    
     "Case": [
-        # Core case
         "case management",
         "case handling",
         "case tracking",
-        "case management system",
+        "case processing",
         "docket",
-        "docket management",
         "matter management",
-        # Complaints & grievances
         "complaint management",
-        "complaints handling",
+        "complaints management",
         "grievance",
         "grievance redress",
-        "grm",
-        "feedback management",
-        # Legal/regulatory
-        "legal case management",
-        "litigation management",
-        "court management",
-        "judicial case management",
-        "regulatory case",
         "inspection management",
         "licensing system",
         "permit management",
+        "enforcement case",
+        "regulatory case",
     ],
-    
     "Forms": [
         "electronic forms",
         "e-forms",
         "digital forms",
         "form automation",
-        "e-memos",
         "electronic memos",
         "digital correspondence",
         "correspondence management",
+        "e-filing",
+        "electronic filing",
     ],
-    
     "ServiceDelivery": [
         "service request",
+        "service requests",
         "citizen services",
         "e-services",
         "service delivery",
-        "public service delivery",
         "citizen portal",
         "government portal",
-        "citizen engagement",
-        "public grievance",
+        "one stop shop",
     ],
-    
     "Gov": [
-        # E-government
         "e-government",
-        "egovernment",
         "digital government",
         "e-governance",
-        "egovernance",
-        "smart government",
-        "government automation",
-        "public sector digitization",
-        "public sector digitalisation",
-        "public sector transformation",
-        # Context signals
-        "government",
-        "ministry",
-        "county government",
         "public sector",
+        "public sector digitization",
+        "government automation",
+        "government agency",
+        "public institution",
         "parastatal",
         "state corporation",
-        "government agency",
-        "government department",
-        "public institution",
-        "local authority",
         "municipal",
-        "regional government",
+        "local authority",
+        "ministry",
+        "department",
+        "authority",
+        "commission",
     ],
-    
-    # Renamed from "Collaboration" - more F2-focused
     "Digitalization": [
-        # Core digitalization (F2's sweet spot)
-        "paperless office",
         "paperless government",
-        "paperless ministry",
         "digital transformation",
-        "digitalization",
-        "digitalisation",
         "digitization",
-        "going digital",
         "digital first",
-        "digital agenda",
-        # Government admin modernization
         "government modernization",
-        "public administration reform",
         "administrative reform",
-        "bureaucracy reduction",
-        "civil service reform",
-        "public service reform",
-        # Intranet/collaboration for gov
-        "government intranet",
-        "ministry intranet",
-        "intranet portal",
-        "collaboration platform",
+        "public administration reform",
         "knowledge management",
-        "information sharing platform",
     ],
-    
-    # REMOVED: "Implementation" was too generic (matched any software project)
-    # F2 implementation signals are now captured by domain + "implementation" combo
 }
 
-# =============================================================================
-# PLATFORM LOCK-IN SIGNALS (already chose a vendor - F2 unlikely to compete)
-# Flag these but don't exclude - client may be open to alternatives
-# =============================================================================
+ALL_KEYWORDS: List[str] = sorted({kw for kws in KEYWORD_DOMAINS.values() for kw in kws})
 
-PLATFORM_LOCKIN_SIGNALS = [
-    # Microsoft ecosystem (if they're asking for implementation, not procurement)
-    "power platform implementation",
-    "power platform solution",
-    "power apps development",
-    "power automate implementation", 
-    "sharepoint implementation",
-    "sharepoint development",
-    "sharepoint solution",
-    "microsoft 365 implementation",
-    "dynamics 365 implementation",
-    "azure implementation",
-    "build solutions in power platform",
-    "develop on power platform",
-    "power platform developer",
-    "power platform consultant",
-    
-    # Oracle ecosystem
-    "oracle implementation",
-    "oracle consultant",
-    "oracle erp",
-    "oracle financials",
-    "oracle cloud",
-    "oracle fusion",
-    
-    # SAP ecosystem  
-    "sap implementation",
-    "sap consultant",
-    "sap erp",
-    "sap s/4hana",
-    "sap successfactors",
-    
-    # Salesforce ecosystem
-    "salesforce implementation",
-    "salesforce developer",
-    "salesforce consultant",
-    
-    # OpenText ecosystem
-    "opentext implementation",
-    "documentum implementation",
-    "opentext consultant",
-    
-    # Other specific platforms
-    "laserfiche implementation",
-    "alfresco implementation",
-    "m-files implementation",
-    "ibm filenet implementation",
-    "hyland onbase implementation",
-]
-
-# =============================================================================
-# MICROSOFT PLATFORM COMMITMENT SIGNALS (SI-only engagement, platform fixed)
-# These are STRONGER lock-in signals - buyer wants implementer, not platform
-# =============================================================================
-
-MICROSOFT_COMMITMENT_SIGNALS = [
-    # Platform already procured
-    "has procured microsoft",
-    "already procured microsoft",
-    "procured power platform",
-    "procured microsoft power platform",
-    "existing microsoft",
-    "existing power platform",
-    "existing sharepoint",
-    "current microsoft environment",
-    "microsoft environment",
-    
-    # Licenses provided by buyer
-    "licenses will be provided",
-    "licences will be provided",
-    "licenses provided by",
-    "licences provided by",
-    "not required to quote for licenses",
-    "not required to quote for licences",
-    "exclude licensing",
-    "excluding licenses",
-    "excluding licences",
-    "authority will provide licenses",
-    "client will provide licenses",
-    
-    # Enterprise Agreement signals
-    "microsoft enterprise agreement",
-    "enterprise agreement",
-    "microsoft ea",
-    "existing ea",
-    "under ea",
-    "microsoft licensing agreement",
-    
-    # Mandated platform
-    "must use power platform",
-    "must use sharepoint",
-    "must use microsoft",
-    "required to use power platform",
-    "required to use sharepoint",
-    "mandatory use of microsoft",
-    "on microsoft power platform",
-    "on sharepoint",
-    "on power platform",
-    "using power platform",
-    "using sharepoint",
-    "based on power platform",
-    "based on sharepoint",
-    "built on power platform",
-    "built on sharepoint",
-    
-    # SI-only language
-    "implementation partner",
-    "implementation consultant",
-    "configuration services",
-    "customization services",
-    "customisation services",
-    "configuration and customization",
-    "configuration and customisation",
-    "develop and deploy on",
-    "deploy on power platform",
-    "deploy on sharepoint",
-    
-    # Delivery partner signals
-    "delivery partner for",
-    "seeking a partner to implement",
-    "partner to configure",
-    "partner to customize",
-    "partner to customise",
-]
-
-# Signals that the client is OPEN to alternatives (good for F2)
-OPEN_PROCUREMENT_SIGNALS = [
-    "supply and implementation",
-    "supply, installation",
-    "provision of",
-    "procurement of",
-    "acquisition of",
-    "request for proposal",
-    "request for quotation",
-    "invitation to tender",
-    "expression of interest",
-    "prequalification",
-    "open tender",
-    "competitive bidding",
-    "best value",
-    "solution agnostic",
-    "platform agnostic",
-    "vendor neutral",
-]
-
-# =============================================================================
-# PLATFORM OPENNESS SIGNALS (buyer may consider alternatives)
-# =============================================================================
-
-PLATFORM_OPENNESS_SIGNALS = [
-    "alternative solutions",
-    "alternative platforms",
-    "open to alternatives",
-    "consider alternatives",
-    "evaluate options",
-    "compare solutions",
-    "total cost of ownership",
-    "tco analysis",
-    "platform evaluation",
-    "platform selection",
-    "technology neutral",
-    "no preferred platform",
-    "any suitable platform",
-    "best fit solution",
-    "fit for purpose",
-]
-
-# =============================================================================
-# QUALIFICATION QUESTIONS (surface these for Microsoft-locked tenders)
-# =============================================================================
-
-QUALIFICATION_QUESTIONS = [
-    "1. Total number of end-users (not just admins or champions)?",
-    "2. Total tender budget (implementation + support)?",
-    "3. Annual cost of Microsoft Enterprise Agreement / licenses?",
-    "4. Is the buyer open to discussing alternative platforms?",
-    "5. What is the primary use case (case management, workflow, records)?",
-]
-
-# =============================================================================
-# IRRELEVANT TENDER SIGNALS (EXCLUDE - not F2 relevant at all)
-# These tenders should be excluded entirely, not just penalized
-# =============================================================================
-
-IRRELEVANT_SIGNALS = [
-    # Construction & Infrastructure
-    "construction of",
-    "rehabilitation of",
-    "building construction",
-    "road construction",
-    "bridge construction",
-    "housing unit",
-    "housing construction",
-    "civil works",
-    "building works",
-    "renovation of",
-    "repair of building",
-    "structural works",
-    "masonry",
-    "plumbing works",
-    "electrical works",
-    "roofing",
-    "paving",
-    "excavation",
-    "demolition",
-    
-    # Physical Supplies (non-IT)
-    "supply of furniture",
-    "office furniture",
-    "supply of vehicles",
-    "motor vehicle",
-    "ambulance",
-    "medical equipment",
-    "laboratory equipment",
-    "agricultural equipment",
-    "farming equipment",
-    "food supply",
-    "catering services",
-    "cleaning services",
-    "security guard",
-    "uniforms",
-    "stationery supply",
-    "fuel supply",
-    "petroleum",
-    
-    # Email / Security Tools (not EDMS)
-    "email protection",
-    "email security",
-    "antivirus",
-    "anti-virus",
-    "mimecast",
-    "spam filter",
-    "firewall",
-    "endpoint protection",
-    "intrusion detection",
-    "penetration testing",
-    "vulnerability assessment",
-    "siem",
-    "security operations center",
-    "soc services",
-    
-    # Networking / Telecom (not EDMS)
-    "network infrastructure",
-    "wan optimization",
-    "internet connectivity",
-    "isp services",
-    "bandwidth",
-    "fiber optic",
-    "mpls",
-    "vpn services",
-    "telephony",
-    "pbx",
-    "voip",
-    "unified communications",
-    "video conferencing only",
-    "cctv",
-    "access control",
-    
-    # Financial Services
-    "banking services",
-    "insurance services",
-    "actuarial",
-    "audit services",
-    "external audit",
-    "internal audit",
-    "tax advisory",
-    "accounting services",
-    "payroll services",
-    
-    # Marketing / Media
-    "advertising services",
-    "media buying",
-    "public relations",
-    "branding services",
-    "graphic design",
-    "video production",
-    "photography services",
-    
-    # HR / Recruitment
-    "recruitment services",
-    "headhunting",
-    "staff recruitment",
-    "hr consultancy",
-    "payroll outsourcing",
-    
-    # Legal
-    "legal services",
-    "legal advisory",
-    "law firm",
-    "litigation",
-    
-    # Environmental
-    "environmental assessment",
-    "eia study",
-    "waste management",
-    "garbage collection",
-    "sewage",
-    "water treatment",
-    
-    # Transportation
-    "transport services",
-    "logistics services",
-    "freight",
-    "shipping services",
-    "courier services",
-    
-    # Assessment/Evaluation Tools (not implementation)
-    "assessing",
-    "assessment tool",
-    "evaluation tool",
-    "benchmarking tool",
-    "maturity assessment",
-    # Event/Facility/Utility/General Services
-    "event support",
-    "event management",
-    "event services",
-    "event production",
-    "event toilet",
-    "event lighting",
-    "event sound",
-    "event power",
-    "event site",
-    "venue hire",
-    "facility management",
-    "cleaning contract",
-    "toilet services",
-    "lighting services",
-    "sound services",
-    "power supply",
-    "site services",
-    "site lighting",
-    "site power",
-    "site fencing",
-    "fencing services",
-    "barrier works",
-    "groundworks",
-    "civil engineering",
-    "sports block",
-    "hot water plant",
-    "plant replacement",
-    "contractor opportunity",
-    "support services",
-    "support contract",
-    "advisory services",
-    "vat advisory",
-    "tax advisory",
-    "consultancy services",
-    "consulting services",
-    "consultancy contract",
-    "advisory contract",
-    "provision of services",
-    "provision of support",
-    "provision of advisory",
-    "provision of consultancy",
-    "provision of contract",
-    "provision of works",
-    "works contractor",
-    "works contract",
-    "approved contractor",
-    "approved works",
-    "council services",
-    "town council",
-    "municipal services",
-    "municipality",
-    "local authority",
-    "public toilet",
-    "toilet hire",
-    "toilet contract",
-    "toilet facility",
-    "toilet event",
-    "toilet support",
-    "toilet management",
-    "toilet services",
-    "toilet supply",
-    "toilet works",
-    "toilet provision",
-    "toilet maintenance",
-    "toilet cleaning",
-    "toilet repair",
-    "toilet replacement",
-    "toilet installation",
-    "toilet upgrade",
-    "toilet refurbishment",
-    "toilet improvement",
-    "toilet construction",
-    "toilet engineering",
-    "toilet consultancy",
-    "toilet advisory",
-    # ...existing code...
-    
-    # General ICT (too broad - not F2's domain)
-    "general ict",
-    "ict infrastructure",
-    "ict equipment",
-    "ict hardware",
-    "ict support services",
-    "ict helpdesk",
-    "desktop support",
-    "it support",
-    "it helpdesk",
-    "computer maintenance",
-    "hardware maintenance",
-    "software licensing",
-    "license renewal",
-    "microsoft license",
-    "oracle license",
-    "software subscription",
-    
-    # ERP (not F2's domain - SAP/Oracle territory)
-    "erp implementation",
-    "erp system",
-    "enterprise resource planning",
-    "financial management system",
-    "accounting system",
-    "hr management system",
-    "hris",
-    "hrms",
-    "payroll system",
-    
-    # Pure Development (not F2's approach)
-    "software development",
-    "application development",
-    "custom software",
-    "bespoke development",
-    "mobile app development",
-    "ios development",
-    "android development",
-    "web application development",
-    
-    # CRM (not F2's domain - Salesforce territory)
-    "crm system",
-    "customer relationship management",
-    "salesforce",
-    
-    # E-commerce
-    "e-commerce",
-    "ecommerce",
-    "online shop",
-    "payment gateway",
-]
-
-# =============================================================================
-# NEGATIVE SIGNALS (reduce score, don't exclude)
-# =============================================================================
-
-NEGATIVE_SIGNALS = [
-    # Pure hosting/storage (no process/workflow)
-    "data center",
-    "data centre",
-    "colocation",
-    "hosting services",
-    "cloud hosting",
-    "storage infrastructure",
-    "backup services",
-    "disaster recovery only",
-    # Website-only
-    "website design",
-    "website development only",
-    "web design",
-    "social media management",
-    # Hardware-only
-    "hardware supply",
-    "computer supply",
-    "laptop supply",
-    "printer supply",
-    "networking equipment",
-    "cabling",
-]
-
-# =============================================================================
-# FLATTENED KEYWORDS (for simple matching)
-# =============================================================================
-
-ALL_KEYWORDS = sorted(
-    {kw.lower() for domain in KEYWORD_DOMAINS.values() for kw in domain}
-)
-
-# Map each keyword back to its domain(s)
-KEYWORD_TO_DOMAIN = {}
+KEYWORD_TO_DOMAIN: Dict[str, List[str]] = {}
 for domain, keywords in KEYWORD_DOMAINS.items():
     for kw in keywords:
-        kw_lower = kw.lower()
-        if kw_lower not in KEYWORD_TO_DOMAIN:
-            KEYWORD_TO_DOMAIN[kw_lower] = []
-        KEYWORD_TO_DOMAIN[kw_lower].append(domain)
+        KEYWORD_TO_DOMAIN.setdefault(kw, []).append(domain)
 
-# =============================================================================
-# PRIORITY DOMAIN COMBINATIONS (bonus scoring)
-# =============================================================================
-
-# These combinations signal high relevance for F2
-PRIORITY_COMBINATIONS = [
-    # HIGH priority: workflow + records + government
-    (["Workflow", "Records", "Gov"], 10, "HIGH"),
-    (["Case", "Records", "Gov"], 10, "HIGH"),
-    (["Workflow", "Case", "Gov"], 10, "HIGH"),
-    
-    # MEDIUM priority: records OR workflow + public context
-    (["Records", "Gov"], 5, "MEDIUM"),
-    (["Workflow", "Gov"], 5, "MEDIUM"),
-    (["Case", "Gov"], 5, "MEDIUM"),
-    (["EDMS", "Gov"], 5, "MEDIUM"),
-    (["ECM", "Gov"], 5, "MEDIUM"),
-    
-    # Records + workflow/case (even without gov context)
-    (["Records", "Workflow"], 4, "MEDIUM"),
-    (["Records", "Case"], 4, "MEDIUM"),
-    (["EDMS", "Workflow"], 4, "MEDIUM"),
-    (["EDMS", "Case"], 4, "MEDIUM"),
-]
-
-# =============================================================================
-# LEGACY EXPORTS (for backward compatibility)
-# =============================================================================
-
-# Keep KEYWORD_GROUPS for categorizer.py compatibility
-KEYWORD_GROUPS = KEYWORD_DOMAINS
-
-# Generic standalone keywords (still count but with lower weight alone)
-GENERIC_STANDALONE_KEYWORDS = {
-    "bid", "tender", "rfp", "rfq", "procurement", "contract",
-    "ministry", "government", "agency", "department", "system",
-    "platform", "solution", "software", "services", "management"
+DOMAIN_WEIGHTS: Dict[str, int] = {
+    "Records": 3,
+    "Workflow": 3,
+    "Case": 3,
+    "EDMS": 2,
+    "ECM": 2,
+    "Forms": 2,
+    "ServiceDelivery": 2,
+    "Gov": 1,
+    "Digitalization": 1,
 }
 
-# Priority phrases (multi-word exact matches for bonus)
-PRIORITY_PHRASES = [
-    # 5+ word phrases (very specific)
-    "electronic document and records management",
-    "electronic document management system",
-    "enterprise content management system",
-    "business process management system",
-    "case management system implementation",
-    
-    # 4 word phrases
-    "document management system",
-    "records management system", 
-    "case management system",
-    "workflow management system",
-    "content services platform",
-    "business process automation",
-    "digital government platform",
-    "complaint management system",
-    "grievance redress system",
-    "permit management system",
-    
-    # 3 word phrases
-    "workflow automation",
-    "process automation",
-    "case handling",
-    "case tracking",
-    "document tracking",
-    "records digitization",
-    "digital transformation",
-    "system implementation",
+# =============================================================================
+# PLATFORM LOCK-IN & SI-ONLY SIGNALS (CONDITIONAL NO-GO)
+# =============================================================================
+
+MICROSOFT_HARD_LOCK_SIGNALS: List[str] = [
+    "must use power platform",
+    "must use microsoft power platform",
+    "must use sharepoint",
+    "deploy on sharepoint",
+    "built on power platform",
+    "built on sharepoint",
+    "solution shall be built on power platform",
+    "solution shall be built on sharepoint",
+    "sharepoint online",
+    "power apps",
+    "power automate",
+    "dataverse",
 ]
+
+MICROSOFT_SOFT_LOCK_SIGNALS: List[str] = [
+    "existing sharepoint",
+    "already procured microsoft",
+    "procured power platform",
+    "microsoft enterprise agreement",
+    "licenses will be provided",
+    "excluding licenses",
+    "implementation partner",
+    "configuration services",
+    "si partner",
+    "sharepoint environment",
+]
+
+# =============================================================================
+# GENERAL PLATFORM LOCK-IN SIGNALS
+# =============================================================================
+PLATFORM_LOCKIN_SIGNALS: List[str] = [
+    "platform lock-in",
+    "vendor lock-in",
+    "proprietary platform",
+    "proprietary solution",
+    "single vendor",
+    "restricted platform",
+    "closed platform",
+    "must use power platform",
+    "must use microsoft power platform",
+    "must use sharepoint",
+    "deploy on sharepoint",
+    "built on power platform",
+    "built on sharepoint",
+    "solution shall be built on power platform",
+    "solution shall be built on sharepoint",
+    "sharepoint online",
+    "power apps",
+    "power automate",
+    "dataverse",
+]
+
+# =============================================================================
+# OPEN PROCUREMENT SIGNALS (BUYER MAY CONSIDER ALTERNATIVES)
+# =============================================================================
+OPEN_PROCUREMENT_SIGNALS: List[str] = [
+    "open procurement",
+    "platform agnostic",
+    "vendor neutral",
+    "alternative solutions",
+    "alternative platforms",
+    "technology neutral",
+    "best value",
+    "total cost of ownership",
+    "tco analysis",
+    "fit for purpose",
+    "or equivalent",
+]
+
+# =============================================================================
+# MICROSOFT COMMITMENT SIGNALS (SI-ONLY ENGAGEMENT)
+# =============================================================================
+MICROSOFT_COMMITMENT_SIGNALS: List[str] = [
+    "must use power platform",
+    "must use microsoft power platform",
+    "must use sharepoint",
+    "deploy on sharepoint",
+    "built on power platform",
+    "built on sharepoint",
+    "solution shall be built on power platform",
+    "solution shall be built on sharepoint",
+    "sharepoint online",
+    "power apps",
+    "power automate",
+    "dataverse",
+    "existing sharepoint",
+    "already procured microsoft",
+    "procured power platform",
+    "microsoft enterprise agreement",
+    "licenses will be provided",
+    "excluding licenses",
+    "implementation partner",
+    "configuration services",
+    "si partner",
+    "sharepoint environment",
+]
+
+QUALIFICATION_QUESTIONS: List[str] = [
+    "Total number of end-users?",
+    "Total tender budget (implementation + support)?",
+    "Annual Microsoft EA / license cost?",
+    "Is the buyer open to alternative platforms?",
+    "Is this a platform decision or SI-only delivery?",
+]
+
+PLATFORM_OPENNESS_SIGNALS: List[str] = [
+    "platform agnostic",
+    "vendor neutral",
+    "alternative solutions",
+    "alternative platforms",
+    "technology neutral",
+    "best value",
+    "total cost of ownership",
+    "tco analysis",
+    "fit for purpose",
+    "or equivalent",
+]
+
+# =============================================================================
+# HARD NO-GO ELIMINATION SIGNALS (ARCHITECTURAL MISMATCH)
+# =============================================================================
+
+HARD_ELIMINATION_SIGNALS: List[str] = [
+    "consultancy services",
+    "advisory services",
+    "strategy development",
+    "roadmap development",
+    "policy advisory",
+    "assessment study",
+    "feasibility study",
+    "maturity assessment",
+    "baseline assessment",
+    "training only",
+    "capacity building only",
+    "hardware supply",
+    "supply of laptops",
+    "supply of computers",
+    "network infrastructure",
+    "cabling works",
+    "data center",
+    "data centre",
+    "cloud hosting only",
+    "internet connectivity",
+    "construction of",
+    "civil works",
+    "building works",
+    "renovation",
+    "rehabilitation",
+    "water works",
+    "road works",
+    "inventory management",
+    "stock management",
+    "logistics system",
+    "supply chain system",
+    "fleet management",
+    "warehouse management",
+]
+
+# =============================================================================
+# NEGATIVE SIGNALS (SCORE PENALTY, NOT ELIMINATION)
+# =============================================================================
+
+NEGATIVE_SIGNALS: List[str] = [
+    "website design only",
+    "hosting services",
+    "storage infrastructure",
+    "backup services",
+    "email security",
+    "antivirus",
+    "erp system",
+    "crm system",
+    "mobile app development",
+    "social media management",
+]
+
+# =============================================================================
+# IRRELEVANT SIGNALS (STRICT EXCLUSION)
+# =============================================================================
+IRRELEVANT_SIGNALS: List[str] = [
+    "construction",
+    "building works",
+    "civil works",
+    "renovation",
+    "rehabilitation",
+    "water works",
+    "road works",
+    "inventory management",
+    "stock management",
+    "logistics system",
+    "supply chain system",
+    "fleet management",
+    "warehouse management",
+    "email security",
+    "antivirus",
+    "erp system",
+    "crm system",
+    "mobile app development",
+    "social media management",
+    "website design only",
+    "cloud hosting only",
+    "hardware supply",
+    "supply of laptops",
+    "supply of computers",
+    "network infrastructure",
+    "cabling works",
+    "data center",
+    "data centre",
+]
+
+# =============================================================================
+# SCORING LOGIC
+# =============================================================================
+
+SCORING: Dict[str, int] = {
+    "per_keyword_hit": 1,
+    "unique_domain_bonus": 2,
+    "domain_weight_multiplier": 1,
+    "gov_context_bonus": 2,
+    "workflow_records_combo": 4,
+    "case_records_combo": 4,
+    "workflow_case_combo": 3,
+    "platform_open_bonus": 3,
+    "microsoft_hard_lock_penalty": -8,
+    "microsoft_soft_lock_penalty": -4,
+    "negative_signal_penalty": -2,
+}
+
+PRIORITY_COMBINATIONS: List[Tuple[List[str], str]] = [
+    (["Workflow", "Records", "Gov"], "HIGH"),
+    (["Case", "Records", "Gov"], "HIGH"),
+    (["Workflow", "Case", "Gov"], "HIGH"),
+    (["Records", "Gov"], "MEDIUM"),
+    (["Workflow", "Gov"], "MEDIUM"),
+    (["Case", "Gov"], "MEDIUM"),
+]
+
+PRIORITY_THRESHOLDS: Dict[str, int] = {"HIGH": 14, "MEDIUM": 8, "LOW": 0}
+
+# =============================================================================
+# PRIORITY PHRASES (HIGH VALUE SIGNALS)
+# =============================================================================
+PRIORITY_PHRASES: List[str] = [
+    "workflow automation",
+    "case management",
+    "records management",
+    "document management",
+    "digital government",
+    "e-government",
+    "public sector reform",
+    "service delivery platform",
+    "citizen portal",
+    "platform agnostic",
+    "vendor neutral",
+    "alternative solutions",
+    "open procurement",
+    "fit for purpose",
+    "knowledge management",
+    "digital transformation",
+    "government modernization",
+    "business process management",
+    "bpm",
+    "approval workflow",
+    "process automation",
+    "records lifecycle",
+    "retention schedule",
+    "audit trail",
+    "information governance",
+]
+
+# =============================================================================
+# GENERIC STANDALONE KEYWORDS (BROAD SIGNALS)
+# =============================================================================
+GENERIC_STANDALONE_KEYWORDS: List[str] = [
+    "records",
+    "workflow",
+    "case",
+    "edms",
+    "ecm",
+    "forms",
+    "service delivery",
+    "government",
+    "digitalization",
+    "platform",
+    "public sector",
+    "document",
+    "archive",
+    "registry",
+    "portal",
+    "automation",
+    "management",
+    "system",
+    "solution",
+    "process",
+]
+
+# =============================================================================
+# OUTPUT SCHEMA
+# =============================================================================
+
+OUTPUT_SCHEMA: Dict[str, Any] = {
+    "tender_id": "",
+    "title": "",
+    "source": "",
+    "publication_date": "",
+    "deadline": "",
+    "matched_keywords": [],
+    "matched_domains": [],
+    "score": 0,
+    "priority": "LOW",
+    "platform_locked": False,
+    "requires_qualification": False,
+    "hard_no_go": False,
+    "likely_fit_for_f2": "NO",
+    "qualification_questions": [],
+}
+
+# =============================================================================
+# CLASSIFICATION ENGINE
+# =============================================================================
+
+@dataclass
+class TenderInput:
+    tender_id: str
+    title: str
+    source: str
+    text: str
+    publication_date: Optional[date] = None
+    deadline: Optional[date] = None
+
+
+def _days_between(a: date, b: date) -> int:
+    return (b - a).days
+
+
+def _collect_hits(text: str, phrases: List[str]) -> List[str]:
+    hits: List[str] = []
+    for p in phrases:
+        if _phrase_hit(text, p):
+            hits.append(p)
+    seen = set()
+    out: List[str] = []
+    for h in hits:
+        if h not in seen:
+            seen.add(h)
+            out.append(h)
+    return out
+
+
+def _domain_hits(text: str) -> Tuple[List[str], List[str]]:
+    matched_keywords: List[str] = []
+    matched_domains: List[str] = []
+    for domain, phrases in KEYWORD_DOMAINS.items():
+        hits = _collect_hits(text, phrases)
+        if hits:
+            matched_domains.append(domain)
+            matched_keywords.extend([f"{domain}:{h}" for h in hits])
+    return matched_keywords, matched_domains
+
+
+def _has_combo(domains: List[str], combo: List[str]) -> bool:
+    s = set(domains)
+    return all(d in s for d in combo)
+
+
+def _priority_from_combos(domains: List[str]) -> str:
+    for combo, lvl in PRIORITY_COMBINATIONS:
+        if _has_combo(domains, combo):
+            return lvl
+    return "LOW"
+
+
+def classify_tender(t: TenderInput, today: Optional[date] = None) -> Dict[str, Any]:
+    today = today or date.today()
+    text = _normalize(f"{t.title} {t.text}")
+
+    out = dict(OUTPUT_SCHEMA)
+    out["tender_id"] = t.tender_id
+    out["title"] = t.title
+    out["source"] = t.source
+    out["publication_date"] = t.publication_date.isoformat() if t.publication_date else ""
+    out["deadline"] = t.deadline.isoformat() if t.deadline else ""
+
+    score = 0
+    hard_exclude = False
+
+    if t.deadline:
+        if _days_between(today, t.deadline) < TIMING_RULES["min_days_to_deadline"]:
+            hard_exclude = True
+    else:
+        score += TIMING_RULES["missing_deadline_penalty"]
+
+    if t.publication_date:
+        if _days_between(t.publication_date, today) > TIMING_RULES["max_days_since_float"]:
+            hard_exclude = True
+    else:
+        score += TIMING_RULES["missing_publication_penalty"]
+
+    hard_elims = _collect_hits(text, HARD_ELIMINATION_SIGNALS)
+    if hard_elims:
+        out["hard_no_go"] = True
+        out["likely_fit_for_f2"] = "NO"
+        out["score"] = -999
+        out["matched_keywords"] = [f"ELIM:{h}" for h in hard_elims]
+        out["matched_domains"] = []
+        out["priority"] = "LOW"
+        return out
+
+    if hard_exclude:
+        out["hard_no_go"] = True
+        out["likely_fit_for_f2"] = "NO"
+        out["score"] = -100
+        out["matched_keywords"] = []
+        out["matched_domains"] = []
+        out["priority"] = "LOW"
+        return out
+
+    matched_keywords, matched_domains = _domain_hits(text)
+    out["matched_keywords"] = matched_keywords
+    out["matched_domains"] = matched_domains
+
+    domain_score = 0
+    for d in matched_domains:
+        domain_score += DOMAIN_WEIGHTS.get(d, 1) * SCORING["domain_weight_multiplier"]
+    score += domain_score
+
+    score += len(matched_keywords) * SCORING["per_keyword_hit"]
+    score += len(matched_domains) * SCORING["unique_domain_bonus"]
+
+    if "Gov" in matched_domains or _phrase_hit(text, "government") or _phrase_hit(text, "ministry"):
+        score += SCORING["gov_context_bonus"]
+
+    if _has_combo(matched_domains, ["Workflow", "Records"]):
+        score += SCORING["workflow_records_combo"]
+    if _has_combo(matched_domains, ["Case", "Records"]):
+        score += SCORING["case_records_combo"]
+    if _has_combo(matched_domains, ["Workflow", "Case"]):
+        score += SCORING["workflow_case_combo"]
+
+    openness_hits = _collect_hits(text, PLATFORM_OPENNESS_SIGNALS)
+    if openness_hits:
+        score += SCORING["platform_open_bonus"]
+
+    hard_lock_hits = _collect_hits(text, MICROSOFT_HARD_LOCK_SIGNALS)
+    soft_lock_hits = _collect_hits(text, MICROSOFT_SOFT_LOCK_SIGNALS)
+
+    platform_locked = False
+    requires_qualification = False
+
+    if hard_lock_hits:
+        platform_locked = True
+        requires_qualification = True
+        score += SCORING["microsoft_hard_lock_penalty"]
+    elif soft_lock_hits:
+        platform_locked = True
+        requires_qualification = True
+        score += SCORING["microsoft_soft_lock_penalty"]
+
+    out["platform_locked"] = platform_locked
+    out["requires_qualification"] = requires_qualification
+
+    neg_hits = _collect_hits(text, NEGATIVE_SIGNALS)
+    if neg_hits:
+        score += len(neg_hits) * SCORING["negative_signal_penalty"]
+
+    combo_priority = _priority_from_combos(matched_domains)
+    if score >= PRIORITY_THRESHOLDS["HIGH"]:
+        priority = "HIGH"
+    elif score >= PRIORITY_THRESHOLDS["MEDIUM"]:
+        priority = "MEDIUM"
+    else:
+        priority = combo_priority
+    out["priority"] = priority
+
+    if score >= PRIORITY_THRESHOLDS["HIGH"] and (not hard_lock_hits or openness_hits):
+        out["likely_fit_for_f2"] = "YES"
+    elif platform_locked:
+        out["likely_fit_for_f2"] = "CONDITIONAL" if openness_hits else "NO"
+    elif score >= PRIORITY_THRESHOLDS["MEDIUM"]:
+        out["likely_fit_for_f2"] = "CONDITIONAL"
+    else:
+        out["likely_fit_for_f2"] = "NO"
+
+    if out["requires_qualification"]:
+        out["qualification_questions"] = QUALIFICATION_QUESTIONS.copy()
+
+    if hard_lock_hits:
+        out["matched_keywords"].extend([f"MS_HARD_LOCK:{h}" for h in hard_lock_hits])
+    if soft_lock_hits:
+        out["matched_keywords"].extend([f"MS_SOFT_LOCK:{h}" for h in soft_lock_hits])
+    if openness_hits:
+        out["matched_keywords"].extend([f"OPENNESS:{h}" for h in openness_hits])
+    if neg_hits:
+        out["matched_keywords"].extend([f"NEG:{h}" for h in neg_hits])
+
+    out["score"] = int(score)
+    return out

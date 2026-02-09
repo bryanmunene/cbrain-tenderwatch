@@ -1,6 +1,6 @@
 from collections import defaultdict
 import re
-from app.keywords import KEYWORD_GROUPS
+from app.keywords import KEYWORD_DOMAINS
 
 # --------------------------------------------------
 # MAIN CATEGORIZATION FUNCTION
@@ -8,7 +8,7 @@ from app.keywords import KEYWORD_GROUPS
 
 def categorize(title: str, text: str = "", source_name: str | None = None):
     """
-    Categorize tenders based on keywords from KEYWORD_GROUPS.
+    Categorize tenders based on keywords from KEYWORD_DOMAINS.
     Uses multi-word keyword matching for better accuracy.
     Prioritizes category with most keyword matches + multi-word bonus.
     """
@@ -20,7 +20,7 @@ def categorize(title: str, text: str = "", source_name: str | None = None):
 
     # Score each category based on keyword matches
     # Prioritize longer (more specific) keywords to avoid generic matches
-    for category, keywords in KEYWORD_GROUPS.items():
+    for category, keywords in KEYWORD_DOMAINS.items():
         # Sort by length (longest first) for better multi-word matching
         sorted_keywords = sorted(keywords, key=len, reverse=True)
         

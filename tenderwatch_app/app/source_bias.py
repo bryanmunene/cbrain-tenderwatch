@@ -42,6 +42,26 @@ SOURCE_BIAS = {
     "nigeria": 4,
     "ghana": 4,
     "south africa": 4,
+    "ketraco": 10,  # Kenya Electricity Transmission Company
+    "kemsa": 10,    # Kenya Medical Supplies Authority
+    "kpa": 10,      # Kenya Ports Authority
+    "nema": 10,     # National Environment Management Authority
+    "cak": 10,      # Competition Authority of Kenya
+    "ict authority": 10,
+    "cbk": 10,      # Central Bank of Kenya
+    "kenha": 10,    # Kenya National Highways Authority
+    "kura": 10,     # Kenya Urban Roads Authority
+    "knh": 10,      # Kenyatta National Hospital
+    "mtrh": 10,     # Moi Teaching & Referral Hospital
+    "uon": 10,      # University of Nairobi
+    "ku": 10,       # Kenyatta University
+    "jkuat": 10,    # Jomo Kenyatta University of Agriculture & Technology
+    "moi university": 10,
+    "nairobi county": 10,
+    "mombasa county": 10,
+    "kisumu county": 10,
+    "nakuru county": 10,
+    "kiambu county": 10,
 }
 
 # Country mapping for source name -> country
@@ -77,3 +97,26 @@ COUNTRY_MAP = {
     "afdb": "Global",
     "un": "Global",
 }
+
+COUNTRY_MAP.update({
+    "ketraco": "Kenya",
+    "kemsa": "Kenya",
+    "kpa": "Kenya",
+    "nema": "Kenya",
+    "cak": "Kenya",
+    "ict authority": "Kenya",
+    "cbk": "Kenya",
+    "kenha": "Kenya",
+    "kura": "Kenya",
+    "knh": "Kenya",
+    "mtrh": "Kenya",
+    "uon": "Kenya",
+    "ku": "Kenya",
+    "jkuat": "Kenya",
+    "moi university": "Kenya",
+    "nairobi county": "Kenya",
+    "mombasa county": "Kenya",
+    "kisumu county": "Kenya",
+    "nakuru county": "Kenya",
+    "kiambu county": "Kenya",
+})
