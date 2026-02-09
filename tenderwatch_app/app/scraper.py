@@ -1,4 +1,5 @@
 ﻿import requests
+import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime, timedelta
@@ -95,6 +96,18 @@ def scan_source(source: TenderSource, app):
             "request for proposal", "request for quotation", "expression of interest",
             "eoi", "notice of", "call for", "solicitation",
         ]
+        url_terms = [
+            "tender", "tenders", "procurement", "bid", "bids", "rfp", "rfq",
+            "solicitation", "notice", "notices", "opportunity", "opportunities",
+            "contract", "contracts", "purchase", "tender-detail", "bid-detail",
+        ]
+        detail_url_terms = [
+            "/tender/", "/tenders/", "/procurement/", "/opportunity/", "/opportunities/",
+            "/notice/", "/notices/", "/bid/", "/bids/", "/solicitation/",
+            "tender-detail", "bid-detail", "/detail", "/document/", "/docs/", "/download/",
+            "rfp", "rfq",
+        ]
+        ref_code = re.compile(r"\b[A-Z]{2,}[-/ ]?\d{2,}\b")
         ref_terms = [
             "ref", "reference", "ref.", "tender no", "rfp no", "rfq no",
             "procurement ref", "bid no", "request no",
@@ -120,8 +133,19 @@ def scan_source(source: TenderSource, app):
             if link in existing or link in seen:
                 continue
 
-            title = a.get_text(" ", strip=True)
-            if not title or len(title) < 12:
+            raw_title = a.get_text(" ", strip=True)
+            parent_text = a.parent.get_text(" ", strip=True) if a.parent else ""
+            aria_title = a.get("title", "") or a.get("aria-label", "")
+            context_text = " ".join([raw_title, aria_title, parent_text]).strip()
+
+            if not context_text:
+                continue
+
+            # If the anchor text is too short (e.g., "View", "Details"), fall back to row text.
+            title = raw_title
+            if not title or len(title) < 8:
+                title = parent_text if len(parent_text) >= 20 else raw_title
+            if not title or len(title) < 8:
                 continue
 
             lower_title = title.lower()
@@ -130,19 +154,24 @@ def scan_source(source: TenderSource, app):
             if any(pat in lower_title for pat in nav_patterns):
                 continue
 
-            parent_text = a.parent.get_text(" ", strip=True) if a.parent else ""
             description = parent_text if parent_text and parent_text != title else ""
-            combined = f"{title} {description}".strip()
+            combined = f"{title} {description} {aria_title}".strip()
 
             combined_lower = combined.lower()
-            if not any(term in combined_lower for term in tender_terms):
-                continue
+            link_lower = link.lower()
+            has_tender_term = any(term in combined_lower for term in tender_terms)
+            has_url_term = any(term in link_lower for term in url_terms)
+            has_detail_url = any(term in link_lower for term in detail_url_terms)
 
             deadline = parse_deadline(combined)
             has_ref = any(term in combined_lower for term in ref_terms) or any(ch.isdigit() for ch in lower_title)
             has_date_hint = any(term in combined_lower for term in date_terms)
-            if not deadline and not (has_ref and has_date_hint):
-                # Skip generic listing pages without tender-specific signals.
+            has_ref_code = bool(ref_code.search(combined))
+
+            if not (has_tender_term or has_detail_url or has_ref_code or deadline):
+                continue
+            if not deadline and not has_ref_code and not has_detail_url and not (has_ref and has_date_hint):
+                # Skip generic listings without concrete tender signals.
                 continue
             if deadline and not is_deadline_valid(deadline):
                 continue
