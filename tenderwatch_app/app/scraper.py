@@ -120,6 +120,18 @@ def scan_source(source: TenderSource, app):
             "tenders", "tender", "global tenders", "govt tenders", "government tenders",
             "tenders country", "tender notices", "procurement notices", "opportunities",
         }
+        closed_hints = [
+            "awarded", "award", "awarding", "award notice", "contract award",
+            "winner", "winners", "successful bidder", "successful bidders",
+            "evaluation", "evaluated", "results", "result", "list of awardees",
+            "notice of award", "award of tender", "tender results",
+        ]
+        core_f2_terms = [
+            "document management", "records management", "edms", "edrms", "ecm",
+            "case management", "workflow", "workflow automation", "process automation", "bpm",
+            "paperless", "digital transformation", "digitalization", "digital government",
+            "e-government", "e-governance", "citizen portal", "e-services",
+        ]
 
         for a in soup.find_all("a", href=True):
             href = a.get("href", "").strip()
@@ -162,6 +174,10 @@ def scan_source(source: TenderSource, app):
             has_tender_term = any(term in combined_lower for term in tender_terms)
             has_url_term = any(term in link_lower for term in url_terms)
             has_detail_url = any(term in link_lower for term in detail_url_terms)
+            has_closed_hint = any(term in combined_lower for term in closed_hints) or any(
+                term in link_lower for term in closed_hints
+            )
+            is_pdf = link_lower.endswith(".pdf")
 
             deadline = parse_deadline(combined)
             has_ref = any(term in combined_lower for term in ref_terms) or any(ch.isdigit() for ch in lower_title)
@@ -173,6 +189,12 @@ def scan_source(source: TenderSource, app):
             if not deadline and not has_ref_code and not has_detail_url and not (has_ref and has_date_hint):
                 # Skip generic listings without concrete tender signals.
                 continue
+            if has_closed_hint:
+                # Skip award/results and already-closed material.
+                continue
+            if is_pdf and not deadline and not has_ref_code and not has_detail_url:
+                # Avoid dumping generic PDFs without tender-specific signals.
+                continue
             if deadline and not is_deadline_valid(deadline):
                 continue
 
@@ -181,6 +203,11 @@ def scan_source(source: TenderSource, app):
                 breakdown = json_lib.loads(scoring_breakdown)
             except Exception:
                 breakdown = {}
+            keywords_found = breakdown.get("keywords_found", 0)
+            has_core_f2 = any(term in combined_lower for term in core_f2_terms)
+            if keywords_found == 0 and not has_core_f2:
+                # Enforce F2 relevance (no keywords matched).
+                continue
 
             bonus = _source_bias_bonus(source.name, link)
             if bonus:
