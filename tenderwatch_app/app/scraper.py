@@ -95,6 +95,18 @@ def scan_source(source: TenderSource, app):
             "request for proposal", "request for quotation", "expression of interest",
             "eoi", "notice of", "call for", "solicitation",
         ]
+        ref_terms = [
+            "ref", "reference", "ref.", "tender no", "rfp no", "rfq no",
+            "procurement ref", "bid no", "request no",
+        ]
+        date_terms = [
+            "deadline", "closing date", "submission deadline", "due date",
+            "closing time", "submission date", "posted", "published",
+        ]
+        generic_titles = {
+            "tenders", "tender", "global tenders", "govt tenders", "government tenders",
+            "tenders country", "tender notices", "procurement notices", "opportunities",
+        }
 
         for a in soup.find_all("a", href=True):
             href = a.get("href", "").strip()
@@ -109,10 +121,12 @@ def scan_source(source: TenderSource, app):
                 continue
 
             title = a.get_text(" ", strip=True)
-            if not title or len(title) < 6:
+            if not title or len(title) < 12:
                 continue
 
             lower_title = title.lower()
+            if lower_title.strip() in generic_titles:
+                continue
             if any(pat in lower_title for pat in nav_patterns):
                 continue
 
@@ -120,10 +134,16 @@ def scan_source(source: TenderSource, app):
             description = parent_text if parent_text and parent_text != title else ""
             combined = f"{title} {description}".strip()
 
-            if not any(term in combined.lower() for term in tender_terms):
+            combined_lower = combined.lower()
+            if not any(term in combined_lower for term in tender_terms):
                 continue
 
             deadline = parse_deadline(combined)
+            has_ref = any(term in combined_lower for term in ref_terms) or any(ch.isdigit() for ch in lower_title)
+            has_date_hint = any(term in combined_lower for term in date_terms)
+            if not deadline and not (has_ref and has_date_hint):
+                # Skip generic listing pages without tender-specific signals.
+                continue
             if deadline and not is_deadline_valid(deadline):
                 continue
 
