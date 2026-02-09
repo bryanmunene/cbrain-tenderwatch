@@ -610,8 +610,12 @@ def _has_combo(domains: List[str], combo: List[str]) -> bool:
 
 
 def _priority_from_combos(domains: List[str]) -> str:
-    for combo, lvl in PRIORITY_COMBINATIONS:
-        if _has_combo(domains, combo):
+    for item in PRIORITY_COMBINATIONS:
+        if not isinstance(item, (list, tuple)) or len(item) < 2:
+            continue
+        combo = item[0]
+        lvl = item[1] if len(item) >= 2 else "LOW"
+        if isinstance(combo, (list, tuple)) and _has_combo(domains, list(combo)):
             return lvl
     return "LOW"
 

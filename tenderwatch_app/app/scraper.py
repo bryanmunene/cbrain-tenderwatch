@@ -52,6 +52,28 @@ CLOSED_HINTS = [
     "notice of award", "award of tender", "tender results",
 ]
 
+GENERIC_TITLE_PATTERNS = [
+    "global tenders",
+    "govt tenders",
+    "government tenders",
+    "tenders country",
+    "tender notices",
+    "procurement notices",
+    "view tender",
+    "view details",
+]
+
+F2_INTENT_TERMS = [
+    "document management", "records management", "edms", "edrms",
+    "enterprise content management", "ecm", "workflow", "workflow automation",
+    "business process management", "bpm", "case management", "complaint management",
+    "grievance", "e-filing", "electronic filing", "registry management",
+    "digital transformation", "paperless", "digital government", "e-government",
+    "citizen portal", "service delivery platform",
+]
+
+MIN_RELEVANCE_SCORE = 14
+
 
 def _utcnow():
     # Keep naive UTC to match DB columns while avoiding utcnow() deprecation.
@@ -85,6 +107,33 @@ def _is_closed_award(text: str) -> bool:
         return False
     t = text.lower()
     return any(hint in t for hint in CLOSED_HINTS)
+
+
+def _clean_title(raw: str) -> str:
+    title = (raw or "").strip()
+    if not title:
+        return ""
+    # Remove metadata tails commonly concatenated on listing cards.
+    title = re.split(
+        r"\b(?:ref(?:erence)?(?:\s*no\.?)?|deadline|posted|country|office|process)\b",
+        title,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0].strip(" -:|")
+    title = re.sub(r"\s+", " ", title).strip()
+    return title
+
+
+def _is_generic_title(title: str) -> bool:
+    t = (title or "").lower().strip()
+    if not t:
+        return True
+    return any(pat in t for pat in GENERIC_TITLE_PATTERNS)
+
+
+def _has_f2_intent(text: str) -> bool:
+    t = (text or "").lower()
+    return any(term in t for term in F2_INTENT_TERMS)
 
 
 def _pdf_text_from_url(url: str) -> str:
@@ -240,20 +289,21 @@ def scan_source(source: TenderSource, app, existing_links=None):
                     continue
 
                 # If the anchor text is too short (e.g., "View", "Details"), fall back to row text.
-                title = raw_title
+                title = _clean_title(raw_title)
                 if not title or len(title) < 8:
-                    title = parent_text if len(parent_text) >= 20 else raw_title
+                    title = _clean_title(parent_text if len(parent_text) >= 20 else raw_title)
                 if not title or len(title) < 8:
                     continue
 
                 lower_title = title.lower()
-                if lower_title.strip() in generic_titles:
+                if lower_title.strip() in generic_titles or _is_generic_title(lower_title):
                     continue
                 if any(pat in lower_title for pat in nav_patterns):
                     continue
 
                 description = parent_text if parent_text and parent_text != title else ""
-                combined = f"{title} {description} {aria_title}".strip()
+                base_combined = f"{title} {description} {aria_title}".strip()
+                combined = base_combined
 
                 combined_lower = combined.lower()
                 link_lower = link.lower()
@@ -300,7 +350,20 @@ def scan_source(source: TenderSource, app, existing_links=None):
                     breakdown = json_lib.loads(scoring_breakdown)
                 except Exception:
                     breakdown = {}
-                # Do not hard-drop on F2 keywords; keep for ranking/filtering in UI.
+                keywords_found = int(breakdown.get("keywords_found", 0) or 0)
+                domains_matched = breakdown.get("domains_matched", []) or []
+                likely_fit = breakdown.get("likely_fit_for_F2", "uncertain")
+                procurement_status = breakdown.get("procurement_status", "open")
+
+                # Hard relevance gates to avoid generic/non-F2 results flooding UI.
+                if score <= 0 or keywords_found == 0:
+                    continue
+                if likely_fit in {"excluded", "no-go"}:
+                    continue
+                if procurement_status in {"locked", "conditional_nogo"} and not source.favorite:
+                    continue
+                if not _has_f2_intent(base_combined) and len(domains_matched) < 2 and score < MIN_RELEVANCE_SCORE:
+                    continue
 
                 bonus = _source_bias_bonus(source.name, link)
                 if bonus:
@@ -348,8 +411,8 @@ def scan_source(source: TenderSource, app, existing_links=None):
                 db.session.add(tender)
                 new_tenders.append(tender)
                 seen.add(link)
-            except Exception as e:
-                logger.debug("Skipping link from %s due to error: %s", source.name, str(e)[:120])
+            except Exception:
+                logger.exception("Skipping link from %s due to parsing error", source.name)
                 continue
 
         if new_tenders:

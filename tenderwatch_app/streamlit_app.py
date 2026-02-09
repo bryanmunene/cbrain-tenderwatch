@@ -9,6 +9,7 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import pandas as pd
 import streamlit as st
@@ -255,7 +256,17 @@ def _utcnow():
 
 
 def _canonicalize_url(url: str) -> str:
-    return (url or "").strip().rstrip("/")
+    raw = (url or "").strip()
+    if not raw:
+        return ""
+    try:
+        parts = urlsplit(raw)
+        scheme = (parts.scheme or "https").lower()
+        netloc = parts.netloc.lower()
+        path = parts.path.rstrip("/")
+        return urlunsplit((scheme, netloc, path, "", ""))
+    except Exception:
+        return raw.rstrip("/").lower()
 
 def init_db(perform_translation=False):
     """Initialize database with app context"""
@@ -273,6 +284,7 @@ def init_db(perform_translation=False):
             ("UNESCO Procurement", "https://en.unesco.org/procurement", False),
             ("FAO Procurement", "https://www.fao.org/unfao/procurement/", False),
             ("UNHCR Procurement", "https://www.unhcr.org/procurement", False),
+            ("UN Secretariat Procurement", "https://www.un.org/Depts/ptd/business-opportunities", False),
             
             # Development Banks / IFIs (Global)
             ("World Bank Procurement", "https://projects.worldbank.org/en/projects-operations/procurement", True),
@@ -321,6 +333,7 @@ def init_db(perform_translation=False):
             # International Organizations
             ("NATO Procurement", "https://www.nspa.nato.int/business", False),
             ("Commonwealth Secretariat", "https://thecommonwealth.org/procurement", False),
+            ("African Union Procurement", "https://au.int/en/bids", True),
             
             # Tender Aggregators (useful as discovery, lower priority)
             ("DgMarket", "https://www.dgmarket.com/", False),
@@ -365,6 +378,13 @@ def init_db(perform_translation=False):
             ("MyGov Kenya", "https://www.mygov.go.ke/?s=tender", True),
             ("Tendersinfo Kenya", "https://www.tendersinfo.com/global-kenya-tenders.php", False),
         ]
+        low_signal_sources = {
+            "Global Tenders",
+            "DgMarket",
+            "Tendersinfo Kenya",
+            "BidDetail",
+            "UNOPS Jobs (may have procurement)",
+        }
         
         # Add missing sources (check by URL to avoid duplicates)
         existing_urls = {_canonicalize_url(s.url) for s in TenderSource.query.all()}
@@ -378,6 +398,16 @@ def init_db(perform_translation=False):
         if added_count > 0:
             db.session.commit()
             print(f"âœ… Added {added_count} new tender sources")
+
+        # Keep noisy aggregators available, but disabled by default.
+        disabled_count = 0
+        for source in TenderSource.query.all():
+            if source.name in low_signal_sources and source.active and not source.favorite:
+                source.active = False
+                disabled_count += 1
+        if disabled_count > 0:
+            db.session.commit()
+            print(f"Disabled {disabled_count} low-signal sources by default")
         
         # Optional translation pass (throttled by caller).
         if perform_translation:
@@ -437,12 +467,13 @@ def bootstrap_once():
     st.session_state["bootstrap_done"] = True
 
 
-def get_tenders(filters=None):
-    """Get tenders with optional filters - only from last month"""
+def get_tenders(filters=None, days_window=30):
+    """Get tenders with optional filters."""
     with app.app_context():
-        # Filter tenders from last month only
-        one_month_ago = _utcnow() - timedelta(days=30)
-        query = TenderResult.query.filter(TenderResult.created_at >= one_month_ago)
+        query = TenderResult.query
+        if days_window is not None:
+            since = _utcnow() - timedelta(days=days_window)
+            query = query.filter(TenderResult.created_at >= since)
         
         if filters:
             if filters.get('min_score'):
@@ -496,20 +527,46 @@ def get_tenders(filters=None):
 
 
 def get_tenders_with_fallback(filters=None):
-    """Get tenders with F2-only fallback to all results if empty."""
+    """Get tenders with progressive fallback when strict filters return nothing."""
     if not filters:
-        return get_tenders(), True
+        return get_tenders(), True, ""
 
     if not filters.get('f2_only'):
-        return get_tenders(filters), False
+        base = get_tenders(filters)
+        if base:
+            return base, False, ""
+
+        if filters.get("open_only"):
+            relaxed = dict(filters)
+            relaxed["open_only"] = False
+            widened = get_tenders(relaxed)
+            if widened:
+                return widened, False, "No open tenders matched. Showing locked/conditional opportunities too."
+        anytime = get_tenders(filters, days_window=None)
+        if anytime:
+            return anytime, False, "No tenders matched in the last 30 days. Showing historical matches."
+        return base, False, ""
 
     filtered = get_tenders(filters)
     if filtered:
-        return filtered, True
+        return filtered, True, ""
 
     relaxed = dict(filters)
     relaxed['f2_only'] = False
-    return get_tenders(relaxed), False
+    widened = get_tenders(relaxed)
+    if widened:
+        return widened, False, "F2-only returned 0 results. Showing all tenders."
+
+    if relaxed.get("open_only"):
+        relaxed["open_only"] = False
+        widest = get_tenders(relaxed)
+        if widest:
+            return widest, False, "No open F2 tenders found. Showing all statuses."
+
+    anytime = get_tenders(relaxed, days_window=None)
+    if anytime:
+        return anytime, False, "No tenders matched in the last 30 days. Showing historical matches."
+    return widened, False, "No tenders matched current filters."
 
 def get_sources():
     """Get all tender sources"""
@@ -995,9 +1052,11 @@ elif page == "ðŸ” Scan & Results":
             'open_only': open_only,
         }
     
-        tenders, applied_f2_only = get_tenders_with_fallback(filters)
-    
-        if f2_only and not applied_f2_only:
+        tenders, applied_f2_only, fallback_message = get_tenders_with_fallback(filters)
+
+        if fallback_message:
+            st.warning(fallback_message)
+        elif f2_only and not applied_f2_only:
             st.warning("F2-only filter returned 0 results. Showing all tenders instead.")
         st.markdown(f"**{len(tenders)} tenders found**")
         st.markdown("---")
