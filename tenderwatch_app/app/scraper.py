@@ -73,7 +73,7 @@ def cleanup_old_tenders():
         print("âœ… No old tenders to remove")
 
 
-def run_scan():
+def run_scan(flask_app=None):
     """
     Scan sources for tenders and return newly added tenders.
     OPTIMIZED: Uses parallel scanning with 15 workers for faster scans.
@@ -97,12 +97,15 @@ def run_scan():
     
     all_new_tenders = []
     
-    # Scan sources in PARALLEL (15 workers for maximum speed)
+    # Resolve Flask app (Streamlit passes it explicitly).
+    if flask_app is None:
+        flask_app = current_app._get_current_object()
+
+    # Scan sources in parallel.
     if sources:
         print(f"\nðŸš€ FAST PARALLEL scan: {len(sources)} sources with 15 workers...")
         
         with ThreadPoolExecutor(max_workers=15) as executor:
-            flask_app = current_app._get_current_object()
             future_to_source = {executor.submit(scan_source, src, flask_app): src for src in sources}
             
             completed = 0
@@ -127,10 +130,9 @@ def run_scan():
     # Send push notifications for new high-score tenders
     if all_new_tenders:
         try:
-            from flask import current_app
             from app.push_notifications import PushNotificationService
             
-            push_service = PushNotificationService(current_app._get_current_object())
+            push_service = PushNotificationService(flask_app)
             push_service.notify_new_tenders(all_new_tenders)
         except Exception as e:
             print(f"âš ï¸ Push notification failed: {e}")
