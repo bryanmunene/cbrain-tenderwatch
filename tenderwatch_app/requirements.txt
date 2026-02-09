@@ -14,6 +14,7 @@ gunicorn>=21.0.0
 streamlit>=1.30.0
 pandas>=2.0.0
 pywebpush>=2.2.0
+pypdf>=4.0.0
 
 # AI/ML Libraries
 sentence-transformers>=2.2.0

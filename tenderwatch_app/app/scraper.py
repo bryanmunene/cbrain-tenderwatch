@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from datetime import datetime, timedelta
 import logging
+from io import BytesIO
 from flask import current_app
 
 
@@ -26,6 +27,22 @@ logger = logging.getLogger(__name__)
 
 # Reduced timeout for faster scans
 HTTP_TIMEOUT = 5  # seconds (was 30, then 10)
+PDF_MAX_BYTES = 2_500_000  # 2.5 MB
+PDF_MAX_PAGES = 2
+
+# Prefer PDF parsing for these high-signal sources (plus any favorites).
+PDF_SOURCE_ALLOW = {
+    "KAA Procurement",
+    "KEMSA Tenders",
+    "KENHA Tenders",
+    "KRA Tenders",
+    "Kenya Power Tenders",
+    "KEBS Tenders",
+    "ICT Authority",
+    "CBK Tenders",
+    "Kenya Railways",
+    "KPA Tenders",
+}
 
 CLOSED_HINTS = [
     "awarded", "award", "awarding", "award notice", "contract award",
@@ -70,6 +87,43 @@ def _is_closed_award(text: str) -> bool:
         return False
     t = text.lower()
     return any(hint in t for hint in CLOSED_HINTS)
+
+
+def _pdf_text_from_url(url: str) -> str:
+    try:
+        head = requests.head(url, timeout=HTTP_TIMEOUT, allow_redirects=True)
+        if "pdf" not in (head.headers.get("Content-Type", "") or "").lower():
+            # Not a PDF (or server doesn't say) - still try cautiously.
+            pass
+        content_length = head.headers.get("Content-Length")
+        if content_length and int(content_length) > PDF_MAX_BYTES:
+            return ""
+    except Exception:
+        # HEAD often fails on some servers; fall back to GET.
+        pass
+
+    try:
+        r = requests.get(url, timeout=HTTP_TIMEOUT, stream=True)
+        r.raise_for_status()
+        data = r.raw.read(PDF_MAX_BYTES + 1)
+        if len(data) > PDF_MAX_BYTES:
+            return ""
+        try:
+            from pypdf import PdfReader
+        except Exception:
+            return ""
+        reader = PdfReader(BytesIO(data))
+        text_chunks = []
+        for page in reader.pages[:PDF_MAX_PAGES]:
+            try:
+                page_text = page.extract_text() or ""
+            except Exception:
+                page_text = ""
+            if page_text:
+                text_chunks.append(page_text)
+        return " ".join(text_chunks)
+    except Exception:
+        return ""
 
 
 def cleanup_irrelevant_tenders():
@@ -206,13 +260,24 @@ def scan_source(source: TenderSource, app):
 
                 combined_lower = combined.lower()
                 link_lower = link.lower()
+                is_pdf = link_lower.endswith(".pdf")
+                allow_pdf = source.favorite or source.name in PDF_SOURCE_ALLOW
+                if is_pdf and allow_pdf:
+                    pdf_text = _pdf_text_from_url(link)
+                    if pdf_text:
+                        combined = f"{combined} {pdf_text}".strip()
+                        combined_lower = combined.lower()
+                        # If title is generic, try to pull a better title from PDF text.
+                        if len(title) < 20:
+                            title = pdf_text.strip().split("\n")[0][:200] or title
+                            lower_title = title.lower()
+
                 has_tender_term = any(term in combined_lower for term in tender_terms)
                 has_url_term = any(term in link_lower for term in url_terms)
                 has_detail_url = any(term in link_lower for term in detail_url_terms)
                 has_closed_hint = any(term in combined_lower for term in closed_hints) or any(
                     term in link_lower for term in closed_hints
                 )
-                is_pdf = link_lower.endswith(".pdf")
 
                 deadline = parse_deadline(combined)
                 has_ref = any(term in combined_lower for term in ref_terms) or any(ch.isdigit() for ch in lower_title)
