@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 MONTHS = {
     "jan":1,"feb":2,"mar":3,"apr":4,"may":5,"jun":6,
@@ -9,7 +9,7 @@ MONTHS = {
 
 def _utcnow():
     # Keep naive UTC for compatibility with existing DB datetime usage.
-    return datetime.now(datetime.UTC).replace(tzinfo=None)
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 def parse_deadline(text: str):
     if not text:

@@ -2,7 +2,7 @@
 import re
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 from io import BytesIO
 from flask import current_app
@@ -55,7 +55,7 @@ CLOSED_HINTS = [
 
 def _utcnow():
     # Keep naive UTC to match DB columns while avoiding utcnow() deprecation.
-    return datetime.now(datetime.UTC).replace(tzinfo=None)
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 def _source_country(source_name: str, url: str):
     haystack = f"{source_name} {url}".lower()

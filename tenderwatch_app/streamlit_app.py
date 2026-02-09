@@ -7,7 +7,7 @@ import json
 import importlib
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -251,7 +251,7 @@ app = get_flask_app()
 
 def _utcnow():
     # Keep naive UTC for DB compatibility while avoiding utcnow() deprecation.
-    return datetime.now(datetime.UTC).replace(tzinfo=None)
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def _canonicalize_url(url: str) -> str:
