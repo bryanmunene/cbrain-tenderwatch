@@ -34,6 +34,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 HTTP_TIMEOUT = 4  # seconds
 PDF_MAX_BYTES = 1_200_000  # 1.2 MB
 PDF_MAX_PAGES = 1
+MAX_ANCHORS_PER_SOURCE = 180
+MAX_NEW_TENDERS_PER_SOURCE = 12
 
 # Prefer PDF parsing for these high-signal sources (plus any favorites).
 PDF_SOURCE_ALLOW = {
@@ -297,7 +299,11 @@ def scan_source(source: TenderSource, app, existing_links=None):
         }
         closed_hints = CLOSED_HINTS
 
-        for a in soup.find_all("a", href=True):
+        for idx, a in enumerate(soup.find_all("a", href=True)):
+            if idx >= MAX_ANCHORS_PER_SOURCE:
+                break
+            if len(new_tenders) >= MAX_NEW_TENDERS_PER_SOURCE:
+                break
             try:
                 href = a.get("href", "").strip()
                 if not href or href.startswith("#") or href.startswith("javascript"):
@@ -539,9 +545,10 @@ def run_scan(flask_app=None, max_sources=15, scan_timeout_seconds=None):
             else:
                 scan_timeout_seconds = max(30, min(90, int(max_sources) * 4))
         
-        with ThreadPoolExecutor(max_workers=15) as executor:
+        executor = ThreadPoolExecutor(max_workers=15)
+        try:
             future_to_source = {executor.submit(scan_source, src, flask_app, existing_links): src for src in sources}
-            
+
             completed = 0
             try:
                 for future in as_completed(future_to_source, timeout=scan_timeout_seconds):
@@ -555,15 +562,19 @@ def run_scan(flask_app=None, max_sources=15, scan_timeout_seconds=None):
                     except Exception as e:
                         print(f" [{completed}/{len(sources)}] {source.name}: {str(e)[:30]}")
             except Exception:
-                # Timeout reached - cancel pending tasks and continue with completed results.
-                for future, source in future_to_source.items():
+                # Timeout reached - return completed results immediately.
+                for future in future_to_source:
                     if not future.done():
                         future.cancel()
                 print(f" Scan timeout reached after {scan_timeout_seconds}s; returning partial results.")
-            print("\n--- SLOW SOURCES REPORT ---")
-            # Print slow sources summary
-            # (Already printed per-source above)
-            print("(Any source above marked  SLOW is a bottleneck)")
+        finally:
+            # Critical: do not wait for hung workers after timeout.
+            executor.shutdown(wait=False, cancel_futures=True)
+
+        print("\n--- SLOW SOURCES REPORT ---")
+        # Print slow sources summary
+        # (Already printed per-source above)
+        print("(Any source above marked  SLOW is a bottleneck)")
     
     elapsed = time.time() - start_time
     print(f" Scan complete in {elapsed:.1f}s! Found {len(all_new_ids)} new tenders.")
