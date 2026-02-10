@@ -63,64 +63,92 @@ if 'theme' not in st.session_state:
 # Professional visual system
 st.markdown(f"""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
     /* Theme Variables */
     :root {{
-        --bg-primary: {'#0f172a' if st.session_state.theme == 'dark' else '#f8fafc'};
-        --bg-secondary: {'#111827' if st.session_state.theme == 'dark' else '#eef2f7'};
-        --text-primary: {'#e5e7eb' if st.session_state.theme == 'dark' else '#0f172a'};
-        --text-secondary: {'#94a3b8' if st.session_state.theme == 'dark' else '#475569'};
-        --border-color: {'#1f2937' if st.session_state.theme == 'dark' else '#dbe2ea'};
-        --card-bg: {'#111827' if st.session_state.theme == 'dark' else '#ffffff'};
-        --accent: {'#3b82f6' if st.session_state.theme == 'dark' else '#1d4ed8'};
+        --bg-primary: {'#091424' if st.session_state.theme == 'dark' else '#f3f6fb'};
+        --bg-secondary: {'#0f1d32' if st.session_state.theme == 'dark' else '#e7edf5'};
+        --text-primary: {'#e7edf7' if st.session_state.theme == 'dark' else '#0d1b2a'};
+        --text-secondary: {'#9fb0c8' if st.session_state.theme == 'dark' else '#4f5f73'};
+        --border-color: {'#21354f' if st.session_state.theme == 'dark' else '#cfd8e5'};
+        --card-bg: {'#102037' if st.session_state.theme == 'dark' else '#ffffff'};
+        --accent: {'#3d8bfd' if st.session_state.theme == 'dark' else '#1f5fbf'};
+        --accent-strong: {'#2f78e6' if st.session_state.theme == 'dark' else '#184b97'};
+        --table-row: {'#0f223d' if st.session_state.theme == 'dark' else '#f8fbff'};
     }}
-    
+
+    html, body, [class*="css"] {{
+        font-family: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+    }}
+
     /* Main background */
     .main {{
         background: var(--bg-primary);
         background-attachment: fixed;
     }}
-    
+
     .stApp {{
-        background: transparent;
-        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        background:
+            radial-gradient(1200px 500px at 10% -10%, {'rgba(61,139,253,0.14)' if st.session_state.theme == 'dark' else 'rgba(31,95,191,0.10)'}, transparent 60%),
+            radial-gradient(800px 400px at 90% -20%, {'rgba(88,166,255,0.10)' if st.session_state.theme == 'dark' else 'rgba(116,149,189,0.10)'}, transparent 58%),
+            var(--bg-primary);
     }}
-    
+
+    .block-container {{
+        max-width: 1400px;
+        padding-top: 1.4rem;
+        padding-bottom: 2.5rem;
+    }}
+
     /* Modern card styling */
     [data-testid="stMetricValue"] {{
-        font-size: 1.7rem;
+        font-size: 1.5rem;
         font-weight: 700;
         color: var(--text-primary);
+        line-height: 1.2;
     }}
-    
+
     [data-testid="stMetricLabel"] {{
         color: var(--text-secondary);
         font-weight: 600;
+        font-size: 0.86rem;
     }}
-    
+
     /* Button styling */
     .stButton>button {{
         background: var(--accent);
         color: white;
-        border-radius: 8px;
-        padding: 0.55rem 1.1rem;
+        border-radius: 10px;
+        padding: 0.52rem 1.05rem;
         font-weight: 600;
         border: none;
         box-shadow: none;
-        transition: background-color 0.2s ease;
+        transition: background-color 0.2s ease, transform 0.12s ease;
     }}
-    
+
     .stButton>button:hover {{
-        background: {'#2563eb' if st.session_state.theme == 'dark' else '#1e40af'};
-        transform: none;
+        background: var(--accent-strong);
+        transform: translateY(-1px);
         box-shadow: none;
     }}
-    
+
     /* Headers */
-    h1, h2, h3 {{
+    h1, h2, h3, h4 {{
         color: var(--text-primary);
         font-weight: 650;
+        letter-spacing: -0.01em;
     }}
-    
+
+    h1 {{
+        font-size: 1.9rem;
+        margin-bottom: 0.25rem;
+    }}
+
+    p, .stMarkdown, .stCaption {{
+        color: var(--text-secondary);
+    }}
+
     /* Score badges */
     .high-score {{
         background: #166534;
@@ -149,32 +177,39 @@ st.markdown(f"""
         display: inline-block;
         font-size: 1.2rem;
     }}
-    
+
     /* Input styling */
-    .stTextInput>div>div>input, .stSelectbox>div>div>select, .stNumberInput>div>div>input {{
-        border-radius: 8px;
+    .stTextInput>div>div>input, .stSelectbox>div>div>select, .stNumberInput>div>div>input, .stDateInput input {{
+        border-radius: 10px;
         border: 1px solid var(--border-color);
-        background: var(--card-bg);
+        background: var(--card-bg) !important;
         color: var(--text-primary) !important;
+        min-height: 2.35rem;
     }}
-    
+
+    .stTextInput>div>div>input:focus, .stSelectbox>div>div>select:focus {{
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 1px var(--accent) inset;
+    }}
+
     /* Card containers */
     .stExpander {{
         background: var(--card-bg);
-        border-radius: 10px;
+        border-radius: 12px;
         border: 1px solid var(--border-color);
         box-shadow: none;
     }}
-    
+
     /* Sidebar styling */
     [data-testid="stSidebar"] {{
-        background: {'#0b1220' if st.session_state.theme == 'dark' else '#0f172a'};
+        background: {'#0b1a2f' if st.session_state.theme == 'dark' else '#12253f'};
+        border-right: 1px solid {'#223b5a' if st.session_state.theme == 'dark' else '#304b6d'};
     }}
-    
+
     [data-testid="stSidebar"] * {{
         color: #e2e8f0 !important;
     }}
-    
+
     /* Metric cards */
     [data-testid="stMetric"] {{
         background: var(--card-bg);
@@ -187,15 +222,15 @@ st.markdown(f"""
     
     [data-testid="stMetric"]:hover {{
         transform: none;
-        border-color: {'#334155' if st.session_state.theme == 'dark' else '#94a3b8'};
+        border-color: {'#38587d' if st.session_state.theme == 'dark' else '#9eb2cb'};
     }}
-    
+
     /* Info/Success/Warning/Error boxes */
     .stAlert {{
         border-radius: 12px;
         border-left: 4px solid;
     }}
-    
+
     /* Tab styling */
     .stTabs [data-baseweb="tab-list"] {{
         gap: 8px;
@@ -203,16 +238,18 @@ st.markdown(f"""
     
     .stTabs [data-baseweb="tab"] {{
         border-radius: 12px;
-        padding: 0.75rem 1.5rem;
+        padding: 0.65rem 1.2rem;
         font-weight: 600;
+        background: {'#0e2038' if st.session_state.theme == 'dark' else '#e9eff7'};
+        border: 1px solid var(--border-color);
     }}
 
     /* Banner */
     .hero-banner {{
-        background: {'#0b1220' if st.session_state.theme == 'dark' else '#e2e8f0'};
+        background: {'linear-gradient(120deg,#0d203b 0%,#102846 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(120deg,#edf3fa 0%,#e6eef8 100%)'};
         border: 1px solid var(--border-color);
-        border-radius: 10px;
-        padding: 1rem 1.25rem;
+        border-radius: 12px;
+        padding: 1rem 1.1rem;
         color: white;
         box-shadow: none;
         margin-bottom: 1.25rem;
@@ -232,17 +269,34 @@ st.markdown(f"""
         display: inline-block;
         padding: 0.25rem 0.6rem;
         border-radius: 999px;
-        background: {'#1e293b' if st.session_state.theme == 'dark' else '#cbd5e1'};
-        color: {'#e2e8f0' if st.session_state.theme == 'dark' else '#0f172a'};
+        background: {'#1c3657' if st.session_state.theme == 'dark' else '#cdd9ea'};
+        color: {'#dce9fa' if st.session_state.theme == 'dark' else '#13263f'};
         margin-right: 0.5rem;
         font-size: 0.8rem;
         font-weight: 600;
     }}
-    
+
     /* Dataframe styling */
     [data-testid="stDataFrame"] {{
         border-radius: 12px;
         overflow: hidden;
+        border: 1px solid var(--border-color);
+        background: var(--card-bg);
+    }}
+
+    [data-testid="stDataFrame"] [role="row"] {{
+        background: var(--table-row);
+    }}
+
+    .stLinkButton a {{
+        border-radius: 10px !important;
+        border: 1px solid var(--border-color) !important;
+        background: var(--card-bg) !important;
+        color: var(--text-primary) !important;
+    }}
+
+    .stCaption {{
+        font-size: 0.82rem;
     }}
 </style>
 """, unsafe_allow_html=True)
