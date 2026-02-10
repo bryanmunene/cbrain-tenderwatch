@@ -884,13 +884,24 @@ def delete_source(source_id):
             return True
     return False
 
-def run_tender_scan():
+def run_tender_scan(scan_depth="fast"):
     """Run tender scan"""
     started = time.time()
+    depth_map = {
+        "fast": {"max_sources": 15, "translate": False, "timeout_s": 45},
+        "balanced": {"max_sources": 25, "translate": False, "timeout_s": 90},
+        "full": {"max_sources": None, "translate": True, "timeout_s": 180},
+    }
+    depth_cfg = depth_map.get((scan_depth or "fast").lower(), depth_map["fast"])
     with app.app_context():
-        new_tenders = run_scan(flask_app=app)
-    # Run a throttled translation pass after scanning to avoid repeated churn on reruns.
-    maybe_translate_untranslated_tenders(force=False, limit=20, cooldown_seconds=300)
+        new_tenders = run_scan(
+            flask_app=app,
+            max_sources=depth_cfg["max_sources"],
+            scan_timeout_seconds=depth_cfg["timeout_s"],
+        )
+    # Run translation only in full scans to keep manual scans responsive.
+    if depth_cfg["translate"] and new_tenders:
+        maybe_translate_untranslated_tenders(force=False, limit=20, cooldown_seconds=300)
     elapsed = time.time() - started
     print(f"[DEBUG] run_tender_scan: Found {len(new_tenders)} new tenders in {elapsed:.1f}s.")
     return new_tenders
@@ -1053,7 +1064,8 @@ elif page == "Scan & Results":
         st.caption(
             f"Last scan: {info.get('timestamp', 'n/a')} | "
             f"new tenders: {info.get('new_count', 0)} | "
-            f"duration: {info.get('duration_s', 0):.1f}s"
+            f"duration: {info.get('duration_s', 0):.1f}s | "
+            f"depth: {info.get('scan_depth', 'fast')}"
         )
     
     # Check if a tender is selected for detail view
@@ -1170,17 +1182,24 @@ elif page == "Scan & Results":
     
         with col1:
             st.markdown("Scan and review opportunities.")
-    
+     
         with col2:
+            scan_depth = st.selectbox(
+                "Scan Depth",
+                ["fast", "balanced", "full"],
+                index=0,
+                help="Fast: top priority sources only. Balanced: broader coverage. Full: all active sources + translation."
+            )
             if st.button("Run Scan", key="top_scan_button", type="primary", width="stretch"):
                 started = time.time()
                 with st.spinner("Scanning sources..."):
-                    new_tenders = run_tender_scan()
+                    new_tenders = run_tender_scan(scan_depth=scan_depth)
                 elapsed = time.time() - started
                 st.session_state["last_scan_info"] = {
                     "timestamp": _utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
                     "new_count": len(new_tenders),
                     "duration_s": elapsed,
+                    "scan_depth": scan_depth,
                 }
                 if new_tenders:
                     st.success(f"Scan completed. Found {len(new_tenders)} new tenders.")

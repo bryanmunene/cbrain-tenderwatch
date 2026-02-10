@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 # Reduced timeout for faster scans
-HTTP_TIMEOUT = 5  # seconds (was 30, then 10)
+HTTP_TIMEOUT = 4  # seconds
 PDF_MAX_BYTES = 1_200_000  # 1.2 MB
 PDF_MAX_PAGES = 1
 
@@ -408,8 +408,9 @@ def scan_source(source: TenderSource, app, existing_links=None):
                     scoring_breakdown = json_lib.dumps(breakdown)
 
                 category, _, confidence = categorize(title, description)
-                title_translated = translate_to_english(title)
-                description_translated = translate_to_english(description) if description else ""
+                # Keep scans fast; translation is handled in throttled post-scan pass.
+                title_translated = title
+                description_translated = description if description else ""
 
                 country = _source_country(source.name, link)
                 inferred_domains = json_lib.dumps(breakdown.get("domains_matched", []))
@@ -484,7 +485,7 @@ def cleanup_old_tenders():
         print(" No old tenders to remove")
 
 
-def run_scan(flask_app=None):
+def run_scan(flask_app=None, max_sources=15, scan_timeout_seconds=None):
     """
     Scan sources for tenders and return newly added tenders.
     OPTIMIZED: Uses parallel scanning with 15 workers for faster scans.
@@ -502,6 +503,15 @@ def run_scan(flask_app=None):
     cleanup_irrelevant_tenders()
     
     sources = TenderSource.query.filter_by(active=True).all()
+    # Prioritize favorite/high-value sources first for faster actionable scans.
+    sources = sorted(sources, key=lambda s: (not bool(s.favorite), (s.name or "").lower()))
+    if max_sources is not None:
+        try:
+            max_sources_int = int(max_sources)
+        except Exception:
+            max_sources_int = 15
+        if max_sources_int > 0:
+            sources = sources[:max_sources_int]
     
     if not sources:
         print("  No active sources found. Add sources and mark them as active to start scanning.")
@@ -519,21 +529,33 @@ def run_scan(flask_app=None):
     # Scan sources in parallel.
     if sources:
         print(f"\n FAST PARALLEL scan: {len(sources)} sources with 15 workers...")
+        if scan_timeout_seconds is None:
+            if max_sources is None:
+                scan_timeout_seconds = 120
+            else:
+                scan_timeout_seconds = max(30, min(90, int(max_sources) * 4))
         
         with ThreadPoolExecutor(max_workers=15) as executor:
             future_to_source = {executor.submit(scan_source, src, flask_app, existing_links): src for src in sources}
             
             completed = 0
-            for future in as_completed(future_to_source):
-                source = future_to_source[future]
-                completed += 1
-                try:
-                    new_ids = future.result()
-                    if new_ids:
-                        all_new_ids.extend(new_ids)
-                        print(f" [{completed}/{len(sources)}] {source.name}: {len(new_ids)} new")
-                except Exception as e:
-                    print(f" [{completed}/{len(sources)}] {source.name}: {str(e)[:30]}")
+            try:
+                for future in as_completed(future_to_source, timeout=scan_timeout_seconds):
+                    source = future_to_source[future]
+                    completed += 1
+                    try:
+                        new_ids = future.result()
+                        if new_ids:
+                            all_new_ids.extend(new_ids)
+                            print(f" [{completed}/{len(sources)}] {source.name}: {len(new_ids)} new")
+                    except Exception as e:
+                        print(f" [{completed}/{len(sources)}] {source.name}: {str(e)[:30]}")
+            except Exception:
+                # Timeout reached - cancel pending tasks and continue with completed results.
+                for future, source in future_to_source.items():
+                    if not future.done():
+                        future.cancel()
+                print(f" Scan timeout reached after {scan_timeout_seconds}s; returning partial results.")
             print("\n--- SLOW SOURCES REPORT ---")
             # Print slow sources summary
             # (Already printed per-source above)
