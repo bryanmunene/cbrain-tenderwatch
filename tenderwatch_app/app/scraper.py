@@ -52,6 +52,23 @@ CLOSED_HINTS = [
     "notice of award", "award of tender", "tender results",
 ]
 
+LIFECYCLE_HINTS = {
+    "awarded": [
+        "awarded", "award notice", "contract award", "successful bidder",
+        "winners", "winner", "award of tender", "tender results",
+    ],
+    "clarification": [
+        "clarification", "corrigendum", "addendum", "q&a", "questions and answers",
+        "extension notice", "deadline extension",
+    ],
+    "cancelled": [
+        "cancelled", "canceled", "withdrawn", "terminated", "annulled",
+    ],
+    "pre_notice": [
+        "prior information notice", "forecast", "pipeline", "upcoming procurement",
+    ],
+}
+
 GENERIC_TITLE_PATTERNS = [
     "global tenders",
     "govt tenders",
@@ -136,6 +153,14 @@ def _has_f2_intent(text: str) -> bool:
     return any(term in t for term in F2_INTENT_TERMS)
 
 
+def _classify_lifecycle(text: str) -> str:
+    t = (text or "").lower()
+    for status, terms in LIFECYCLE_HINTS.items():
+        if any(term in t for term in terms):
+            return status
+    return "open"
+
+
 def _pdf_text_from_url(url: str) -> str:
     try:
         head = requests.head(url, timeout=HTTP_TIMEOUT, allow_redirects=True)
@@ -216,6 +241,7 @@ def scan_source(source: TenderSource, app, existing_links=None):
         soup = BeautifulSoup(html, "html.parser")
         existing = set(existing_links or ())
         seen = set()
+        seen_titles = set()
 
         nav_patterns = {
             "about us", "about", "contact us", "contact", "home", "login", "sign in", "register",
@@ -296,9 +322,14 @@ def scan_source(source: TenderSource, app, existing_links=None):
                     continue
 
                 lower_title = title.lower()
+                title_key = re.sub(r"[^a-z0-9]+", " ", lower_title).strip()
                 if lower_title.strip() in generic_titles or _is_generic_title(lower_title):
                     continue
                 if any(pat in lower_title for pat in nav_patterns):
+                    continue
+                if not title_key or len(title_key) < 18:
+                    continue
+                if title_key in seen_titles:
                     continue
 
                 description = parent_text if parent_text and parent_text != title else ""
@@ -325,6 +356,7 @@ def scan_source(source: TenderSource, app, existing_links=None):
                 has_closed_hint = any(term in combined_lower for term in closed_hints) or any(
                     term in link_lower for term in closed_hints
                 )
+                lifecycle_status = _classify_lifecycle(f"{combined} {link}")
 
                 deadline = parse_deadline(combined)
                 has_ref = any(term in combined_lower for term in ref_terms) or any(ch.isdigit() for ch in lower_title)
@@ -338,6 +370,9 @@ def scan_source(source: TenderSource, app, existing_links=None):
                     continue
                 if has_closed_hint:
                     # Skip award/results and already-closed material.
+                    continue
+                if lifecycle_status in {"awarded", "clarification", "cancelled"}:
+                    # Focus on active opportunities, not post-award or admin updates.
                     continue
                 if is_pdf and not deadline and not has_ref_code and not has_detail_url:
                     # Avoid dumping generic PDFs without tender-specific signals.
@@ -406,11 +441,13 @@ def scan_source(source: TenderSource, app, existing_links=None):
                     requires_qualification=requires_qualification,
                     qualification_reason=qualification_reason,
                     platform_commitment_signals=platform_signals,
+                    timing_status=lifecycle_status,
                     source_id=source.id,
                 )
                 db.session.add(tender)
                 new_tenders.append(tender)
                 seen.add(link)
+                seen_titles.add(title_key)
             except Exception:
                 logger.exception("Skipping link from %s due to parsing error", source.name)
                 continue

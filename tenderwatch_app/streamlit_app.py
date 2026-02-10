@@ -349,6 +349,17 @@ def _apply_deadline_window(tenders, deadline_window):
             filtered.append(tender)
     return filtered
 
+
+def _lifecycle_label(value: str) -> str:
+    mapping = {
+        "open": "Open",
+        "pre_notice": "Pre-Notice",
+        "awarded": "Awarded",
+        "clarification": "Clarification",
+        "cancelled": "Cancelled",
+    }
+    return mapping.get((value or "").strip().lower(), "Open")
+
 def init_db(perform_translation=False):
     """Initialize database with app context"""
     with app.app_context():
@@ -495,6 +506,8 @@ def get_tenders(filters=None, days_window=30):
                 query = query.filter(TenderResult.priority_level == filters['priority'])
             if filters.get('status') and filters['status'] != "All":
                 query = query.filter(TenderResult.procurement_status == filters['status'])
+            if filters.get('lifecycle') and filters['lifecycle'] != "All":
+                query = query.filter(TenderResult.timing_status == filters['lifecycle'])
             if filters.get('country') and filters['country'] != "All":
                 query = query.filter(TenderResult.country == filters['country'])
             if filters.get('f2_fit') and filters['f2_fit'] != "All":
@@ -509,6 +522,9 @@ def get_tenders(filters=None, days_window=30):
             if filters.get('open_only'):
                 query = query.filter(
                     ~TenderResult.procurement_status.in_(["locked", "conditional_nogo"])
+                )
+                query = query.filter(
+                    ~TenderResult.timing_status.in_(["awarded", "clarification", "cancelled"])
                 )
         
         # Sort
@@ -897,6 +913,7 @@ elif page == "Scan & Results":
                     st.markdown("### Basic Information")
                     st.markdown(f"**Category:** {tender.category or 'Uncategorized'}")
                     st.markdown(f"**Country:** {tender.country or 'Not specified'}")
+                    st.markdown(f"**Lifecycle:** {_lifecycle_label(tender.timing_status)}")
                     st.markdown(f"**Deadline:** {tender.deadline or 'Not specified'}")
                     st.markdown(f"**Deadline Status:** {detail_deadline['label']}")
                     st.markdown(f"**Found on:** {tender.created_at.strftime('%Y-%m-%d %H:%M') if tender.created_at else 'Unknown'}")
@@ -1007,9 +1024,11 @@ elif page == "Scan & Results":
             # CSV Export button
             all_tenders_for_export = get_tenders()
             if all_tenders_for_export:
-                csv_data = "Title,Link,Score,Category,Country,Deadline,Priority,Status,F2_Fit\n"
+                csv_data = "Title,Link,Score,Category,Country,Deadline,Days_Left,Lifecycle,Priority,Procurement_Status,F2_Fit\n"
                 for t in all_tenders_for_export:
-                    csv_data += f'"{t.title}","{t.link}",{t.score},"{t.category or ""}","{t.country or ""}","{t.deadline or ""}","{t.priority_level or ""}","{t.procurement_status or ""}","{t.likely_fit_for_f2 or ""}"\n'
+                    d_meta = _deadline_meta(t.deadline)
+                    days_left = "" if d_meta["days_left"] is None else int(d_meta["days_left"])
+                    csv_data += f'"{t.title}","{t.link}",{t.score},"{t.category or ""}","{t.country or ""}","{t.deadline or ""}","{days_left}","{_lifecycle_label(t.timing_status)}","{t.priority_level or ""}","{t.procurement_status or ""}","{t.likely_fit_for_f2 or ""}"\n'
             
                 st.download_button(
                     label="Export CSV",
@@ -1036,8 +1055,8 @@ elif page == "Scan & Results":
         with col4:
             search = st.text_input("Search", placeholder="Search titles...", help="Search in tender titles")
         
-        # Row 2: Priority, Status, Country, F2 Fit
-        col5, col6, col7, col8, col9, col10, col11 = st.columns(7)
+        # Row 2: Priority, Procurement, Lifecycle, Country, F2 Fit, Toggles
+        col5, col6, col7, col8, col9, col10, col11, col12 = st.columns(8)
         
         with col5:
             priority_options = ["All", "HIGH", "MEDIUM", "LOW", "STRATEGIC", "CONDITIONAL", "LOCKED"]
@@ -1048,20 +1067,24 @@ elif page == "Scan & Results":
             status_filter = st.selectbox("Procurement Status", status_options, help="Filter by platform lock-in status")
         
         with col7:
+            lifecycle_options = ["All", "open", "pre_notice", "clarification", "awarded", "cancelled"]
+            lifecycle_filter = st.selectbox("Lifecycle", lifecycle_options, help="Tender lifecycle status")
+
+        with col8:
             countries = ["All"] + sorted(list(set([t.country for t in all_tenders if t.country and t.country != "Unknown"]))) if all_tenders else ["All"]
             country_filter = st.selectbox("Country", countries, help="Filter by country")
-        
-        with col8:
+
+        with col9:
             f2_fit_options = ["All", "true", "strategic", "discuss", "uncertain", "conditional", "no-go"]
             f2_fit_filter = st.selectbox("F2 Fit", f2_fit_options, help="Filter by F2 fit likelihood")
-        
-        with col9:
-            f2_only = st.checkbox("F2-only (auto fallback)", value=True, help="Show only F2-relevant tenders. If none found, it will show all.")
-        
+
         with col10:
-            open_only = st.checkbox("Open-only", value=True, help="Hide locked or no-go opportunities.")
+            f2_only = st.checkbox("F2-only (auto fallback)", value=True, help="Show only F2-relevant tenders. If none found, it will show all.")
 
         with col11:
+            open_only = st.checkbox("Open-only", value=True, help="Hide locked or no-go opportunities.")
+
+        with col12:
             deadline_window = st.selectbox(
                 "Deadline Window",
                 ["All", "Next 7 days", "Next 14 days", "Next 30 days", "No deadline"],
@@ -1076,6 +1099,7 @@ elif page == "Scan & Results":
             'search': search,
             'priority': priority_filter,
             'status': status_filter,
+            'lifecycle': lifecycle_filter,
             'country': country_filter,
             'f2_fit': f2_fit_filter,
             'f2_only': f2_only,
@@ -1110,12 +1134,16 @@ elif page == "Scan & Results":
                     table_rows.append({
                         "Title": title,
                         "Score": round(tender.score or 0, 1),
+                        "Buyer": tender.buyer or "",
+                        "Days Left": "" if d_meta["days_left"] is None else int(d_meta["days_left"]),
                         "Deadline": tender.deadline or "",
                         "Deadline Status": d_meta["label"],
+                        "Lifecycle": _lifecycle_label(tender.timing_status),
                         "Country": tender.country or "",
                         "Category": tender.category or "",
                         "Priority": tender.priority_level or "",
                         "Procurement": tender.procurement_status or "",
+                        "Added": tender.created_at.strftime("%Y-%m-%d") if tender.created_at else "",
                         "Link": tender.link,
                     })
                 table_df = pd.DataFrame(table_rows)
