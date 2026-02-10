@@ -7,6 +7,7 @@ import logging
 from io import BytesIO
 from flask import current_app
 from sqlalchemy.exc import IntegrityError
+import urllib3
 
 
 from app.deadlines import parse_deadline, check_timing_constraints, is_deadline_valid
@@ -22,6 +23,9 @@ from app.source_bias import COUNTRY_MAP
 from app.keywords import ALL_KEYWORDS
 
 logger = logging.getLogger(__name__)
+logging.getLogger("pypdf").setLevel(logging.ERROR)
+logging.getLogger("pypdf._reader").setLevel(logging.ERROR)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 
