@@ -60,32 +60,34 @@ st.markdown("""
 if 'theme' not in st.session_state:
     st.session_state.theme = 'light'
 
-# Custom CSS for modern, friendly design with dark mode
+# Professional visual system
 st.markdown(f"""
 <style>
     /* Theme Variables */
     :root {{
-        --bg-primary: {'#0f172a' if st.session_state.theme == 'dark' else '#ffffff'};
-        --bg-secondary: {'#0a0a0a' if st.session_state.theme == 'dark' else '#fafafa'};
-        --text-primary: {'#ffffff' if st.session_state.theme == 'dark' else '#000000'};
-        --text-secondary: {'#a3a3a3' if st.session_state.theme == 'dark' else '#737373'};
-        --border-color: {'#262626' if st.session_state.theme == 'dark' else '#e5e5e5'};
-        --card-bg: {'#0a0a0a' if st.session_state.theme == 'dark' else '#ffffff'};
+        --bg-primary: {'#0f172a' if st.session_state.theme == 'dark' else '#f8fafc'};
+        --bg-secondary: {'#111827' if st.session_state.theme == 'dark' else '#eef2f7'};
+        --text-primary: {'#e5e7eb' if st.session_state.theme == 'dark' else '#0f172a'};
+        --text-secondary: {'#94a3b8' if st.session_state.theme == 'dark' else '#475569'};
+        --border-color: {'#1f2937' if st.session_state.theme == 'dark' else '#dbe2ea'};
+        --card-bg: {'#111827' if st.session_state.theme == 'dark' else '#ffffff'};
+        --accent: {'#3b82f6' if st.session_state.theme == 'dark' else '#1d4ed8'};
     }}
     
     /* Main background */
     .main {{
-        background: {'linear-gradient(135deg, #000000 0%, #0a0a0a 100%)' if st.session_state.theme == 'dark' else '#ffffff'};
+        background: var(--bg-primary);
         background-attachment: fixed;
     }}
     
     .stApp {{
         background: transparent;
+        font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     }}
     
     /* Modern card styling */
     [data-testid="stMetricValue"] {{
-        font-size: 2rem;
+        font-size: 1.7rem;
         font-weight: 700;
         color: var(--text-primary);
     }}
@@ -97,30 +99,31 @@ st.markdown(f"""
     
     /* Button styling */
     .stButton>button {{
-        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        background: var(--accent);
         color: white;
-        border-radius: 25px;
-        padding: 0.75rem 2rem;
-        font-weight: 700;
+        border-radius: 8px;
+        padding: 0.55rem 1.1rem;
+        font-weight: 600;
         border: none;
-        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
-        transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        box-shadow: none;
+        transition: background-color 0.2s ease;
     }}
     
     .stButton>button:hover {{
-        transform: translateY(-4px) scale(1.05);
-        box-shadow: 0 12px 24px rgba(236, 72, 153, 0.5);
+        background: {'#2563eb' if st.session_state.theme == 'dark' else '#1e40af'};
+        transform: none;
+        box-shadow: none;
     }}
     
     /* Headers */
     h1, h2, h3 {{
         color: var(--text-primary);
-        font-weight: 700;
+        font-weight: 650;
     }}
     
     /* Score badges */
     .high-score {{
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        background: #166534;
         color: white;
         padding: 0.5rem 1rem;
         border-radius: 10px;
@@ -129,7 +132,7 @@ st.markdown(f"""
         font-size: 1.2rem;
     }}
     .medium-score {{
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        background: #b45309;
         color: white;
         padding: 0.5rem 1rem;
         border-radius: 10px;
@@ -138,7 +141,7 @@ st.markdown(f"""
         font-size: 1.2rem;
     }}
     .low-score {{
-        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        background: #b91c1c;
         color: white;
         padding: 0.5rem 1rem;
         border-radius: 10px;
@@ -149,8 +152,8 @@ st.markdown(f"""
     
     /* Input styling */
     .stTextInput>div>div>input, .stSelectbox>div>div>select, .stNumberInput>div>div>input {{
-        border-radius: 10px;
-        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
         background: var(--card-bg);
         color: var(--text-primary) !important;
     }}
@@ -158,33 +161,33 @@ st.markdown(f"""
     /* Card containers */
     .stExpander {{
         background: var(--card-bg);
-        border-radius: 16px;
+        border-radius: 10px;
         border: 1px solid var(--border-color);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        box-shadow: none;
     }}
     
     /* Sidebar styling */
     [data-testid="stSidebar"] {{
-        background: linear-gradient(180deg, {'#1e293b' if st.session_state.theme == 'dark' else '#2d3e50'} 0%, {'#0f172a' if st.session_state.theme == 'dark' else '#2ba8d8'} 100%);
+        background: {'#0b1220' if st.session_state.theme == 'dark' else '#0f172a'};
     }}
     
     [data-testid="stSidebar"] * {{
-        color: white !important;
+        color: #e2e8f0 !important;
     }}
     
     /* Metric cards */
     [data-testid="stMetric"] {{
         background: var(--card-bg);
-        padding: 1.5rem;
-        border-radius: 16px;
+        padding: 1rem;
+        border-radius: 10px;
         border: 1px solid var(--border-color);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        transition: all 0.3s ease;
+        box-shadow: none;
+        transition: border-color 0.2s ease;
     }}
     
     [data-testid="stMetric"]:hover {{
-        transform: translateY(-4px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        transform: none;
+        border-color: {'#334155' if st.session_state.theme == 'dark' else '#94a3b8'};
     }}
     
     /* Info/Success/Warning/Error boxes */
@@ -206,31 +209,34 @@ st.markdown(f"""
 
     /* Banner */
     .hero-banner {{
-        background: linear-gradient(135deg, #0ea5e9 0%, #8b5cf6 45%, #ec4899 100%);
-        border-radius: 18px;
-        padding: 1.25rem 1.5rem;
+        background: {'#0b1220' if st.session_state.theme == 'dark' else '#e2e8f0'};
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
         color: white;
-        box-shadow: 0 12px 30px rgba(14, 165, 233, 0.25);
+        box-shadow: none;
         margin-bottom: 1.25rem;
     }}
     .hero-banner .title {{
-        font-size: 1.4rem;
-        font-weight: 800;
+        color: var(--text-primary);
+        font-size: 1.2rem;
+        font-weight: 700;
         margin: 0;
     }}
     .hero-banner .subtitle {{
+        color: var(--text-secondary);
         font-size: 0.95rem;
-        opacity: 0.9;
         margin-top: 0.25rem;
     }}
     .pill {{
         display: inline-block;
         padding: 0.25rem 0.6rem;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.15);
+        background: {'#1e293b' if st.session_state.theme == 'dark' else '#cbd5e1'};
+        color: {'#e2e8f0' if st.session_state.theme == 'dark' else '#0f172a'};
         margin-right: 0.5rem;
         font-size: 0.8rem;
-        font-weight: 700;
+        font-weight: 600;
     }}
     
     /* Dataframe styling */
@@ -781,7 +787,7 @@ with st.sidebar:
     st.markdown("---")
     
     # Subtle theme toggle at bottom
-    if st.button("Theme", key="theme_toggle", help="Toggle theme"):
+    if st.button("Switch Theme", key="theme_toggle", help="Toggle light/dark theme"):
         st.session_state.theme = 'dark' if st.session_state.theme == 'light' else 'light'
         st.rerun()
     
@@ -794,53 +800,18 @@ if page == "Dashboard":
     
     stats = get_stats()
     
-    # Metrics row with icons
+    # KPI row
     col1, col2, col3, col4, col5 = st.columns(5)
-    
     with col1:
-        st.markdown("""
-            <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);'>
-                <div style='font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 700; letter-spacing: 1px;'>TOTAL</div>
-                <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['total']) + """</div>
-                <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>Total Tenders</div>
-            </div>
-        """, unsafe_allow_html=True)
-    
+        st.metric("Total Tenders", stats['total'])
     with col2:
-        st.markdown("""
-            <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);'>
-                <div style='font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 700; letter-spacing: 1px;'>HIGH</div>
-                <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['high_score']) + """</div>
-                <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>High Score (>=70%)</div>
-            </div>
-        """, unsafe_allow_html=True)
-    
+        st.metric("High Score (>=70%)", stats['high_score'])
     with col3:
-        st.markdown("""
-            <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);'>
-                <div style='font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 700; letter-spacing: 1px;'>SAVED</div>
-                <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['saved']) + """</div>
-                <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>Saved</div>
-            </div>
-        """, unsafe_allow_html=True)
-    
+        st.metric("Saved", stats['saved'])
     with col4:
-        st.markdown("""
-            <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);'>
-                <div style='font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 700; letter-spacing: 1px;'>FAVORITES</div>
-                <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['favorites']) + """</div>
-                <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>Favorites</div>
-            </div>
-        """, unsafe_allow_html=True)
-    
+        st.metric("Favorites", stats['favorites'])
     with col5:
-        st.markdown("""
-            <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border-radius: 16px; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);'>
-                <div style='font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 700; letter-spacing: 1px;'>SOURCES</div>
-                <div style='font-size: 2rem; font-weight: 700; color: white;'>""" + str(stats['active_sources']) + """</div>
-                <div style='font-size: 0.9rem; color: rgba(255, 255, 255, 0.9);'>Active Sources</div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.metric("Active Sources", stats['active_sources'])
     
     st.markdown("---")
     
@@ -909,22 +880,7 @@ if page == "Dashboard":
                 
                 st.markdown("---")
     else:
-        st.markdown("""
-        <div style='text-align: center; padding: 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
-                    border-radius: 30px; margin: 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2);'>
-            <div style='font-size: 4rem; margin-bottom: 1rem; animation: bounce 2s infinite;'></div>
-            <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>No Recent Tenders</h3>
-            <p style='color: #6b7280; font-size: 1.1rem;'>
-                Start a new scan or review configured sources.
-            </p>
-        </div>
-        <style>
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
-        }
-        </style>
-        """, unsafe_allow_html=True)
+        st.info("No recent tenders. Start a new scan or review configured sources.")
         st.info("""**Quick start**
 1. Open **Scan & Results**
 2. Click **Run Scan**
@@ -1261,23 +1217,7 @@ elif page == "Scan & Results":
                 
                     st.markdown("---")
         else:
-            st.markdown("""
-            <style>
-            @keyframes bounce {
-                0%, 100% { transform: translateY(0); }
-                50% { transform: translateY(-20px); }
-            }
-            </style>
-            <div style='text-align: center; padding: 3rem 3rem 3rem 3rem; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%); 
-                        border-radius: 30px; margin: 2rem 0 2rem 0; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.2); position: relative;'>
-                <div style='font-size: 4rem; margin-bottom: 1rem; animation: bounce 2s infinite; cursor: pointer;'></div>
-                <h3 style='color: #8b5cf6; margin-bottom: 1rem; font-weight: 700;'>No Matching Results</h3>
-                <p style='color: #6b7280; font-size: 1.1rem; margin-bottom: 0.5rem;'>
-                    No tenders match the current filters.
-                </p>
-                <p style='color: #a3a3a3; font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;'>Use "Run Scan" to fetch new results.</p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.info("No tenders match the current filters. Adjust filters or run a new scan.")
 
 elif page == "Sources":
     st.title("Tender Sources")
@@ -1421,10 +1361,9 @@ elif page == "Settings":
         
         # Install App Section
         st.markdown("""
-            <div style='padding: 1.5rem; background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); border-radius: 16px; margin-bottom: 1.5rem;'>
-                <div style='font-size: 2.5rem; text-align: center; margin-bottom: 0.5rem;'></div>
-                <div style='text-align: center; color: white; font-weight: 700; font-size: 1.4rem;'>Install TenderWatch</div>
-                <div style='text-align: center; color: rgba(255,255,255,0.9); font-size: 0.9rem; margin-top: 0.5rem;'>Add to your home screen for quick access</div>
+            <div style='padding: 1rem 1.25rem; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 1rem;'>
+                <div style='color: var(--text-primary); font-weight: 700; font-size: 1.05rem;'>Install TenderWatch</div>
+                <div style='color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem;'>Add to your home screen for quick access.</div>
             </div>
         """, unsafe_allow_html=True)
         
@@ -1451,10 +1390,9 @@ elif page == "Settings":
         
         # Daily Notifications Section
         st.markdown("""
-            <div style='padding: 1.5rem; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 16px; margin-bottom: 1.5rem;'>
-                <div style='font-size: 2.5rem; text-align: center; margin-bottom: 0.5rem;'></div>
-                <div style='text-align: center; color: white; font-weight: 700; font-size: 1.4rem;'>Daily Scan Reminders</div>
-                <div style='text-align: center; color: rgba(255,255,255,0.9); font-size: 0.9rem; margin-top: 0.5rem;'>Get notified to check for new tenders</div>
+            <div style='padding: 1rem 1.25rem; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 1rem;'>
+                <div style='color: var(--text-primary); font-weight: 700; font-size: 1.05rem;'>Daily Scan Reminders</div>
+                <div style='color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem;'>Configure a daily reminder to review new tenders.</div>
             </div>
         """, unsafe_allow_html=True)
         
@@ -1475,7 +1413,7 @@ elif page == "Settings":
         st.markdown("""
         <div style='text-align: center; margin: 1rem 0;'>
             <button onclick="window.TenderWatchPWA && window.TenderWatchPWA.setupNotifications()" 
-                    style='background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+                    style='background: #1d4ed8; 
                            color: white; 
                            border: none; 
                            padding: 12px 32px; 
