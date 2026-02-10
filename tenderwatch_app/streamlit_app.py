@@ -648,7 +648,7 @@ def get_tenders_with_fallback(filters=None):
                 return widened, False, "No open tenders matched. Showing locked/conditional opportunities too."
         anytime = get_tenders(filters, days_window=None)
         if anytime:
-            return anytime, False, "No tenders matched in the last 30 days. Showing historical matches."
+            return anytime, False, "No recent matches found. Displaying earlier results."
         return base, False, ""
 
     filtered = get_tenders(filters)
@@ -659,7 +659,7 @@ def get_tenders_with_fallback(filters=None):
     relaxed['f2_only'] = False
     widened = get_tenders(relaxed)
     if widened:
-        return widened, False, "F2-only returned 0 results. Showing all tenders."
+        return widened, False, "No F2-only matches found. Displaying all results."
 
     if relaxed.get("open_only"):
         relaxed["open_only"] = False
@@ -669,7 +669,7 @@ def get_tenders_with_fallback(filters=None):
 
     anytime = get_tenders(relaxed, days_window=None)
     if anytime:
-        return anytime, False, "No tenders matched in the last 30 days. Showing historical matches."
+        return anytime, False, "No recent matches found. Displaying earlier results."
     return widened, False, "No tenders matched current filters."
 
 def get_sources():
@@ -863,7 +863,7 @@ if page == "Dashboard":
     header_left, header_right = st.columns([3, 2])
     with header_left:
         st.markdown("### Portfolio Snapshot")
-        st.caption("Last 30 days, filtered to your current TenderWatch database.")
+        st.caption("Current portfolio view")
     with header_right:
         if st.session_state.get("last_scan_info"):
             info = st.session_state["last_scan_info"]
@@ -972,10 +972,10 @@ elif page == "Scan & Results":
     <div class="hero-banner">
         <div class="title">cBrain F2 Opportunity Radar</div>
         <div class="subtitle">
-            <span class="pill">F2-first</span>
-            <span class="pill">Auto fallback</span>
-            <span class="pill">30-day window</span>
-            Stay focused on records, workflow, and case modernization.
+            <span class="pill">F2 Focus</span>
+            <span class="pill">Open Tenders</span>
+            <span class="pill">Live Sources</span>
+            Opportunity monitoring and qualification pipeline.
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1101,7 +1101,7 @@ elif page == "Scan & Results":
         col1, col2 = st.columns([3, 1])
     
         with col1:
-            st.markdown("Run a source scan and review matched opportunities.")
+            st.markdown("Scan and review opportunities.")
     
         with col2:
             if st.button("Run Scan", key="top_scan_button", type="primary", width="stretch"):
@@ -1187,7 +1187,7 @@ elif page == "Scan & Results":
             f2_fit_filter = st.selectbox("F2 Fit", f2_fit_options, help="Filter by F2 fit likelihood")
 
         with col10:
-            f2_only = st.checkbox("F2-only (auto fallback)", value=True, help="Show only F2-relevant tenders. If none found, it will show all.")
+            f2_only = st.checkbox("F2-only", value=True, help="Show only F2-relevant tenders.")
 
         with col11:
             open_only = st.checkbox("Open-only", value=True, help="Hide locked or no-go opportunities.")
@@ -1226,7 +1226,7 @@ elif page == "Scan & Results":
         if fallback_message:
             st.warning(fallback_message)
         elif f2_only and not applied_f2_only:
-            st.warning("F2-only filter returned 0 results. Showing all tenders instead.")
+            st.warning("No F2-only matches found. Displaying all results.")
         st.markdown(f"**{len(tenders)} tenders found**")
         st.markdown("---")
     
@@ -1329,7 +1329,7 @@ elif page == "Scan & Results":
 
                         st.markdown("---")
         else:
-            st.info("No tenders match the current filters. Adjust filters or run a new scan.")
+            st.info("No results match the selected filters.")
 
 elif page == "Sources":
     st.title("Tender Sources")
