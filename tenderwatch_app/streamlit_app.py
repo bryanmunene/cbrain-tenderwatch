@@ -655,10 +655,12 @@ def get_sources():
         return TenderSource.query.all()
 
 def get_stats():
-    """Get dashboard statistics - only from last month"""
+    """Get dashboard statistics with trend deltas."""
     with app.app_context():
-        one_month_ago = _utcnow() - timedelta(days=30)
-        
+        now = _utcnow()
+        one_month_ago = now - timedelta(days=30)
+        two_months_ago = now - timedelta(days=60)
+
         total = TenderResult.query.filter(TenderResult.created_at >= one_month_ago).count()
         high_score = TenderResult.query.filter(
             TenderResult.score >= 70,
@@ -677,6 +679,36 @@ def get_stats():
             TenderResult.category,
             db.func.count(TenderResult.id).label('count')
         ).filter(TenderResult.created_at >= one_month_ago).group_by(TenderResult.category).all()
+
+        prev_total = TenderResult.query.filter(
+            TenderResult.created_at >= two_months_ago,
+            TenderResult.created_at < one_month_ago
+        ).count()
+        prev_high_score = TenderResult.query.filter(
+            TenderResult.score >= 70,
+            TenderResult.created_at >= two_months_ago,
+            TenderResult.created_at < one_month_ago
+        ).count()
+        prev_saved = TenderResult.query.filter_by(saved=True).filter(
+            TenderResult.created_at >= two_months_ago,
+            TenderResult.created_at < one_month_ago
+        ).count()
+        prev_favorites = TenderResult.query.filter_by(favorite=True).filter(
+            TenderResult.created_at >= two_months_ago,
+            TenderResult.created_at < one_month_ago
+        ).count()
+
+        upcoming_7d = 0
+        current_tenders = TenderResult.query.filter(TenderResult.created_at >= one_month_ago).all()
+        for tender in current_tenders:
+            meta = _deadline_meta(tender.deadline)
+            if meta["days_left"] is not None and 0 <= meta["days_left"] <= 7:
+                upcoming_7d += 1
+
+        def _fmt_delta(current, previous):
+            delta = current - previous
+            sign = "+" if delta >= 0 else ""
+            return f"{sign}{delta} vs prior 30d"
         
         return {
             'total': total,
@@ -684,7 +716,12 @@ def get_stats():
             'saved': saved,
             'favorites': favorites,
             'active_sources': active_sources,
-            'categories': dict(categories) if categories else {}
+            'categories': dict(categories) if categories else {},
+            'upcoming_7d': upcoming_7d,
+            'delta_total': _fmt_delta(total, prev_total),
+            'delta_high_score': _fmt_delta(high_score, prev_high_score),
+            'delta_saved': _fmt_delta(saved, prev_saved),
+            'delta_favorites': _fmt_delta(favorites, prev_favorites),
         }
 
 
@@ -803,15 +840,16 @@ if page == "Dashboard":
     # KPI row
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        st.metric("Total Tenders", stats['total'])
+        st.metric("Total Tenders", stats['total'], delta=stats.get('delta_total'))
     with col2:
-        st.metric("High Score (>=70%)", stats['high_score'])
+        st.metric("High Score (>=70%)", stats['high_score'], delta=stats.get('delta_high_score'))
     with col3:
-        st.metric("Saved", stats['saved'])
+        st.metric("Saved", stats['saved'], delta=stats.get('delta_saved'))
     with col4:
-        st.metric("Favorites", stats['favorites'])
+        st.metric("Favorites", stats['favorites'], delta=stats.get('delta_favorites'))
     with col5:
-        st.metric("Active Sources", stats['active_sources'])
+        st.metric("Deadlines in 7 Days", stats.get('upcoming_7d', 0))
+    st.caption(f"Active sources: {stats['active_sources']}")
     
     st.markdown("---")
     
@@ -927,10 +965,10 @@ elif page == "Scan & Results":
                 display_title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
                 score_color = "#10b981" if tender.score >= 70 else "#f59e0b" if tender.score >= 40 else "#ef4444"
                 st.markdown(f"""
-                <div style='padding: 1.5rem; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-radius: 16px; margin-bottom: 1rem;'>
+                <div style='padding: 1rem 1.25rem; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 1rem;'>
                     <div style='display: flex; justify-content: space-between; align-items: center;'>
-                        <h2 style='color: white; margin: 0; font-size: 1.5rem;'>{display_title}</h2>
-                        <span style='background: {score_color}; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 700; font-size: 1.2rem;'>{tender.score:.0f}%</span>
+                        <h2 style='color: var(--text-primary); margin: 0; font-size: 1.3rem;'>{display_title}</h2>
+                        <span style='background: {score_color}; color: white; padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 1rem;'>{tender.score:.0f}%</span>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1144,78 +1182,100 @@ elif page == "Scan & Results":
         st.markdown(f"**{len(tenders)} tenders found**")
         st.markdown("---")
     
-        # Display tenders
+        # Display tenders (table-first)
         if tenders:
-            for tender in tenders:
-                # Determine score styling
-                if tender.score >= 70:
-                    score_emoji = "HIGH"
-                    score_color = "#10b981"
-                elif tender.score >= 40:
-                    score_emoji = "MED"
-                    score_color = "#f59e0b"
-                else:
-                    score_emoji = "LOW"
-                    score_color = "#ef4444"
-            
-                # Clean simple card layout
-                with st.container():
-                    # Header row (prefer translated title if available)
-                    display_title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
-                    is_translated = tender.title_translated and tender.title_translated != tender.title
-                    col_title, col_score = st.columns([5, 1])
-                    deadline_meta = _deadline_meta(tender.deadline)
-                    with col_title:
-                        title_suffix = " [Translated]" if is_translated else ""
-                        st.markdown(f"### {display_title}{title_suffix}")
-                    with col_score:
-                        st.markdown(f"<span style='background: {score_color}; color: white; padding: 0.5rem 1rem; border-radius: 12px; font-weight: bold;'>{score_emoji} {tender.score:.0f}%</span>", unsafe_allow_html=True)
-                        if deadline_meta["style"] == "overdue":
-                            st.markdown("<span style='background:#991b1b;color:white;padding:0.25rem 0.6rem;border-radius:10px;font-size:0.75rem;font-weight:700;'>OVERDUE</span>", unsafe_allow_html=True)
-                        elif deadline_meta["style"] == "urgent":
-                            st.markdown("<span style='background:#b45309;color:white;padding:0.25rem 0.6rem;border-radius:10px;font-size:0.75rem;font-weight:700;'>URGENT</span>", unsafe_allow_html=True)
-                        elif deadline_meta["style"] == "upcoming":
-                            st.markdown("<span style='background:#1d4ed8;color:white;padding:0.25rem 0.6rem;border-radius:10px;font-size:0.75rem;font-weight:700;'>UPCOMING</span>", unsafe_allow_html=True)
-                        elif deadline_meta["style"] == "scheduled":
-                            st.markdown("<span style='background:#334155;color:white;padding:0.25rem 0.6rem;border-radius:10px;font-size:0.75rem;font-weight:700;'>SCHEDULED</span>", unsafe_allow_html=True)
-                        else:
-                            st.markdown("<span style='background:#6b7280;color:white;padding:0.25rem 0.6rem;border-radius:10px;font-size:0.75rem;font-weight:700;'>NO DEADLINE</span>", unsafe_allow_html=True)
-                
-                    # Tags row
-                    tags = []
-                    if tender.category and tender.category != "Unclassified":
-                        tags.append(f"Category: {tender.category}")
-                    if tender.country:
-                        tags.append(f"Country: {tender.country}")
-                    tags.append(f"Deadline: {deadline_meta['label']}")
-                
-                    if tags:
-                        st.markdown(" | ".join(tags))
-                
-                    # Action buttons
-                    col1, col2, col3, col4 = st.columns(4)
-                
-                    with col1:
-                        fav_label = "Favorited" if tender.favorite else "Favorite"
-                        if st.button(fav_label, key=f"fav_{tender.id}"):
-                            toggle_favorite(tender.id)
-                            st.rerun()
-                
-                    with col2:
-                        save_label = "Saved" if tender.saved else "Save"
-                        if st.button(save_label, key=f"save_{tender.id}"):
-                            toggle_saved(tender.id)
-                            st.rerun()
-                
-                    with col3:
-                        st.link_button("View Source", tender.link)
-                
-                    with col4:
-                        if st.button("Details", key=f"detail_{tender.id}"):
-                            st.session_state['selected_tender'] = tender.id
-                            st.rerun()
-                
-                    st.markdown("---")
+            table_tab, cards_tab = st.tabs(["Table View", "Card View"])
+
+            with table_tab:
+                table_rows = []
+                for tender in tenders:
+                    d_meta = _deadline_meta(tender.deadline)
+                    title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
+                    table_rows.append({
+                        "Title": title,
+                        "Score": round(tender.score or 0, 1),
+                        "Deadline": tender.deadline or "",
+                        "Deadline Status": d_meta["label"],
+                        "Country": tender.country or "",
+                        "Category": tender.category or "",
+                        "Priority": tender.priority_level or "",
+                        "Procurement": tender.procurement_status or "",
+                        "Link": tender.link,
+                    })
+                table_df = pd.DataFrame(table_rows)
+                st.dataframe(table_df, hide_index=True, width="stretch")
+
+            with cards_tab:
+                for tender in tenders:
+                    # Determine score styling (neutral enterprise palette)
+                    if tender.score >= 70:
+                        score_emoji = "HIGH"
+                        score_color = "#1e3a8a"
+                    elif tender.score >= 40:
+                        score_emoji = "MED"
+                        score_color = "#334155"
+                    else:
+                        score_emoji = "LOW"
+                        score_color = "#475569"
+
+                    # Clean simple card layout
+                    with st.container():
+                        # Header row (prefer translated title if available)
+                        display_title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
+                        is_translated = tender.title_translated and tender.title_translated != tender.title
+                        col_title, col_score = st.columns([5, 1])
+                        deadline_meta = _deadline_meta(tender.deadline)
+                        with col_title:
+                            title_suffix = " [Translated]" if is_translated else ""
+                            st.markdown(f"### {display_title}{title_suffix}")
+                        with col_score:
+                            st.markdown(f"<span style='background: {score_color}; color: white; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600;'>{score_emoji} {tender.score:.0f}%</span>", unsafe_allow_html=True)
+                            if deadline_meta["style"] == "overdue":
+                                st.markdown("<span style='background:#991b1b;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>OVERDUE</span>", unsafe_allow_html=True)
+                            elif deadline_meta["style"] == "urgent":
+                                st.markdown("<span style='background:#9a3412;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>URGENT</span>", unsafe_allow_html=True)
+                            elif deadline_meta["style"] == "upcoming":
+                                st.markdown("<span style='background:#1d4ed8;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>UPCOMING</span>", unsafe_allow_html=True)
+                            elif deadline_meta["style"] == "scheduled":
+                                st.markdown("<span style='background:#334155;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>SCHEDULED</span>", unsafe_allow_html=True)
+                            else:
+                                st.markdown("<span style='background:#6b7280;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>NO DEADLINE</span>", unsafe_allow_html=True)
+
+                        # Tags row
+                        tags = []
+                        if tender.category and tender.category != "Unclassified":
+                            tags.append(f"Category: {tender.category}")
+                        if tender.country:
+                            tags.append(f"Country: {tender.country}")
+                        tags.append(f"Deadline: {deadline_meta['label']}")
+
+                        if tags:
+                            st.markdown(" | ".join(tags))
+
+                        # Action buttons
+                        col1, col2, col3, col4 = st.columns(4)
+
+                        with col1:
+                            fav_label = "Favorited" if tender.favorite else "Favorite"
+                            if st.button(fav_label, key=f"fav_{tender.id}"):
+                                toggle_favorite(tender.id)
+                                st.rerun()
+
+                        with col2:
+                            save_label = "Saved" if tender.saved else "Save"
+                            if st.button(save_label, key=f"save_{tender.id}"):
+                                toggle_saved(tender.id)
+                                st.rerun()
+
+                        with col3:
+                            st.link_button("View Source", tender.link)
+
+                        with col4:
+                            if st.button("Details", key=f"detail_{tender.id}"):
+                                st.session_state['selected_tender'] = tender.id
+                                st.rerun()
+
+                        st.markdown("---")
         else:
             st.info("No tenders match the current filters. Adjust filters or run a new scan.")
 
