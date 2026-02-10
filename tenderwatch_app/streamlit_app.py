@@ -352,119 +352,35 @@ def _apply_deadline_window(tenders, deadline_window):
 def init_db(perform_translation=False):
     """Initialize database with app context"""
     with app.app_context():
-        # Define all default sources
+        # Validated baseline (live-audited: reachable + parseable tender links).
         default_sources_data = [
-            # UN System (Global)
-            ("UNDP Procurement", "https://procurement-notices.undp.org/", True),
+            ("UNDP Procurement Notices", "https://procurement-notices.undp.org/", True),
             ("UN Global Marketplace", "https://www.ungm.org/Public/Notice", True),
             ("UNOPS Opportunities", "https://www.unops.org/business-opportunities", True),
-            ("UNOPS Jobs (may have procurement)", "https://www.unops.org/jobs", False),
-            ("UNICEF Supply", "https://www.unicef.org/supply/procurement-services", False),
-            ("WHO Procurement", "https://www.who.int/about/accountability/procurement", False),
-            ("WFP Procurement", "https://www.wfp.org/procurement", False),
-            ("UNESCO Procurement", "https://en.unesco.org/procurement", False),
-            ("FAO Procurement", "https://www.fao.org/unfao/procurement/", False),
-            ("UNHCR Procurement", "https://www.unhcr.org/procurement", False),
-            ("UN Secretariat Procurement", "https://www.un.org/Depts/ptd/business-opportunities", False),
-            
-            # Development Banks / IFIs (Global)
             ("World Bank Procurement", "https://projects.worldbank.org/en/projects-operations/procurement", True),
-            ("DevBusiness (World Bank)", "https://devbusiness.un.org/content/tenders", False),
-            ("AfDB Procurement", "https://www.afdb.org/en/about-us/corporate-procurement/procurement-notices", True),
-            ("ADB Procurement", "https://www.adb.org/projects/tenders/all", False),
-            ("IDB Procurement", "https://www.iadb.org/en/procurement/current-opportunities", False),
-            ("EBRD Procurement", "https://www.ebrd.com/work-with-us/procurement.html", False),
-            ("EIB Procurement", "https://www.eib.org/en/about/procurement/index.htm", False),
-            ("IsDB Procurement", "https://www.isdb.org/procurement", False),
-            
-            # European Union
-            ("TED Europa", "https://ted.europa.eu/en/search/result", True),
-            ("EU Funding Tenders", "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-search", False),
-            
-            # Government Portals - Europe
+            ("TED Europa Tenders", "https://ted.europa.eu/en/search/result", True),
             ("UK Find a Tender", "https://www.find-tender.service.gov.uk/Search", True),
-            ("UK Contracts Finder", "https://www.contractsfinder.service.gov.uk/Search/Results", False),
-            ("Germany BUND", "https://www.service.bund.de/Content/DE/Ausschreibungen/", False),
-            ("France BOAMP", "https://www.boamp.fr/pages/recherche/", False),
-            ("Netherlands TenderNed", "https://www.tenderned.nl/tenderned-tap/aankondigingen", False),
-            
-            # Government Portals - Americas
-            ("SAM.gov (US Federal)", "https://sam.gov/search/?index=opp&page=1&sort=-modifiedDate", True),
-            ("Canada Buyandsell", "https://buyandsell.gc.ca/procurement-data/tenders", False),
-            
-            # Government Portals - Africa (Priority)
-            ("Kenya PPB", "https://tenders.go.ke/", True),
-            ("Kenya PPIP", "https://tenders.go.ke/website/tenders/all", True),
-            ("Kenya eTender", "https://supplier.treasury.go.ke/site/tenders.go/public", True),
-            ("South Africa eTender", "https://www.etenders.gov.za/", True),
-            ("Nigeria BPP", "https://www.bpp.gov.ng/", True),
-            ("Ghana PPA", "https://ppaghana.org/tenders.asp", True),
-            ("Tanzania PPRA", "https://www.ppra.go.tz/", True),
+            ("WFP Procurement", "https://www.wfp.org/procurement", False),
+            ("WHO Procurement", "https://www.who.int/about/accountability/procurement", False),
+            ("FAO Procurement", "https://www.fao.org/unfao/procurement/", False),
+            ("ILO Procurement", "https://www.ilo.org/procurement/", False),
             ("Uganda PPDA", "https://www.ppda.go.ug/", True),
-            ("Rwanda RPPA", "https://umucyo.gov.rw/", True),
-            ("Ethiopia PPA", "https://ppa.gov.et/", False),
-            
-            # Government Portals - Asia Pacific
-            ("Australia AusTender", "https://www.tenders.gov.au/", True),
+            ("Tanzania PPRA", "https://www.ppra.go.tz/", True),
+            ("Nigeria BPP", "https://www.bpp.gov.ng/", True),
             ("New Zealand GETS", "https://www.gets.govt.nz/ExternalIndex.htm", False),
-            ("India CPPP", "https://eprocure.gov.in/eprocure/app", True),
             ("Philippines PhilGEPS", "https://www.philgeps.gov.ph/", False),
-            ("Singapore GeBIZ", "https://www.gebiz.gov.sg/", False),
-            
-            # International Organizations
-            ("NATO Procurement", "https://www.nspa.nato.int/business", False),
-            ("Commonwealth Secretariat", "https://thecommonwealth.org/procurement", False),
-            ("African Union Procurement", "https://au.int/en/bids", True),
-            
-            # Tender Aggregators (useful as discovery, lower priority)
-            ("DgMarket", "https://www.dgmarket.com/", False),
-            ("Global Tenders", "https://www.globaltenders.com/", False),
-            
-            # Kenya Government Sources (high relevance for ICT/EDRMS)
-            ("KRA Tenders", "https://www.kra.go.ke/en/helping-tax-payers/tenders", True),
-            ("KURA Tenders", "https://www.kura.go.ke/tenders", True),
-            ("KENHA Tenders", "https://www.kenha.co.ke/index.php/tenders", True),
-            ("Kenya Power Tenders", "https://www.kplc.co.ke/category/view/47/tenders", True),
-            ("NHIF Tenders", "https://www.nhif.or.ke/tenders/", True),
-            ("NSSF Tenders", "https://www.nssf.or.ke/tenders", True),
-            ("CBK Tenders", "https://www.centralbank.go.ke/tenders/", True),
             ("ICT Authority", "https://icta.go.ke/tenders/", True),
-            ("CAK Tenders", "https://cak.go.ke/tenders", False),
-            ("NEMA Tenders", "https://www.nema.go.ke/index.php/tenders", False),
-            
-            # Kenya Parastatals
-            ("KAA Procurement", "https://www.kaa.go.ke/corporate/procurement/", True),
-            ("Kenya Railways", "https://krc.co.ke/tenders/", True),
-            ("KETRACO Tenders", "https://www.ketraco.co.ke/tenders/", True),
-            ("KenGen Tenders", "https://www.kengen.co.ke/index.php/procurement.html", True),
-            ("KEBS Tenders", "https://www.kebs.org/index.php?option=com_content&view=article&id=190", False),
-            ("NTSA Tenders", "https://www.ntsa.go.ke/tenders/", True),
+            ("Singapore GeBIZ", "https://www.gebiz.gov.sg/", True),
             ("KEMSA Tenders", "https://www.kemsa.co.ke/tenders/", True),
-            ("KPA Tenders", "https://www.kpa.co.ke/Tenders/Pages/default.aspx", True),
-            
-            # Kenya Counties
-            ("Nairobi County Tenders", "https://nairobi.go.ke/tenders/", True),
-            ("Mombasa County Tenders", "https://www.mombasa.go.ke/tenders/", False),
-            ("Kisumu County Tenders", "https://kisumu.go.ke/tenders/", False),
-            ("Nakuru County Tenders", "https://nakuru.go.ke/tenders/", False),
-            ("Kiambu County Tenders", "https://kiambu.go.ke/tenders/", False),
-            
-            # Kenya Universities and Hospitals
-            ("UoN Procurement", "https://www.uonbi.ac.ke/content/procurement", False),
-            ("KU Tenders", "https://www.ku.ac.ke/schools/tenders", False),
-            ("JKUAT Tenders", "https://www.jkuat.ac.ke/tenders/", False),
-            ("KNH Tenders", "https://knh.or.ke/tenders/", False),
-            
-            # Kenya Aggregators
+            ("NSSF Tenders", "https://www.nssf.or.ke/tenders", True),
             ("MyGov Kenya", "https://www.mygov.go.ke/?s=tender", True),
-            ("Tendersinfo Kenya", "https://www.tendersinfo.com/global-kenya-tenders.php", False),
         ]
         low_signal_sources = {
-            "Global Tenders",
             "DgMarket",
+            "Global Tenders",
+            "Tenders Info",
             "Tendersinfo Kenya",
             "BidDetail",
-            "UNOPS Jobs (may have procurement)",
         }
         
         # Add missing sources (check by URL to avoid duplicates)
