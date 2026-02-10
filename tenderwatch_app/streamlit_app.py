@@ -1323,10 +1323,13 @@ elif page == "Scan & Results":
 
             with table_tab:
                 table_rows = []
-                for tender in tenders:
+                ranked = sorted(tenders, key=lambda t: (t.score or 0), reverse=True)
+                for idx, tender in enumerate(ranked, start=1):
                     d_meta = _deadline_meta(tender.deadline)
                     title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
                     table_rows.append({
+                        "_id": tender.id,
+                        "Rank": idx,
                         "Title": title,
                         "Score": round(tender.score or 0, 1),
                         "Buyer": tender.buyer or "",
@@ -1342,7 +1345,49 @@ elif page == "Scan & Results":
                         "Link": tender.link,
                     })
                 table_df = pd.DataFrame(table_rows)
-                st.dataframe(table_df, hide_index=True, width="stretch")
+
+                urgent_count = len([r for r in table_rows if isinstance(r["Days Left"], int) and 0 <= r["Days Left"] <= 7])
+                high_fit_count = len([r for r in table_rows if float(r["Score"]) >= 70])
+                open_count = len([r for r in table_rows if r["Lifecycle"] == "Open"])
+                with_deadline_count = len([r for r in table_rows if r["Deadline"]])
+                m1, m2, m3, m4 = st.columns(4)
+                with m1:
+                    st.metric("Ranked Results", len(table_rows))
+                with m2:
+                    st.metric("Urgent (<=7d)", urgent_count)
+                with m3:
+                    st.metric("High Fit (>=70)", high_fit_count)
+                with m4:
+                    st.metric("With Deadline", with_deadline_count)
+                st.caption(f"Open lifecycle items: {open_count}")
+
+                st.dataframe(
+                    table_df.drop(columns=["_id"]),
+                    hide_index=True,
+                    width="stretch",
+                    column_config={
+                        "Score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100, format="%.1f"),
+                        "Link": st.column_config.LinkColumn("Source", display_text="Open"),
+                    }
+                )
+
+                selected_id = st.selectbox(
+                    "Quick open",
+                    options=[r["_id"] for r in table_rows],
+                    format_func=lambda tid: next((f'#{r["Rank"]} | {r["Title"][:90]}' for r in table_rows if r["_id"] == tid), str(tid)),
+                    key="table_quick_open_select",
+                )
+                selected = next((r for r in table_rows if r["_id"] == selected_id), None)
+                if selected:
+                    qa, qb, qc = st.columns([2, 2, 2])
+                    with qa:
+                        st.caption(f'Priority: {selected["Priority"]} | Score: {selected["Score"]}')
+                    with qb:
+                        st.link_button("Open Source", selected["Link"], width="stretch")
+                    with qc:
+                        if st.button("Open Details", key=f'table_detail_{selected_id}', width="stretch"):
+                            st.session_state['selected_tender'] = selected_id
+                            st.rerun()
 
             with cards_tab:
                 for tender in tenders:
