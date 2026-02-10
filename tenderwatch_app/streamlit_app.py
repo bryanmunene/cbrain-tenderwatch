@@ -56,9 +56,8 @@ st.markdown("""
 <script src="/static/pwa.js" defer></script>
 """, unsafe_allow_html=True)
 
-# Initialize session state for theme
-if 'theme' not in st.session_state:
-    st.session_state.theme = 'light'
+# Force a single dark theme for consistent readability.
+st.session_state.theme = 'dark'
 
 # Professional visual system
 st.markdown(f"""
@@ -912,11 +911,6 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    
-    # Subtle theme toggle at bottom
-    if st.button("Switch Theme", key="theme_toggle", help="Toggle light/dark theme"):
-        st.session_state.theme = 'dark' if st.session_state.theme == 'light' else 'light'
-        st.rerun()
     
     st.caption("2026 cBrain TenderWatch")
 
