@@ -80,7 +80,7 @@ class AppSettings(db.Model):
     scan_interval_minutes = db.Column(db.Integer, default=60)
     
     # Auto-discovery settings
-    auto_discovery_enabled = db.Column(db.Boolean, default=True)
+    auto_discovery_enabled = db.Column(db.Boolean, default=False)
     google_api_key = db.Column(db.String(500), default="")
     google_cx = db.Column(db.String(500), default="")  # Custom Search Engine ID
     bing_api_key = db.Column(db.String(500), default="")

@@ -93,6 +93,10 @@ def _initialize_database(app):
         try:
             if not AppSettings.query.first():
                 settings = AppSettings()
+                settings.auto_discovery_enabled = False
+                settings.google_api_key = ""
+                settings.google_cx = ""
+                settings.bing_api_key = ""
                 db.session.add(settings)
                 db.session.commit()
         except Exception as e:

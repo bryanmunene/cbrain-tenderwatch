@@ -1,17 +1,8 @@
-"""
-Auto-Discovery Module
-=====================
-Automatically discovers tender opportunities across the web using Google and Bing Search APIs.
-Removes dependency on manually-added sources for discovery while maintaining priority source system.
+"""Auto-discovery utilities.
 
-API Requirements:
-- Google Custom Search API: https://developers.google.com/custom-search
-- Bing Search API v7: https://www.microsoft.com/en-us/bing/apis/bing-web-search-api
-
-Free Tier Limits:
-- Google: 100 queries/day
-- Bing: 1,000 queries/month (~33/day)
-- Combined: ~133 searches/day
+Discovery now supports a no-key mode by default. If Google/Bing API credentials
+are present, API search is used. Otherwise the engine falls back to crawling
+known public tender/source pages and feed endpoints.
 """
 
 import requests
@@ -20,8 +11,155 @@ from typing import List, Dict, Tuple, Optional
 import logging
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
+
+NO_KEY_SEED_URLS = [
+    "https://tenders.go.ke/website/tenders/all",
+    "https://www.etenders.gov.za/",
+    "https://procurement-notices.undp.org/",
+    "https://www.ungm.org/Public/Notice",
+    "https://www.unops.org/business-opportunities",
+    "https://www.who.int/about/accountability/procurement",
+    "https://www.wfp.org/procurement",
+    "https://www.fao.org/unfao/procurement/",
+    "https://www.ilo.org/procurement/",
+    "https://www.ppda.go.ug/",
+    "https://www.ppra.go.tz/",
+    "https://www.bpp.gov.ng/",
+    "https://icta.go.ke/tenders/",
+    "https://www.kemsa.co.ke/tenders/",
+    "https://www.sppra.co.sz",
+    "https://trademarkafrica.com/procurement/",
+]
+
+TENDER_HINTS = (
+    "tender", "procurement", "bid", "rfp", "rfq", "expression of interest", "eoi",
+    "request for proposal", "request for quotation", "opportunity", "solicitation",
+)
+
+
+class NoKeyDiscoveryManager:
+    """Discover opportunities from public pages/feeds without API keys."""
+
+    def __init__(self, seed_urls: Optional[List[str]] = None):
+        self.seed_urls = seed_urls or list(NO_KEY_SEED_URLS)
+
+    def search_all(self, query: str, num_results: int = 10) -> List[Dict]:
+        # Query is used only as a soft hint; this mode primarily crawls known sources.
+        query_terms = [t.strip().lower() for t in (query or "").split() if len(t.strip()) >= 3]
+        max_per_source = max(5, min(30, int(num_results) * 2))
+        results: List[Dict] = []
+        seen = set()
+
+        for base_url in self.seed_urls:
+            try:
+                page_results = self._crawl_source(base_url, max_per_source=max_per_source)
+            except Exception:
+                continue
+            for item in page_results:
+                url = item.get("link", "")
+                if not url or url in seen:
+                    continue
+                text = f"{item.get('title', '')} {item.get('snippet', '')}".lower()
+                if query_terms and not any(term in text for term in query_terms):
+                    # Keep generic tender results when query doesn't match, but score them lower.
+                    if not any(h in text for h in TENDER_HINTS):
+                        continue
+                seen.add(url)
+                results.append(item)
+
+        return results
+
+    def _crawl_source(self, url: str, max_per_source: int = 12) -> List[Dict]:
+        out: List[Dict] = []
+        seen = set()
+        html = self._fetch(url)
+        if not html:
+            return out
+        soup = BeautifulSoup(html, "html.parser")
+
+        # 1) Parse direct links from landing page.
+        for a in soup.find_all("a", href=True):
+            if len(out) >= max_per_source:
+                break
+            title = (a.get_text(" ", strip=True) or "").strip()
+            href = a.get("href", "").strip()
+            if not href:
+                continue
+            link = urljoin(url, href)
+            if not link.startswith(("http://", "https://")):
+                continue
+            hay = f"{title} {link}".lower()
+            if not any(h in hay for h in TENDER_HINTS):
+                continue
+            if link in seen:
+                continue
+            seen.add(link)
+            out.append({
+                "title": title or "Tender notice",
+                "link": link,
+                "snippet": title,
+                "source": "no_key_feed",
+            })
+
+        # 2) Try common feed endpoints.
+        feed_paths = ("/feed", "/rss", "/atom", "/feeds", "/feed.xml", "/rss.xml", "/atom.xml")
+        for path in feed_paths:
+            if len(out) >= max_per_source:
+                break
+            feed_url = url.rstrip("/") + path
+            feed_xml = self._fetch(feed_url)
+            if not feed_xml or ("<rss" not in feed_xml.lower() and "<feed" not in feed_xml.lower()):
+                continue
+            try:
+                fsoup = BeautifulSoup(feed_xml, "xml")
+                items = fsoup.find_all(["item", "entry"])
+                for item in items:
+                    if len(out) >= max_per_source:
+                        break
+                    title = (item.find("title").get_text(" ", strip=True) if item.find("title") else "").strip()
+                    link_tag = item.find("link")
+                    link = ""
+                    if link_tag:
+                        link = link_tag.get("href") or link_tag.get_text(" ", strip=True)
+                    link = (link or "").strip()
+                    if not link:
+                        continue
+                    link = urljoin(feed_url, link)
+                    hay = f"{title} {link}".lower()
+                    if not any(h in hay for h in TENDER_HINTS):
+                        continue
+                    if link in seen:
+                        continue
+                    seen.add(link)
+                    out.append({
+                        "title": title or "Tender notice",
+                        "link": link,
+                        "snippet": title,
+                        "source": "no_key_feed",
+                    })
+            except Exception:
+                continue
+
+        return out
+
+    @staticmethod
+    def _fetch(url: str) -> str:
+        try:
+            r = requests.get(url, timeout=8, verify=True)
+            r.raise_for_status()
+            return r.text
+        except Exception:
+            try:
+                r = requests.get(url, timeout=8, verify=False)
+                r.raise_for_status()
+                return r.text
+            except Exception:
+                return ""
 
 
 class SearchAPIManager:
@@ -247,7 +385,7 @@ class TenderDiscovery:
         'UN agencies procurement'
     ]
     
-    def __init__(self, search_manager: SearchAPIManager):
+    def __init__(self, search_manager):
         """
         Initialize discovery engine.
         
@@ -372,7 +510,7 @@ class TenderDiscovery:
             return None
 
 
-# Global instance (initialized with API keys from AppSettings)
+# Global instance
 _discovery_manager: Optional[SearchAPIManager] = None
 _discovery_engine: Optional[TenderDiscovery] = None
 
@@ -389,14 +527,18 @@ def init_discovery(google_api_key: str = None, google_cx: str = None,
     """
     global _discovery_manager, _discovery_engine
     
-    _discovery_manager = SearchAPIManager(
-        google_api_key=google_api_key,
-        google_cx=google_cx,
-        bing_api_key=bing_api_key
-    )
+    has_api = bool((google_api_key and google_cx) or bing_api_key)
+    if has_api:
+        _discovery_manager = SearchAPIManager(
+            google_api_key=google_api_key,
+            google_cx=google_cx,
+            bing_api_key=bing_api_key
+        )
+        logger.info("Auto-discovery initialized in API mode")
+    else:
+        _discovery_manager = NoKeyDiscoveryManager()
+        logger.info("Auto-discovery initialized in no-key mode")
     _discovery_engine = TenderDiscovery(_discovery_manager)
-    
-    logger.info("Auto-discovery system initialized")
 
 
 def get_discovery_engine() -> Optional[TenderDiscovery]:
