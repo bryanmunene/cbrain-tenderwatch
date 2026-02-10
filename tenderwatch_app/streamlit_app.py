@@ -326,6 +326,73 @@ st.markdown(f"""
     .stAlert p, .stAlert li, .stAlert span {{
         color: var(--text-primary) !important;
     }}
+
+    .kpi-grid {{
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }}
+
+    .kpi-card {{
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        padding: 0.9rem 1rem 0.8rem;
+        background: var(--card-bg);
+    }}
+
+    .kpi-label {{
+        font-size: 0.76rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+    }}
+
+    .kpi-value {{
+        margin-top: 0.35rem;
+        font-size: 1.35rem;
+        line-height: 1.2;
+        font-weight: 700;
+        color: var(--text-primary);
+    }}
+
+    .kpi-delta {{
+        margin-top: 0.2rem;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }}
+
+    .tone-navy {{
+        background: linear-gradient(135deg, {'#102842' if st.session_state.theme == 'dark' else '#edf4ff'} 0%, {'#0f2239' if st.session_state.theme == 'dark' else '#e4eefc'} 100%);
+        border-color: {'#2f4a67' if st.session_state.theme == 'dark' else '#c6d7f3'};
+    }}
+
+    .tone-green {{
+        background: linear-gradient(135deg, {'#102e28' if st.session_state.theme == 'dark' else '#edf9f2'} 0%, {'#0f2621' if st.session_state.theme == 'dark' else '#e4f3ea'} 100%);
+        border-color: {'#2b5a50' if st.session_state.theme == 'dark' else '#c2e3d1'};
+    }}
+
+    .tone-amber {{
+        background: linear-gradient(135deg, {'#332313' if st.session_state.theme == 'dark' else '#fff8ec'} 0%, {'#2b1e10' if st.session_state.theme == 'dark' else '#fbf0de'} 100%);
+        border-color: {'#5e4630' if st.session_state.theme == 'dark' else '#ecd2ac'};
+    }}
+
+    .tone-plum {{
+        background: linear-gradient(135deg, {'#2a1f39' if st.session_state.theme == 'dark' else '#f7f0ff'} 0%, {'#22192f' if st.session_state.theme == 'dark' else '#eee4fb'} 100%);
+        border-color: {'#4e3f66' if st.session_state.theme == 'dark' else '#d9c8f5'};
+    }}
+
+    .tone-cyan {{
+        background: linear-gradient(135deg, {'#112d36' if st.session_state.theme == 'dark' else '#ecf9fd'} 0%, {'#0f252d' if st.session_state.theme == 'dark' else '#e0f1f8'} 100%);
+        border-color: {'#2d5965' if st.session_state.theme == 'dark' else '#bcddec'};
+    }}
+
+    @media (max-width: 1200px) {{
+        .kpi-grid {{
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }}
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -875,17 +942,24 @@ if page == "Dashboard":
         else:
             st.info(f"Active sources: {stats['active_sources']}. Run a scan from `Scan & Results`.")
 
-    col1, col2, col3, col4, col5 = st.columns(5)
-    with col1:
-        st.metric("Total Opportunities", stats['total'], delta=stats.get('delta_total'))
-    with col2:
-        st.metric("High Fit (>=70)", stats['high_score'], delta=stats.get('delta_high_score'))
-    with col3:
-        st.metric("Deadlines in 7 Days", stats.get('upcoming_7d', 0))
-    with col4:
-        st.metric("Saved", stats['saved'], delta=stats.get('delta_saved'))
-    with col5:
-        st.metric("Favorites", stats['favorites'], delta=stats.get('delta_favorites'))
+    kpi_cards = [
+        ("Total Opportunities", stats['total'], stats.get('delta_total') or "", "tone-navy"),
+        ("High Fit (>=70)", stats['high_score'], stats.get('delta_high_score') or "", "tone-green"),
+        ("Deadlines in 7 Days", stats.get('upcoming_7d', 0), "", "tone-amber"),
+        ("Saved", stats['saved'], stats.get('delta_saved') or "", "tone-plum"),
+        ("Favorites", stats['favorites'], stats.get('delta_favorites') or "", "tone-cyan"),
+    ]
+    card_html = '<div class="kpi-grid">'
+    for label, value, delta, tone in kpi_cards:
+        card_html += (
+            f'<div class="kpi-card {tone}">'
+            f'<div class="kpi-label">{label}</div>'
+            f'<div class="kpi-value">{value}</div>'
+            f'<div class="kpi-delta">{delta}</div>'
+            f'</div>'
+        )
+    card_html += "</div>"
+    st.markdown(card_html, unsafe_allow_html=True)
 
     st.markdown("---")
     st.subheader("Action Queue")
