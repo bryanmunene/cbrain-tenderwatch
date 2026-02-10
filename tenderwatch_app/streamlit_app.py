@@ -764,98 +764,115 @@ with st.sidebar:
 
 # Main content based on selected page
 if page == "Dashboard":
-    st.title("Dashboard")
-    st.markdown("Tender intelligence overview for cBrain F2 opportunities.")
-    
+    st.title("Executive Dashboard")
+    st.markdown("A concise view of active cBrain F2 opportunities and immediate actions.")
+
     stats = get_stats()
-    
-    # KPI row
+
+    header_left, header_right = st.columns([3, 2])
+    with header_left:
+        st.markdown("### Portfolio Snapshot")
+        st.caption("Last 30 days, filtered to your current TenderWatch database.")
+    with header_right:
+        if st.session_state.get("last_scan_info"):
+            info = st.session_state["last_scan_info"]
+            st.info(
+                f"Last scan: {info.get('timestamp', 'n/a')} | "
+                f"New: {info.get('new_count', 0)} | "
+                f"Duration: {info.get('duration_s', 0):.1f}s"
+            )
+        else:
+            st.info(f"Active sources: {stats['active_sources']}. Run a scan from `Scan & Results`.")
+
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        st.metric("Total Tenders", stats['total'], delta=stats.get('delta_total'))
+        st.metric("Total Opportunities", stats['total'], delta=stats.get('delta_total'))
     with col2:
-        st.metric("High Score (>=70%)", stats['high_score'], delta=stats.get('delta_high_score'))
+        st.metric("High Fit (>=70)", stats['high_score'], delta=stats.get('delta_high_score'))
     with col3:
-        st.metric("Saved", stats['saved'], delta=stats.get('delta_saved'))
-    with col4:
-        st.metric("Favorites", stats['favorites'], delta=stats.get('delta_favorites'))
-    with col5:
         st.metric("Deadlines in 7 Days", stats.get('upcoming_7d', 0))
-    st.caption(f"Active sources: {stats['active_sources']}")
-    
+    with col4:
+        st.metric("Saved", stats['saved'], delta=stats.get('delta_saved'))
+    with col5:
+        st.metric("Favorites", stats['favorites'], delta=stats.get('delta_favorites'))
+
     st.markdown("---")
-    
-    # Category breakdown
-    if stats['categories']:
-        st.subheader("Tenders by Category")
-        
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            # Bar chart
+    st.subheader("Action Queue")
+
+    urgent_col, fit_col = st.columns(2)
+    with urgent_col:
+        st.markdown("#### Upcoming Deadlines (Next 30 Days)")
+        upcoming_deadlines = get_upcoming_deadlines(limit=8, horizon_days=30)
+        if upcoming_deadlines:
+            for _, tender, meta in upcoming_deadlines:
+                c1, c2, c3 = st.columns([6, 2, 2])
+                with c1:
+                    st.markdown(f"**{tender.title}**")
+                    st.caption(f"{tender.country or 'Global'} | {tender.category or 'Unclassified'}")
+                with c2:
+                    st.markdown(f"**{meta['label']}**")
+                with c3:
+                    st.link_button("Open", tender.link, width="stretch")
+        else:
+            st.caption("No active deadlines found in the next 30 days.")
+
+    with fit_col:
+        st.markdown("#### High-Fit Recent Opportunities")
+        recent_high_fit = get_tenders({
+            'sort_by': 'score',
+            'min_score': 70,
+            'open_only': True,
+            'f2_only': True,
+        })[:8]
+        if recent_high_fit:
+            rows = []
+            for t in recent_high_fit:
+                d_meta = _deadline_meta(t.deadline)
+                rows.append({
+                    "Title": t.title_translated if t.title_translated and t.title_translated != t.title else t.title,
+                    "Score": round(t.score or 0, 1),
+                    "Country": t.country or "",
+                    "Deadline": d_meta["label"],
+                    "Status": _lifecycle_label(t.timing_status),
+                    "Link": t.link,
+                })
+            st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+        else:
+            st.caption("No high-fit open tenders currently. Run a fresh scan.")
+
+    st.markdown("---")
+    st.subheader("Pipeline Overview")
+
+    col_a, col_b = st.columns([2, 1])
+    with col_a:
+        recent = get_tenders({'sort_by': 'date'})[:12]
+        if recent:
+            table_rows = []
+            for tender in recent:
+                d_meta = _deadline_meta(tender.deadline)
+                table_rows.append({
+                    "Title": tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title,
+                    "Score": round(tender.score or 0, 1),
+                    "Category": tender.category or "Unclassified",
+                    "Country": tender.country or "Global",
+                    "Deadline": d_meta["label"],
+                    "Lifecycle": _lifecycle_label(tender.timing_status),
+                    "Added": tender.created_at.strftime('%Y-%m-%d') if tender.created_at else "",
+                })
+            st.dataframe(pd.DataFrame(table_rows), hide_index=True, width="stretch")
+        else:
+            st.info("No recent tenders. Run a scan to populate your pipeline.")
+
+    with col_b:
+        st.markdown("#### Categories")
+        if stats['categories']:
             cat_df = pd.DataFrame(
                 list(stats['categories'].items()),
                 columns=['Category', 'Count']
             ).sort_values('Count', ascending=False)
-            st.bar_chart(cat_df.set_index('Category'), height=400)
-        
-        with col2:
-            # Table
-            st.dataframe(
-                cat_df,
-                hide_index=True,
-                width="stretch"
-            )
-    
-    # Recent tenders
-    st.markdown("---")
-    st.subheader("Upcoming Deadlines")
-
-    upcoming_deadlines = get_upcoming_deadlines(limit=8, horizon_days=30)
-    if upcoming_deadlines:
-        for _, tender, meta in upcoming_deadlines:
-            col_a, col_b, col_c = st.columns([6, 2, 2])
-            with col_a:
-                st.markdown(f"**{tender.title}**")
-                st.caption(f"{tender.country or 'Global'} | {tender.category or 'Unclassified'}")
-            with col_b:
-                st.markdown(f"**{meta['label']}**")
-            with col_c:
-                st.link_button("Open", tender.link, width="stretch")
-            st.markdown("---")
-    else:
-        st.caption("No active deadlines in the next 30 days.")
-
-    st.subheader("Recent Tenders (Top 10)")
-    
-    recent = get_tenders({'sort_by': 'date'})[:10]
-    
-    if recent:
-        for tender in recent:
-            score_class = "high-score" if tender.score >= 70 else "medium-score" if tender.score >= 40 else "low-score"
-            
-            with st.container():
-                col1, col2, col3 = st.columns([3, 1, 1])
-                
-                with col1:
-                    st.markdown(f"**{tender.title}**")
-                    d_meta = _deadline_meta(tender.deadline)
-                    st.caption(f"{tender.category} | Added {tender.created_at.strftime('%Y-%m-%d %H:%M')} | Deadline: {d_meta['label']}")
-                
-                with col2:
-                    st.markdown(f"<span class='{score_class}'>{tender.score:.1f}%</span>", unsafe_allow_html=True)
-                
-                with col3:
-                    st.link_button("View", tender.link, width="stretch")
-                
-                st.markdown("---")
-    else:
-        st.info("No recent tenders. Start a new scan or review configured sources.")
-        st.info("""**Quick start**
-1. Open **Scan & Results**
-2. Click **Run Scan**
-3. Add or adjust data sources in **Sources**
-        """)
+            st.dataframe(cat_df, hide_index=True, width="stretch")
+        else:
+            st.caption("No category distribution available yet.")
 
 elif page == "Scan & Results":
     st.title("Scan & Results")
