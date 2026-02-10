@@ -70,7 +70,7 @@ st.markdown(f"""
         --bg-primary: {'#091424' if st.session_state.theme == 'dark' else '#f3f6fb'};
         --bg-secondary: {'#0f1d32' if st.session_state.theme == 'dark' else '#e7edf5'};
         --text-primary: {'#e7edf7' if st.session_state.theme == 'dark' else '#0d1b2a'};
-        --text-secondary: {'#9fb0c8' if st.session_state.theme == 'dark' else '#4f5f73'};
+        --text-secondary: {'#9fb0c8' if st.session_state.theme == 'dark' else '#39485c'};
         --border-color: {'#21354f' if st.session_state.theme == 'dark' else '#cfd8e5'};
         --card-bg: {'#102037' if st.session_state.theme == 'dark' else '#ffffff'};
         --accent: {'#3d8bfd' if st.session_state.theme == 'dark' else '#1f5fbf'};
@@ -154,8 +154,18 @@ st.markdown(f"""
         font-size: 1.1rem;
     }}
 
-    p, .stMarkdown, .stCaption {{
+    p, .stMarkdown {{
+        color: var(--text-primary);
+    }}
+
+    .stCaption {{
         color: var(--text-secondary);
+    }}
+
+    [data-testid="stMarkdownContainer"] p,
+    [data-testid="stMarkdownContainer"] li,
+    [data-testid="stMarkdownContainer"] span {{
+        color: var(--text-primary);
     }}
 
     /* Score badges */
@@ -251,6 +261,7 @@ st.markdown(f"""
         font-weight: 600;
         background: {'#0e2038' if st.session_state.theme == 'dark' else '#e9eff7'};
         border: 1px solid var(--border-color);
+        color: var(--text-primary);
     }}
 
     /* Banner */
@@ -259,7 +270,7 @@ st.markdown(f"""
         border: 1px solid var(--border-color);
         border-radius: 12px;
         padding: 1rem 1.1rem;
-        color: white;
+        color: var(--text-primary);
         box-shadow: none;
         margin-bottom: 1.25rem;
     }}
@@ -297,6 +308,10 @@ st.markdown(f"""
         background: var(--table-row);
     }}
 
+    [data-testid="stDataFrame"] * {{
+        color: var(--text-primary) !important;
+    }}
+
     .stLinkButton a {{
         border-radius: 10px !important;
         border: 1px solid var(--border-color) !important;
@@ -306,6 +321,10 @@ st.markdown(f"""
 
     .stCaption {{
         font-size: 0.76rem;
+    }}
+
+    .stAlert p, .stAlert li, .stAlert span {{
+        color: var(--text-primary) !important;
     }}
 </style>
 """, unsafe_allow_html=True)
