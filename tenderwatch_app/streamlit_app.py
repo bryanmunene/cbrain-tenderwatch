@@ -80,6 +80,7 @@ st.markdown(f"""
 
     html, body, [class*="css"] {{
         font-family: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+        font-size: 14px;
     }}
 
     /* Main background */
@@ -103,7 +104,7 @@ st.markdown(f"""
 
     /* Modern card styling */
     [data-testid="stMetricValue"] {{
-        font-size: 1.5rem;
+        font-size: 1.28rem;
         font-weight: 700;
         color: var(--text-primary);
         line-height: 1.2;
@@ -112,7 +113,7 @@ st.markdown(f"""
     [data-testid="stMetricLabel"] {{
         color: var(--text-secondary);
         font-weight: 600;
-        font-size: 0.86rem;
+        font-size: 0.8rem;
     }}
 
     /* Button styling */
@@ -141,8 +142,16 @@ st.markdown(f"""
     }}
 
     h1 {{
-        font-size: 1.9rem;
+        font-size: 1.6rem;
         margin-bottom: 0.25rem;
+    }}
+
+    h2 {{
+        font-size: 1.3rem;
+    }}
+
+    h3 {{
+        font-size: 1.1rem;
     }}
 
     p, .stMarkdown, .stCaption {{
@@ -256,13 +265,13 @@ st.markdown(f"""
     }}
     .hero-banner .title {{
         color: var(--text-primary);
-        font-size: 1.2rem;
+        font-size: 1.05rem;
         font-weight: 700;
         margin: 0;
     }}
     .hero-banner .subtitle {{
         color: var(--text-secondary);
-        font-size: 0.95rem;
+        font-size: 0.86rem;
         margin-top: 0.25rem;
     }}
     .pill {{
@@ -296,7 +305,7 @@ st.markdown(f"""
     }}
 
     .stCaption {{
-        font-size: 0.82rem;
+        font-size: 0.76rem;
     }}
 </style>
 """, unsafe_allow_html=True)
