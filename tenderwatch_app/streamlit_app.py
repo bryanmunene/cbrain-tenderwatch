@@ -432,9 +432,17 @@ def init_db(perform_translation=False):
             ("Uganda PPDA", "https://www.ppda.go.ug/", True),
             ("Tanzania PPRA", "https://www.ppra.go.tz/", True),
             ("Nigeria BPP", "https://www.bpp.gov.ng/", True),
+            ("South Africa eTender", "https://www.etenders.gov.za/", True),
             ("New Zealand GETS", "https://www.gets.govt.nz/ExternalIndex.htm", False),
             ("Philippines PhilGEPS", "https://www.philgeps.gov.ph/", False),
             ("ICT Authority", "https://icta.go.ke/tenders/", True),
+            ("Kenya Public Procurement Portal", "https://tenders.go.ke/", True),
+            ("Kenya PPIP", "https://tenders.go.ke/website/tenders/all", True),
+            ("EU Funding & Tenders", "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-search", False),
+            ("DFFE Tenders (South Africa)", "https://www.dffe.gov.za/tenders", True),
+            ("TradeMark Africa Procurement", "https://trademarkafrica.com/procurement/", True),
+            ("Eswatini SPPRA", "https://www.sppra.co.sz", True),
+            ("Tender Yetu Platform", "https://www.tenderyetu.com/", False),
             ("Singapore GeBIZ", "https://www.gebiz.gov.sg/", True),
             ("KEMSA Tenders", "https://www.kemsa.co.ke/tenders/", True),
             ("NSSF Tenders", "https://www.nssf.or.ke/tenders", True),
@@ -446,6 +454,7 @@ def init_db(perform_translation=False):
             "Tenders Info",
             "Tendersinfo Kenya",
             "BidDetail",
+            "Tender Yetu Platform",
         }
         
         # Add missing sources (check by URL to avoid duplicates)
