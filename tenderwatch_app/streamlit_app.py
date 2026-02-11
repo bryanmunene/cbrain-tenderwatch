@@ -1588,10 +1588,10 @@ elif page == "Scan & Results":
             f2_fit_filter = st.selectbox("F2 Fit", f2_fit_options, help="Filter by F2 fit likelihood")
 
         with col10:
-            f2_only = st.checkbox("F2-only", value=True, help="Show only F2-relevant tenders.")
+            f2_only = st.checkbox("F2-only", value=False, help="Show only F2-relevant tenders.")
 
         with col11:
-            open_only = st.checkbox("Open-only", value=True, help="Hide locked or no-go opportunities.")
+            open_only = st.checkbox("Open-only", value=False, help="Hide locked or no-go opportunities.")
 
         with col12:
             deadline_window = st.selectbox(
@@ -1604,7 +1604,7 @@ elif page == "Scan & Results":
         with col13:
             strict_quality = st.checkbox(
                 "Strict quality",
-                value=True,
+                value=False,
                 help="Hide weak or noisy opportunities by default."
             )
         with col14:
