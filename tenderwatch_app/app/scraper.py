@@ -123,6 +123,14 @@ F2_INTENT_TERMS = [
 
 MIN_RELEVANCE_SCORE = 22
 
+# Broader discovery terms for high-signal favorite sources.
+# These are intentionally narrower than generic gov words to avoid noisy capture.
+BROAD_DISCOVERY_TERMS = [
+    "digital", "digitization", "digitalization", "ict", "information system",
+    "software", "application", "system implementation", "automation",
+    "platform", "portal", "data management", "enterprise system",
+]
+
 
 # -----------------------------------------------------------------------------
 # Parsing heuristics (module-level to avoid re-allocating per-source)
@@ -253,6 +261,22 @@ def _is_generic_title(title: str) -> bool:
 def _has_f2_intent(text: str) -> bool:
     t = (text or "").lower()
     return any(term in t for term in F2_INTENT_TERMS)
+
+
+def _broad_discovery_hits(text: str) -> List[str]:
+    t = (text or "").lower()
+    hits = []
+    for term in BROAD_DISCOVERY_TERMS:
+        if term in t:
+            hits.append(term)
+    # de-dupe while preserving order
+    seen = set()
+    out = []
+    for h in hits:
+        if h not in seen:
+            seen.add(h)
+            out.append(h)
+    return out
 
 
 def _classify_lifecycle(text: str) -> str:
@@ -468,8 +492,6 @@ def scan_source(source: SourceInfo, existing_links: Optional[Iterable[str]] = No
     for idx, a in enumerate(soup.find_all("a", href=True)):
         if idx >= MAX_ANCHORS_PER_SOURCE:
             break
-        if len(out) >= MAX_NEW_TENDERS_PER_SOURCE:
-            break
 
         try:
             href = (a.get("href") or "").strip()
@@ -579,8 +601,14 @@ def scan_source(source: SourceInfo, existing_links: Optional[Iterable[str]] = No
                 continue
             if lifecycle_status in {"clarification", "cancelled"}:
                 continue
-            if deadline and not is_deadline_valid(deadline) and lifecycle_status == "open":
-                continue
+            # Keep near-deadline opportunities; only drop genuinely expired notices.
+            if deadline and lifecycle_status == "open":
+                try:
+                    parsed_deadline = datetime.strptime(deadline, "%Y-%m-%d").date()
+                    if parsed_deadline < _utcnow().date():
+                        continue
+                except Exception:
+                    pass
 
             # Score using richer context (aria/row text + small PDF snippet if present)
             scoring_text = f"{description} {aria_title} {parent_text}".strip()
@@ -599,16 +627,32 @@ def scan_source(source: SourceInfo, existing_links: Optional[Iterable[str]] = No
             procurement_status = breakdown.get("procurement_status", "open")
 
             if score <= 0 or keywords_found == 0:
-                continue
+                # Controlled fallback: keep digital/ICT-adjacent leads from favorite sources.
+                broad_hits = _broad_discovery_hits(base_combined)
+                if bool(source.favorite) and broad_hits and (has_tender_term or has_ref_code):
+                    score = max(float(score or 0), 28.0)
+                    keywords_found = len(broad_hits)
+                    matched = ", ".join([f"broad:{h}" for h in broad_hits[:4]])
+                    breakdown["keywords_found"] = keywords_found
+                    breakdown["matched_phrases"] = broad_hits[:8]
+                    breakdown["broad_capture"] = True
+                    if breakdown.get("likely_fit_for_F2", "uncertain") == "uncertain":
+                        breakdown["likely_fit_for_F2"] = "discuss"
+                    scoring_breakdown = json_lib.dumps(breakdown)
+                    likely_fit = breakdown.get("likely_fit_for_F2", "discuss")
+                    procurement_status = breakdown.get("procurement_status", "open")
+                else:
+                    continue
             if likely_fit in {"excluded", "no-go"}:
                 continue
             if procurement_status in {"locked", "conditional_nogo"} and not source.favorite:
                 continue
             if likely_fit == "uncertain" and score < 45:
                 continue
-            if not deadline and likely_fit in {"uncertain", "discuss"} and score < 60:
+            strict_no_deadline = not bool(source.favorite)
+            if strict_no_deadline and not deadline and likely_fit in {"uncertain", "discuss"} and score < 60:
                 continue
-            if not deadline and keywords_found < 3 and score < 65:
+            if strict_no_deadline and not deadline and keywords_found < 3 and score < 65:
                 continue
             if not _has_f2_intent(base_combined) and len(domains_matched) < 2 and score < MIN_RELEVANCE_SCORE:
                 continue
@@ -662,6 +706,16 @@ def scan_source(source: SourceInfo, existing_links: Optional[Iterable[str]] = No
         except Exception as e:
             logger.debug("Skipping link from %s due to parsing error: %s", source.name, str(e)[:120])
             continue
+
+    # Keep the strongest opportunities from each source instead of first-seen links.
+    out.sort(
+        key=lambda r: (
+            float(r.get("score", 0) or 0),
+            1 if (r.get("deadline") or "").strip() else 0,
+        ),
+        reverse=True,
+    )
+    out = out[:MAX_NEW_TENDERS_PER_SOURCE]
 
     logger.info("Source %s produced %d candidates in %.1fs", source.name, len(out), time.time() - t0)
     return out
@@ -877,6 +931,3 @@ def run_scan(flask_app=None, max_sources=15, scan_timeout_seconds=None):
             print(f" Push notification failed: {e}")
 
     return fresh_tenders
-
-
-
