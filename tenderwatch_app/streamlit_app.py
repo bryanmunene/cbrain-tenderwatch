@@ -672,6 +672,64 @@ def _lifecycle_label(value: str) -> str:
     }
     return mapping.get((value or "").strip().lower(), "Open")
 
+
+STRICT_F2_STATUSES = {"true", "strategic", "discuss", "conditional"}
+NOISY_TITLE_HINTS = (
+    "clarification",
+    "corrigendum",
+    "addendum",
+    "award",
+    "winner",
+    "minutes",
+    "pre-bid meeting",
+)
+
+
+def _keyword_count(matched: str) -> int:
+    if not matched:
+        return 0
+    return len([k for k in (p.strip() for p in matched.split(",")) if k])
+
+
+def _passes_strict_quality(tender, min_score: int = 35) -> bool:
+    score = float(getattr(tender, "score", 0) or 0)
+    if score < min_score:
+        return False
+
+    likely_fit = (getattr(tender, "likely_fit_for_f2", "") or "").strip().lower()
+    if likely_fit not in STRICT_F2_STATUSES:
+        return False
+
+    procurement_status = (getattr(tender, "procurement_status", "") or "").strip().lower()
+    if procurement_status in {"locked", "conditional_nogo"}:
+        return False
+
+    timing_status = (getattr(tender, "timing_status", "") or "").strip().lower()
+    if timing_status in {"awarded", "clarification", "cancelled"}:
+        return False
+
+    title = (getattr(tender, "title_translated", "") or getattr(tender, "title", "") or "").lower()
+    if any(hint in title for hint in NOISY_TITLE_HINTS):
+        return False
+
+    deadline_exists = _parse_deadline_value(getattr(tender, "deadline", "")) is not None
+    description = (
+        (getattr(tender, "description_translated", "") or getattr(tender, "description", "") or "")
+        .replace("\n", " ")
+        .strip()
+    )
+    kw_count = _keyword_count(getattr(tender, "keywords_matched", ""))
+
+    # Avoid weak cards: thin metadata + low confidence + no deadline.
+    if not deadline_exists and len(description) < 80 and score < 60:
+        return False
+    if kw_count < 2 and score < 55:
+        return False
+    if not deadline_exists and kw_count < 3 and score < 65:
+        return False
+
+    return True
+
 def init_db(perform_translation=False):
     """Initialize database with app context"""
     with app.app_context():
@@ -834,12 +892,11 @@ def get_tenders(filters=None, days_window=30):
             if filters.get('f2_fit') and filters['f2_fit'] != "All":
                 query = query.filter(TenderResult.likely_fit_for_f2 == filters['f2_fit'])
             if filters.get('f2_only'):
-                f2_statuses = ["true", "strategic", "discuss", "conditional"]
-                f2_clause = or_(
-                    TenderResult.likely_fit_for_f2.in_(f2_statuses),
-                    (TenderResult.keywords_matched.isnot(None) & (TenderResult.keywords_matched != ""))
+                f2_clause = (
+                    TenderResult.likely_fit_for_f2.in_(list(STRICT_F2_STATUSES))
                 )
                 query = query.filter(f2_clause)
+                query = query.filter(~TenderResult.procurement_status.in_(["locked", "conditional_nogo"]))
             if filters.get('open_only'):
                 query = query.filter(
                     ~TenderResult.procurement_status.in_(["locked", "conditional_nogo"])
@@ -856,8 +913,14 @@ def get_tenders(filters=None, days_window=30):
             query = query.order_by(TenderResult.created_at.desc())
         elif sort_by == 'deadline':
             query = query.order_by(TenderResult.deadline.asc())
-        
-        return query.all()
+
+        tenders = query.all()
+
+        if filters and filters.get("f2_only") and filters.get("strict_quality", True):
+            strict_min_score = int(filters.get("strict_min_score", 35) or 35)
+            tenders = [t for t in tenders if _passes_strict_quality(t, min_score=strict_min_score)]
+
+        return tenders
 
 
 def get_tenders_with_fallback(filters=None):
@@ -884,6 +947,13 @@ def get_tenders_with_fallback(filters=None):
     filtered = get_tenders(filters)
     if filtered:
         return filtered, True, ""
+
+    allow_broad_fallback = bool(filters.get("allow_broad_fallback"))
+    if not allow_broad_fallback:
+        anytime_strict = get_tenders(filters, days_window=None)
+        if anytime_strict:
+            return anytime_strict, True, "No recent strict matches. Displaying earlier strict matches."
+        return [], True, "No strict F2 matches found. Adjust filters or disable strict quality."
 
     relaxed = dict(filters)
     relaxed['f2_only'] = False
@@ -1401,7 +1471,7 @@ elif page == "Scan & Results":
         col1, col2, col3, col4 = st.columns(4)
     
         with col1:
-            min_score = st.slider("Minimum Score", 0, 100, 0, 5)
+            min_score = st.slider("Minimum Score", 0, 100, 35, 5)
     
         with col2:
             all_tenders = get_tenders()
@@ -1450,6 +1520,20 @@ elif page == "Scan & Results":
                 help="Filter tenders by submission deadline window."
             )
 
+        col13, col14 = st.columns(2)
+        with col13:
+            strict_quality = st.checkbox(
+                "Strict quality",
+                value=True,
+                help="Hide weak or noisy opportunities by default."
+            )
+        with col14:
+            allow_broad_fallback = st.checkbox(
+                "Broaden if empty",
+                value=False,
+                help="If strict filters return none, expand to broader matches."
+            )
+
         # Get filtered tenders
         filters = {
             'min_score': min_score,
@@ -1463,6 +1547,9 @@ elif page == "Scan & Results":
             'f2_fit': f2_fit_filter,
             'f2_only': f2_only,
             'open_only': open_only,
+            'strict_quality': strict_quality,
+            'strict_min_score': min_score,
+            'allow_broad_fallback': allow_broad_fallback,
         }
     
         tenders, applied_f2_only, fallback_message = get_tenders_with_fallback(filters)

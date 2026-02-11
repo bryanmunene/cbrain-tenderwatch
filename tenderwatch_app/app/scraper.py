@@ -95,7 +95,7 @@ F2_INTENT_TERMS = [
     "citizen portal", "service delivery platform",
 ]
 
-MIN_RELEVANCE_SCORE = 14
+MIN_RELEVANCE_SCORE = 22
 
 
 def _utcnow():
@@ -406,6 +406,12 @@ def scan_source(source: TenderSource, app, existing_links=None):
                 if likely_fit in {"excluded", "no-go"}:
                     continue
                 if procurement_status in {"locked", "conditional_nogo"} and not source.favorite:
+                    continue
+                if likely_fit == "uncertain" and score < 45:
+                    continue
+                if not deadline and likely_fit in {"uncertain", "discuss"} and score < 60:
+                    continue
+                if not deadline and keywords_found < 3 and score < 65:
                     continue
                 if not _has_f2_intent(base_combined) and len(domains_matched) < 2 and score < MIN_RELEVANCE_SCORE:
                     continue
