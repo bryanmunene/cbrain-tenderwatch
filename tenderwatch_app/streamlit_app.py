@@ -1702,8 +1702,9 @@ elif page == "Scan & Results":
     
         tenders, applied_f2_only, fallback_message = get_tenders_with_fallback(filters)
         tenders = _apply_deadline_window(tenders, deadline_window)
-        if filters.get("require_keywords"):
-            tenders = [t for t in tenders if _has_display_keywords(t)]
+        before_keyword_filter_count = len(tenders)
+        tenders = [t for t in tenders if _has_display_keywords(t)]
+        keyword_filtered_out = before_keyword_filter_count - len(tenders)
 
         if sort_by == "deadline":
             tenders = sorted(
@@ -1715,6 +1716,8 @@ elif page == "Scan & Results":
             st.warning(fallback_message)
         elif f2_only and not applied_f2_only:
             st.warning("No F2-only matches found. Displaying all results.")
+        if keyword_filtered_out > 0:
+            st.caption(f"Hidden {keyword_filtered_out} results with unavailable keywords.")
         st.markdown(f"**{len(tenders)} tenders found**")
         st.markdown("---")
     
