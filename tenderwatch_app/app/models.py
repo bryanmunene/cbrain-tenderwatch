@@ -134,3 +134,13 @@ class DiscoveryLog(db.Model):
     execution_time_seconds = db.Column(db.Float, default=0.0)
     error_message = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class FeedbackEvent(db.Model):
+    """User feedback signals used for relevance model training."""
+    id = db.Column(db.Integer, primary_key=True)
+    tender_id = db.Column(db.Integer, db.ForeignKey("tender_result.id"), nullable=False, index=True)
+    tender = db.relationship("TenderResult")
+    event_type = db.Column(db.String(50), nullable=False, index=True)  # view, save, unsave, favorite, unfavorite
+    label_weight = db.Column(db.Float, default=0.0)  # +1 positive, -1 negative, fractional for soft signals
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)

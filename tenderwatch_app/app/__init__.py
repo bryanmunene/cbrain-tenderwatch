@@ -25,6 +25,8 @@ def _load_env_file():
 def _initialize_database(app):
     """Create baseline schema, run lightweight migrations, and seed required rows."""
     with app.app_context():
+        # Ensure all model metadata is registered before create_all.
+        import app.models  # noqa: F401
         db.create_all()
 
         # Auto-migrate AI fields if they don't exist

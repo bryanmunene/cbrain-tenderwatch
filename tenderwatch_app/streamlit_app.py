@@ -32,6 +32,14 @@ from app.scraper import run_scan, cleanup_irrelevant_tenders
 from app.scoring import score_text
 from app.categorizer import categorize
 from app.keywords import ALL_KEYWORDS
+from app.ml_ranker import (
+    blend_score,
+    feedback_counts,
+    model_status,
+    predict_relevance,
+    record_feedback,
+    train_relevance_model,
+)
 
 # Set page config
 st.set_page_config(
@@ -1100,7 +1108,7 @@ def get_tenders(filters=None, days_window=30, created_after=None):
                     ~TenderResult.timing_status.in_(["awarded", "clarification", "cancelled"])
                 )
         
-        # Sort
+        # Sort (baseline in SQL; final ranking can be blended with ML below).
         sort_by = filters.get('sort_by', 'score') if filters else 'score'
         if sort_by == 'score':
             query = query.order_by(TenderResult.score.desc())
@@ -1114,6 +1122,19 @@ def get_tenders(filters=None, days_window=30, created_after=None):
         if filters and filters.get("f2_only") and filters.get("strict_quality", True):
             strict_min_score = int(filters.get("strict_min_score", 35) or 35)
             tenders = [t for t in tenders if _passes_strict_quality(t, min_score=strict_min_score)]
+
+        # ML blending for score-sorted lists.
+        if sort_by == "score":
+            blended = []
+            for t in tenders:
+                ml_score = predict_relevance(t)
+                try:
+                    setattr(t, "_ml_score", ml_score if ml_score is not None else None)
+                    setattr(t, "_rank_score", blend_score(float(t.score or 0), ml_score))
+                except Exception:
+                    pass
+                blended.append(t)
+            tenders = sorted(blended, key=lambda x: float(getattr(x, "_rank_score", x.score or 0.0)), reverse=True)
 
         return tenders
 
@@ -1315,6 +1336,7 @@ def toggle_favorite(tender_id):
         if tender:
             tender.favorite = not tender.favorite
             db.session.commit()
+            record_feedback(tender.id, "favorite" if tender.favorite else "unfavorite", 1.0 if tender.favorite else -1.0)
             return True
     return False
 
@@ -1325,6 +1347,7 @@ def toggle_saved(tender_id):
         if tender:
             tender.saved = not tender.saved
             db.session.commit()
+            record_feedback(tender.id, "save" if tender.saved else "unsave", 1.0 if tender.saved else -0.7)
             return True
     return False
 
@@ -1953,6 +1976,9 @@ elif page == "Scan & Results":
                         chips.append(f"<span class='meta-chip'>Priority: {tender.priority_level}</span>")
                     if tender.likely_fit_for_f2:
                         chips.append(f"<span class='meta-chip'>F2 Fit: {tender.likely_fit_for_f2}</span>")
+                    ml_score = getattr(tender, "_ml_score", None)
+                    if ml_score is not None:
+                        chips.append(f"<span class='meta-chip'>ML: {ml_score * 100:.0f}%</span>")
                     description_line = (tender.description_translated or tender.description or "").replace("\n", " ").strip()
                     if len(description_line) > 220:
                         description_line = f"{description_line[:220].rstrip()}..."
@@ -2028,6 +2054,7 @@ elif page == "Scan & Results":
 
                     with col4:
                         if st.button("Details", key=f"detail_{tender.id}", width="stretch"):
+                            record_feedback(tender.id, "view", 0.25)
                             st.session_state['selected_tender'] = tender.id
                             st.rerun()
         else:
@@ -2171,6 +2198,42 @@ elif page == "Settings":
             if st.button("Clean Closed/Awarded", key="run_cleanup_closed"):
                 cleanup_irrelevant_tenders()
                 st.success("Closed/awarded tenders cleanup completed.")
+        st.markdown("---")
+
+        st.subheader("ML Relevance Model")
+        ml_status = model_status()
+        fb_stats = feedback_counts(days=180)
+        ml_col1, ml_col2, ml_col3, ml_col4 = st.columns(4)
+        with ml_col1:
+            st.metric("Feedback Events", fb_stats.get("total", 0))
+        with ml_col2:
+            st.metric("Positive", fb_stats.get("positive", 0))
+        with ml_col3:
+            st.metric("Negative", fb_stats.get("negative", 0))
+        with ml_col4:
+            st.metric("Model", "Ready" if ml_status.get("available") else "Not trained")
+
+        if ml_status.get("available"):
+            st.caption(
+                f"Trained: {ml_status.get('trained_at', 'N/A')} | "
+                f"Samples: {ml_status.get('samples', 0)} "
+                f"(+{ml_status.get('positives', 0)} / -{ml_status.get('negatives', 0)})"
+            )
+        else:
+            st.caption("Model is not trained yet. Keep using Save/Favorite/Details to build feedback signals.")
+
+        if st.button("Train/Re-train Relevance Model", key="train_ml_model_btn"):
+            result = train_relevance_model(min_samples=40)
+            if result.trained:
+                st.success(
+                    f"{result.message} "
+                    f"Samples={result.samples}, Pos={result.positives}, Neg={result.negatives}"
+                )
+            else:
+                st.warning(
+                    f"{result.message} "
+                    f"Current samples={result.samples}, Pos={result.positives}, Neg={result.negatives}"
+                )
         st.markdown("---")
         
         # Install App Section
