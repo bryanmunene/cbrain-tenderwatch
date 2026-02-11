@@ -5,6 +5,7 @@ Simple, powerful tender scanning for cBrain F2 Platform
 
 import json
 import importlib
+import re
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -515,6 +516,44 @@ st.markdown(f"""
         border-top: 1px dashed rgba(148, 163, 184, 0.28);
     }}
 
+    .keyword-card {{
+        margin-top: 0.62rem;
+        padding: 0.55rem 0.65rem;
+        border: 1px solid rgba(148, 163, 184, 0.30);
+        border-radius: 10px;
+        background: rgba(15, 35, 62, 0.55);
+    }}
+
+    .keyword-card-title {{
+        color: #a7b8d4;
+        font-size: 0.72rem;
+        font-weight: 650;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        margin-bottom: 0.35rem;
+    }}
+
+    .keyword-chips {{
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }}
+
+    .keyword-chip {{
+        border-radius: 999px;
+        padding: 0.18rem 0.5rem;
+        font-size: 0.71rem;
+        font-weight: 560;
+        border: 1px solid rgba(103, 128, 165, 0.5);
+        color: #d9e7fb;
+        background: rgba(30, 58, 95, 0.52);
+    }}
+
+    .keyword-empty {{
+        font-size: 0.76rem;
+        color: #93a6c3;
+    }}
+
     .result-muted {{
         color: #94a3b8;
         font-size: 0.74rem;
@@ -689,6 +728,31 @@ def _keyword_count(matched: str) -> int:
     if not matched:
         return 0
     return len([k for k in (p.strip() for p in matched.split(",")) if k])
+
+
+def _keyword_list(matched: str, limit: int = 8):
+    if not matched:
+        return []
+    parts = []
+    for token in matched.split(","):
+        t = token.strip()
+        if not t:
+            continue
+        # Remove trailing summaries like "(+3 more)" if present.
+        t = re.sub(r"\(\+\d+\s+more\)\s*$", "", t).strip()
+        if t:
+            parts.append(t)
+    seen = set()
+    unique = []
+    for p in parts:
+        key = p.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(p)
+        if len(unique) >= limit:
+            break
+    return unique
 
 
 def _passes_strict_quality(tender, min_score: int = 35) -> bool:
@@ -1602,6 +1666,11 @@ elif page == "Scan & Results":
                     description_line = (tender.description_translated or tender.description or "").replace("\n", " ").strip()
                     if len(description_line) > 220:
                         description_line = f"{description_line[:220].rstrip()}..."
+                    keywords = _keyword_list(getattr(tender, "keywords_matched", ""), limit=8)
+                    if keywords:
+                        keyword_html = "".join([f"<span class='keyword-chip'>{k}</span>" for k in keywords])
+                    else:
+                        keyword_html = "<span class='keyword-empty'>No keyword hits recorded</span>"
 
                     st.markdown(
                         f"""
@@ -1616,6 +1685,10 @@ elif page == "Scan & Results":
                             <div class="meta-chips">{chips_html}</div>
                             <div class="result-muted">Captured: {created_label}</div>
                             <div class="result-summary">{description_line or 'No description available.'}</div>
+                            <div class="keyword-card">
+                                <div class="keyword-card-title">Matched Keywords</div>
+                                <div class="keyword-chips">{keyword_html}</div>
+                            </div>
                             <div class="result-actions"></div>
                         </div>
                         """,
