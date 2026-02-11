@@ -25,20 +25,100 @@ Design Principles:
 """
 
 import json
-from app.keywords import (
-    ALL_KEYWORDS, 
-    KEYWORD_DOMAINS, 
-    KEYWORD_TO_DOMAIN,
-    PRIORITY_COMBINATIONS,
-    NEGATIVE_SIGNALS,
-    IRRELEVANT_SIGNALS,
-    PRIORITY_PHRASES,
-    GENERIC_STANDALONE_KEYWORDS,
-    PLATFORM_LOCKIN_SIGNALS,
-    OPEN_PROCUREMENT_SIGNALS,
-    MICROSOFT_COMMITMENT_SIGNALS,
-    PLATFORM_OPENNESS_SIGNALS,
-    QUALIFICATION_QUESTIONS,
+import app.keywords as kw
+
+# Compatibility bridge:
+# `app/keywords.py` evolved and some legacy constants may be renamed or absent.
+# Keep scoring imports resilient so Streamlit startup doesn't fail on ImportError.
+ALL_KEYWORDS = getattr(kw, "ALL_KEYWORDS", [])
+KEYWORD_DOMAINS = getattr(kw, "KEYWORD_DOMAINS", {})
+KEYWORD_TO_DOMAIN = getattr(kw, "KEYWORD_TO_DOMAIN", {})
+NEGATIVE_SIGNALS = getattr(kw, "NEGATIVE_SIGNALS", [])
+GENERIC_STANDALONE_KEYWORDS = getattr(kw, "GENERIC_STANDALONE_KEYWORDS", [])
+QUALIFICATION_QUESTIONS = getattr(kw, "QUALIFICATION_QUESTIONS", [])
+
+PRIORITY_COMBINATIONS = getattr(
+    kw,
+    "PRIORITY_COMBINATIONS",
+    [
+        (["EDMS", "Workflow"], 8, "HIGH"),
+        (["EDMS", "Case"], 8, "HIGH"),
+        (["Records", "Workflow"], 6, "MEDIUM"),
+        (["ECM", "Workflow"], 6, "MEDIUM"),
+        (["Gov", "EDMS"], 4, "MEDIUM"),
+        (["Gov", "Case"], 4, "MEDIUM"),
+        (["Forms", "Workflow"], 3, "MEDIUM"),
+        (["ServiceDelivery", "Case"], 3, "MEDIUM"),
+    ],
+)
+
+IRRELEVANT_SIGNALS = getattr(
+    kw,
+    "IRRELEVANT_SIGNALS",
+    list(
+        dict.fromkeys(
+            getattr(kw, "CONSTRUCTION_SIGNALS", [])
+            + getattr(kw, "HARDWARE_SIGNALS", [])
+            + getattr(kw, "MEDICAL_SIGNALS", [])
+        )
+    ),
+)
+
+PRIORITY_PHRASES = getattr(
+    kw,
+    "PRIORITY_PHRASES",
+    list(
+        dict.fromkeys(
+            KEYWORD_DOMAINS.get("Pipeline", [])
+            + [
+                "document management system",
+                "records management system",
+                "workflow automation",
+                "case management system",
+                "digital transformation",
+            ]
+        )
+    ),
+)
+
+PLATFORM_LOCKIN_SIGNALS = getattr(
+    kw,
+    "PLATFORM_LOCKIN_SIGNALS",
+    list(
+        dict.fromkeys(
+            getattr(kw, "MICROSOFT_HARD_LOCK_SIGNALS", [])
+            + getattr(kw, "MICROSOFT_SOFT_LOCK_SIGNALS", [])
+        )
+    ),
+)
+
+OPEN_PROCUREMENT_SIGNALS = getattr(
+    kw,
+    "OPEN_PROCUREMENT_SIGNALS",
+    [
+        "request for proposal",
+        "request for quotation",
+        "invitation to bid",
+        "open tender",
+        "competitive bidding",
+    ],
+)
+
+MICROSOFT_COMMITMENT_SIGNALS = getattr(
+    kw,
+    "MICROSOFT_COMMITMENT_SIGNALS",
+    list(
+        dict.fromkeys(
+            getattr(kw, "MICROSOFT_HARD_LOCK_SIGNALS", [])
+            + getattr(kw, "MICROSOFT_SOFT_LOCK_SIGNALS", [])
+        )
+    ),
+)
+
+PLATFORM_OPENNESS_SIGNALS = getattr(
+    kw,
+    "PLATFORM_OPENNESS_SIGNALS",
+    getattr(kw, "OPENNESS_SIGNALS", []),
 )
 
 
