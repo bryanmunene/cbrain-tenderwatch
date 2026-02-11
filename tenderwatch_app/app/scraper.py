@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import re
 import threading
+import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
@@ -11,7 +12,7 @@ from urllib.parse import urljoin
 
 import requests
 import urllib3
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 from flask import current_app
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -31,7 +32,9 @@ from app.keywords import ALL_KEYWORDS
 logger = logging.getLogger(__name__)
 logging.getLogger("pypdf").setLevel(logging.ERROR)
 logging.getLogger("pypdf._reader").setLevel(logging.ERROR)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
 
 
@@ -874,7 +877,6 @@ def run_scan(flask_app=None, max_sources=15, scan_timeout_seconds=None):
             print(f" Push notification failed: {e}")
 
     return fresh_tenders
-
 
 
 

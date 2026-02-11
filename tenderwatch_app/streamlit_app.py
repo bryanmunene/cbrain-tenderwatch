@@ -1697,6 +1697,9 @@ elif page == "Scan & Results":
                         chips.append(f"<span class='meta-chip'>Priority: {tender.priority_level}</span>")
                     if tender.likely_fit_for_f2:
                         chips.append(f"<span class='meta-chip'>F2 Fit: {tender.likely_fit_for_f2}</span>")
+                    description_line = (tender.description_translated or tender.description or "").replace("\n", " ").strip()
+                    if len(description_line) > 220:
+                        description_line = f"{description_line[:220].rstrip()}..."
                     keywords = _keyword_list(
                         getattr(tender, "keywords_matched", ""),
                         fallback_text=f"{display_title} {description_line}",
@@ -1710,9 +1713,6 @@ elif page == "Scan & Results":
                     chips_html = "".join(chips)
 
                     deadline_status = deadline_meta["style"].upper() if deadline_meta["style"] != "none" else "NO DEADLINE"
-                    description_line = (tender.description_translated or tender.description or "").replace("\n", " ").strip()
-                    if len(description_line) > 220:
-                        description_line = f"{description_line[:220].rstrip()}..."
 
                     st.markdown(
                         f"""
