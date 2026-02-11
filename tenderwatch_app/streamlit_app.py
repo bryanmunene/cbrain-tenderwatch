@@ -723,6 +723,25 @@ NOISY_TITLE_HINTS = (
     "pre-bid meeting",
 )
 
+# Hide generic governance terms from per-result keyword chips.
+GENERIC_KEYWORD_BLOCKLIST = {
+    "government",
+    "public sector",
+    "public institution",
+    "government agency",
+    "ministry",
+    "department",
+    "authority",
+    "commission",
+    "judiciary",
+    "local authority",
+    "county government",
+    "parastatal",
+    "state corporation",
+    "municipal",
+    "municipality",
+}
+
 
 def _keyword_count(matched: str) -> int:
     if not matched:
@@ -746,6 +765,8 @@ def _keyword_list(matched: str, limit: int = 8):
     unique = []
     for p in parts:
         key = p.lower()
+        if key in GENERIC_KEYWORD_BLOCKLIST:
+            continue
         if key in seen:
             continue
         seen.add(key)
