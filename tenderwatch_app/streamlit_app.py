@@ -863,8 +863,6 @@ def get_tenders(filters=None, days_window=30):
             query = query.filter(TenderResult.created_at >= since)
         
         if filters:
-            if filters.get('min_score'):
-                query = query.filter(TenderResult.score >= filters['min_score'])
             if filters.get('category') and filters['category'] != "All":
                 query = query.filter(TenderResult.category == filters['category'])
             if filters.get('search'):
@@ -1468,20 +1466,17 @@ elif page == "Scan & Results":
                 )
     
         # Row 1: Score, Category, Sort, Search
-        col1, col2, col3, col4 = st.columns(4)
-    
+        col1, col2, col3 = st.columns(3)
+
         with col1:
-            min_score = st.slider("Minimum Score", 0, 100, 35, 5)
-    
-        with col2:
             all_tenders = get_tenders()
             categories = ["All"] + sorted(list(set([t.category for t in all_tenders if t.category]))) if all_tenders else ["All"]
             category = st.selectbox("Category", categories)
-    
-        with col3:
+
+        with col2:
             sort_by = st.selectbox("Sort By", ["score", "date", "deadline"])
-    
-        with col4:
+
+        with col3:
             search = st.text_input("Search", placeholder="Search titles...", help="Search in tender titles")
         
         # Row 2: Priority, Procurement, Lifecycle, Country, F2 Fit, Toggles
@@ -1536,7 +1531,6 @@ elif page == "Scan & Results":
 
         # Get filtered tenders
         filters = {
-            'min_score': min_score,
             'category': category,
             'sort_by': sort_by,
             'search': search,
@@ -1548,7 +1542,7 @@ elif page == "Scan & Results":
             'f2_only': f2_only,
             'open_only': open_only,
             'strict_quality': strict_quality,
-            'strict_min_score': min_score,
+            'strict_min_score': 35,
             'allow_broad_fallback': allow_broad_fallback,
         }
     
