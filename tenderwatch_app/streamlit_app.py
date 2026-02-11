@@ -848,35 +848,53 @@ def init_db(perform_translation=False):
     """Initialize database with app context"""
     with app.app_context():
         # Validated baseline (live-audited: reachable + parseable tender links).
+        # tuple format: (name, url, favorite, active_by_default)
         default_sources_data = [
-            ("UNDP Procurement Notices", "https://procurement-notices.undp.org/", True),
-            ("UN Global Marketplace", "https://www.ungm.org/Public/Notice", True),
-            ("UNOPS Opportunities", "https://www.unops.org/business-opportunities", True),
-            ("World Bank Procurement", "https://projects.worldbank.org/en/projects-operations/procurement", True),
-            ("TED Europa Tenders", "https://ted.europa.eu/en/search/result", True),
-            ("UK Find a Tender", "https://www.find-tender.service.gov.uk/Search", True),
-            ("WFP Procurement", "https://www.wfp.org/procurement", False),
-            ("WHO Procurement", "https://www.who.int/about/accountability/procurement", False),
-            ("FAO Procurement", "https://www.fao.org/unfao/procurement/", False),
-            ("ILO Procurement", "https://www.ilo.org/procurement/", False),
-            ("Uganda PPDA", "https://www.ppda.go.ug/", True),
-            ("Tanzania PPRA", "https://www.ppra.go.tz/", True),
-            ("Nigeria BPP", "https://www.bpp.gov.ng/", True),
-            ("South Africa eTender", "https://www.etenders.gov.za/", True),
-            ("New Zealand GETS", "https://www.gets.govt.nz/ExternalIndex.htm", False),
-            ("Philippines PhilGEPS", "https://www.philgeps.gov.ph/", False),
-            ("ICT Authority", "https://icta.go.ke/tenders/", True),
-            ("Kenya Public Procurement Portal", "https://tenders.go.ke/", True),
-            ("Kenya PPIP", "https://tenders.go.ke/website/tenders/all", True),
-            ("EU Funding & Tenders", "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-search", False),
-            ("DFFE Tenders (South Africa)", "https://www.dffe.gov.za/tenders", True),
-            ("TradeMark Africa Procurement", "https://trademarkafrica.com/procurement/", True),
-            ("Eswatini SPPRA", "https://www.sppra.co.sz", True),
-            ("Tender Yetu Platform", "https://www.tenderyetu.com/", False),
-            ("Singapore GeBIZ", "https://www.gebiz.gov.sg/", True),
-            ("KEMSA Tenders", "https://www.kemsa.co.ke/tenders/", True),
-            ("NSSF Tenders", "https://www.nssf.or.ke/tenders", True),
-            ("MyGov Kenya", "https://www.mygov.go.ke/?s=tender", True),
+            ("UNDP Procurement Notices", "https://procurement-notices.undp.org/", True, True),
+            ("UN Global Marketplace", "https://www.ungm.org/Public/Notice", True, True),
+            ("UNOPS Opportunities", "https://www.unops.org/business-opportunities", True, True),
+            ("World Bank Procurement", "https://projects.worldbank.org/en/projects-operations/procurement", True, True),
+            ("TED Europa Tenders", "https://ted.europa.eu/en/search/result", True, True),
+            ("UK Find a Tender", "https://www.find-tender.service.gov.uk/Search", True, True),
+            ("WFP Procurement", "https://www.wfp.org/procurement", False, True),
+            ("WHO Procurement", "https://www.who.int/about/accountability/procurement", False, True),
+            ("FAO Procurement", "https://www.fao.org/unfao/procurement/", False, True),
+            ("ILO Procurement", "https://www.ilo.org/procurement/", False, True),
+            ("Uganda PPDA", "https://www.ppda.go.ug/", True, True),
+            ("Tanzania PPRA", "https://www.ppra.go.tz/", True, True),
+            ("Nigeria BPP", "https://www.bpp.gov.ng/", True, True),
+            ("South Africa eTender", "https://www.etenders.gov.za/", True, True),
+            ("New Zealand GETS", "https://www.gets.govt.nz/ExternalIndex.htm", False, True),
+            ("Philippines PhilGEPS", "https://www.philgeps.gov.ph/", False, True),
+            ("ICT Authority", "https://icta.go.ke/tenders/", True, True),
+            ("Kenya Public Procurement Portal", "https://tenders.go.ke/", True, True),
+            ("Kenya PPIP", "https://tenders.go.ke/website/tenders/all", True, True),
+            ("EU Funding & Tenders", "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-search", False, True),
+            ("DFFE Tenders (South Africa)", "https://www.dffe.gov.za/tenders", True, True),
+            ("TradeMark Africa Procurement", "https://trademarkafrica.com/procurement/", True, True),
+            ("Eswatini SPPRA", "https://www.sppra.co.sz", True, True),
+            ("Tender Yetu Platform", "https://www.tenderyetu.com/", False, False),
+            ("Singapore GeBIZ", "https://www.gebiz.gov.sg/", True, True),
+            ("KEMSA Tenders", "https://www.kemsa.co.ke/tenders/", True, True),
+            ("NSSF Tenders", "https://www.nssf.or.ke/tenders", True, True),
+            ("MyGov Kenya", "https://www.mygov.go.ke/?s=tender", True, True),
+            # Broader global/official catalog (disabled by default; enable in Sources tab as needed).
+            ("ADB Procurement", "https://www.adb.org/business/procurement", False, False),
+            ("AfDB Procurement", "https://www.afdb.org/en/projects-and-operations/procurement", False, False),
+            ("EBRD Procurement", "https://www.ebrd.com/work-with-us/procurement.html", False, False),
+            ("IsDB Procurement", "https://www.isdb.org/procurement", False, False),
+            ("DevBusiness (World Bank)", "https://devbusiness.un.org/", False, False),
+            ("Canada Buyandsell", "https://canadabuys.canada.ca/en/tender-opportunities", False, False),
+            ("Germany BUND", "https://www.service.bund.de/Content/EN/Ausschreibungen/Suche/Formular.html", False, False),
+            ("Netherlands TenderNed", "https://www.tenderned.nl/aankondigingen/overzicht", False, False),
+            ("Australia AusTender", "https://www.tenders.gov.au/", False, False),
+            ("France BOAMP", "https://www.boamp.fr/", False, False),
+            ("Rwanda RPPA", "https://www.rppa.gov.rw/", False, False),
+            ("Kenya eTender", "https://supplier.treasury.go.ke/", False, False),
+            ("KRA Tenders", "https://www.kra.go.ke/en/tenders", False, False),
+            ("KAA Procurement", "https://www.kaa.go.ke/business-opportunities/procurement/", False, False),
+            ("KETRACO Tenders", "https://www.ketraco.co.ke/tenders", False, False),
+            ("KPA Tenders", "https://kpa.co.ke/procurement/", False, False),
         ]
         low_signal_sources = {
             "DgMarket",
@@ -890,9 +908,19 @@ def init_db(perform_translation=False):
         # Add missing sources (check by URL to avoid duplicates)
         existing_urls = {_canonicalize_url(s.url) for s in TenderSource.query.all()}
         added_count = 0
-        for name, url, is_favorite in default_sources_data:
+        for row in default_sources_data:
+            if len(row) == 4:
+                name, url, is_favorite, active_by_default = row
+            else:
+                name, url, is_favorite = row
+                active_by_default = bool(is_favorite)
             if _canonicalize_url(url) not in existing_urls:
-                source = TenderSource(name=name, url=url, active=True, favorite=is_favorite)
+                source = TenderSource(
+                    name=name,
+                    url=url,
+                    active=bool(active_by_default),
+                    favorite=bool(is_favorite),
+                )
                 db.session.add(source)
                 added_count += 1
         
