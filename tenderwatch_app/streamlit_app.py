@@ -1317,149 +1317,78 @@ elif page == "Scan & Results":
         st.markdown(f"**{len(tenders)} tenders found**")
         st.markdown("---")
     
-        # Display tenders (table-first)
+        # Display tenders (card-only)
         if tenders:
-            table_tab, cards_tab = st.tabs(["Table View", "Card View"])
+            for tender in tenders:
+                # Determine score styling (neutral enterprise palette)
+                if tender.score >= 70:
+                    score_emoji = "HIGH"
+                    score_color = "#1e3a8a"
+                elif tender.score >= 40:
+                    score_emoji = "MED"
+                    score_color = "#334155"
+                else:
+                    score_emoji = "LOW"
+                    score_color = "#475569"
 
-            with table_tab:
-                table_rows = []
-                ranked = sorted(tenders, key=lambda t: (t.score or 0), reverse=True)
-                for idx, tender in enumerate(ranked, start=1):
-                    d_meta = _deadline_meta(tender.deadline)
-                    title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
-                    table_rows.append({
-                        "_id": tender.id,
-                        "Rank": idx,
-                        "Title": title,
-                        "Score": round(tender.score or 0, 1),
-                        "Buyer": tender.buyer or "",
-                        "Days Left": "" if d_meta["days_left"] is None else int(d_meta["days_left"]),
-                        "Deadline": tender.deadline or "",
-                        "Deadline Status": d_meta["label"],
-                        "Lifecycle": _lifecycle_label(tender.timing_status),
-                        "Country": tender.country or "",
-                        "Category": tender.category or "",
-                        "Priority": tender.priority_level or "",
-                        "Procurement": tender.procurement_status or "",
-                        "Added": tender.created_at.strftime("%Y-%m-%d") if tender.created_at else "",
-                        "Link": tender.link,
-                    })
-                table_df = pd.DataFrame(table_rows)
+                # Clean simple card layout
+                with st.container():
+                    # Header row (prefer translated title if available)
+                    display_title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
+                    is_translated = tender.title_translated and tender.title_translated != tender.title
+                    col_title, col_score = st.columns([5, 1])
+                    deadline_meta = _deadline_meta(tender.deadline)
+                    with col_title:
+                        title_suffix = " [Translated]" if is_translated else ""
+                        st.markdown(f"### {display_title}{title_suffix}")
+                    with col_score:
+                        st.markdown(f"<span style='background: {score_color}; color: white; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600;'>{score_emoji} {tender.score:.0f}%</span>", unsafe_allow_html=True)
+                        if deadline_meta["style"] == "overdue":
+                            st.markdown("<span style='background:#991b1b;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>OVERDUE</span>", unsafe_allow_html=True)
+                        elif deadline_meta["style"] == "urgent":
+                            st.markdown("<span style='background:#9a3412;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>URGENT</span>", unsafe_allow_html=True)
+                        elif deadline_meta["style"] == "upcoming":
+                            st.markdown("<span style='background:#1d4ed8;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>UPCOMING</span>", unsafe_allow_html=True)
+                        elif deadline_meta["style"] == "scheduled":
+                            st.markdown("<span style='background:#334155;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>SCHEDULED</span>", unsafe_allow_html=True)
+                        else:
+                            st.markdown("<span style='background:#6b7280;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>NO DEADLINE</span>", unsafe_allow_html=True)
 
-                urgent_count = len([r for r in table_rows if isinstance(r["Days Left"], int) and 0 <= r["Days Left"] <= 7])
-                high_fit_count = len([r for r in table_rows if float(r["Score"]) >= 70])
-                open_count = len([r for r in table_rows if r["Lifecycle"] == "Open"])
-                with_deadline_count = len([r for r in table_rows if r["Deadline"]])
-                m1, m2, m3, m4 = st.columns(4)
-                with m1:
-                    st.metric("Ranked Results", len(table_rows))
-                with m2:
-                    st.metric("Urgent (<=7d)", urgent_count)
-                with m3:
-                    st.metric("High Fit (>=70)", high_fit_count)
-                with m4:
-                    st.metric("With Deadline", with_deadline_count)
-                st.caption(f"Open lifecycle items: {open_count}")
+                    # Tags row
+                    tags = []
+                    if tender.category and tender.category != "Unclassified":
+                        tags.append(f"Category: {tender.category}")
+                    if tender.country:
+                        tags.append(f"Country: {tender.country}")
+                    tags.append(f"Deadline: {deadline_meta['label']}")
 
-                st.dataframe(
-                    table_df.drop(columns=["_id"]),
-                    hide_index=True,
-                    width="stretch",
-                    column_config={
-                        "Score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100, format="%.1f"),
-                        "Link": st.column_config.LinkColumn("Source", display_text="Open"),
-                    }
-                )
+                    if tags:
+                        st.markdown(" | ".join(tags))
 
-                selected_id = st.selectbox(
-                    "Quick open",
-                    options=[r["_id"] for r in table_rows],
-                    format_func=lambda tid: next((f'#{r["Rank"]} | {r["Title"][:90]}' for r in table_rows if r["_id"] == tid), str(tid)),
-                    key="table_quick_open_select",
-                )
-                selected = next((r for r in table_rows if r["_id"] == selected_id), None)
-                if selected:
-                    qa, qb, qc = st.columns([2, 2, 2])
-                    with qa:
-                        st.caption(f'Priority: {selected["Priority"]} | Score: {selected["Score"]}')
-                    with qb:
-                        st.link_button("Open Source", selected["Link"], width="stretch")
-                    with qc:
-                        if st.button("Open Details", key=f'table_detail_{selected_id}', width="stretch"):
-                            st.session_state['selected_tender'] = selected_id
+                    # Action buttons
+                    col1, col2, col3, col4 = st.columns(4)
+
+                    with col1:
+                        fav_label = "Favorited" if tender.favorite else "Favorite"
+                        if st.button(fav_label, key=f"fav_{tender.id}"):
+                            toggle_favorite(tender.id)
                             st.rerun()
 
-            with cards_tab:
-                for tender in tenders:
-                    # Determine score styling (neutral enterprise palette)
-                    if tender.score >= 70:
-                        score_emoji = "HIGH"
-                        score_color = "#1e3a8a"
-                    elif tender.score >= 40:
-                        score_emoji = "MED"
-                        score_color = "#334155"
-                    else:
-                        score_emoji = "LOW"
-                        score_color = "#475569"
+                    with col2:
+                        save_label = "Saved" if tender.saved else "Save"
+                        if st.button(save_label, key=f"save_{tender.id}"):
+                            toggle_saved(tender.id)
+                            st.rerun()
 
-                    # Clean simple card layout
-                    with st.container():
-                        # Header row (prefer translated title if available)
-                        display_title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
-                        is_translated = tender.title_translated and tender.title_translated != tender.title
-                        col_title, col_score = st.columns([5, 1])
-                        deadline_meta = _deadline_meta(tender.deadline)
-                        with col_title:
-                            title_suffix = " [Translated]" if is_translated else ""
-                            st.markdown(f"### {display_title}{title_suffix}")
-                        with col_score:
-                            st.markdown(f"<span style='background: {score_color}; color: white; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600;'>{score_emoji} {tender.score:.0f}%</span>", unsafe_allow_html=True)
-                            if deadline_meta["style"] == "overdue":
-                                st.markdown("<span style='background:#991b1b;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>OVERDUE</span>", unsafe_allow_html=True)
-                            elif deadline_meta["style"] == "urgent":
-                                st.markdown("<span style='background:#9a3412;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>URGENT</span>", unsafe_allow_html=True)
-                            elif deadline_meta["style"] == "upcoming":
-                                st.markdown("<span style='background:#1d4ed8;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>UPCOMING</span>", unsafe_allow_html=True)
-                            elif deadline_meta["style"] == "scheduled":
-                                st.markdown("<span style='background:#334155;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>SCHEDULED</span>", unsafe_allow_html=True)
-                            else:
-                                st.markdown("<span style='background:#6b7280;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>NO DEADLINE</span>", unsafe_allow_html=True)
+                    with col3:
+                        st.link_button("View Source", tender.link)
 
-                        # Tags row
-                        tags = []
-                        if tender.category and tender.category != "Unclassified":
-                            tags.append(f"Category: {tender.category}")
-                        if tender.country:
-                            tags.append(f"Country: {tender.country}")
-                        tags.append(f"Deadline: {deadline_meta['label']}")
+                    with col4:
+                        if st.button("Details", key=f"detail_{tender.id}"):
+                            st.session_state['selected_tender'] = tender.id
+                            st.rerun()
 
-                        if tags:
-                            st.markdown(" | ".join(tags))
-
-                        # Action buttons
-                        col1, col2, col3, col4 = st.columns(4)
-
-                        with col1:
-                            fav_label = "Favorited" if tender.favorite else "Favorite"
-                            if st.button(fav_label, key=f"fav_{tender.id}"):
-                                toggle_favorite(tender.id)
-                                st.rerun()
-
-                        with col2:
-                            save_label = "Saved" if tender.saved else "Save"
-                            if st.button(save_label, key=f"save_{tender.id}"):
-                                toggle_saved(tender.id)
-                                st.rerun()
-
-                        with col3:
-                            st.link_button("View Source", tender.link)
-
-                        with col4:
-                            if st.button("Details", key=f"detail_{tender.id}"):
-                                st.session_state['selected_tender'] = tender.id
-                                st.rerun()
-
-                        st.markdown("---")
+                    st.markdown("---")
         else:
             st.info("No results match the selected filters.")
 
