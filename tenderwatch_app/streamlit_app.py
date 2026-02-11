@@ -502,6 +502,11 @@ st.markdown(f"""
         border-color: rgba(239, 68, 68, 0.6);
         background: rgba(153, 27, 27, 0.3);
     }}
+    .meta-chip.direct {{
+        border-color: rgba(16, 185, 129, 0.58);
+        background: rgba(5, 150, 105, 0.26);
+        color: #d1fae5;
+    }}
 
     .result-summary {{
         margin-top: 0.55rem;
@@ -812,6 +817,43 @@ def _tender_fallback_text(tender) -> str:
     display_title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
     description_line = (tender.description_translated or tender.description or "").replace("\n", " ").strip()
     return f"{display_title} {description_line}".strip()
+
+
+def _direct_match_keywords(tender, limit: int = 3):
+    text = _tender_fallback_text(tender).lower()
+    if not text:
+        return []
+    matches = []
+    for kw in sorted(ALL_KEYWORDS, key=len, reverse=True):
+        k = (kw or "").strip().lower()
+        if not k or k in GENERIC_KEYWORD_BLOCKLIST or "unavailable" in k:
+            continue
+        if k in text:
+            matches.append(k)
+            if len(matches) >= limit:
+                break
+    return matches
+
+
+def _why_matched_summary(tender):
+    try:
+        raw = getattr(tender, "scoring_breakdown", "") or ""
+        breakdown = json.loads(raw) if isinstance(raw, str) and raw else {}
+    except Exception:
+        breakdown = {}
+
+    matched_phrases = breakdown.get("matched_phrases", []) or []
+    domains = breakdown.get("domains_matched", []) or []
+    priority = breakdown.get("priority", "") or getattr(tender, "priority_level", "")
+    fit = breakdown.get("likely_fit_for_F2", "") or getattr(tender, "likely_fit_for_f2", "")
+    keywords_found = int(breakdown.get("keywords_found", 0) or 0)
+    return {
+        "keywords_found": keywords_found,
+        "matched_phrases": matched_phrases[:6],
+        "domains": domains[:6],
+        "priority": priority,
+        "fit": fit,
+    }
 
 
 def _passes_strict_quality(tender, min_score: int = 35) -> bool:
@@ -1201,6 +1243,40 @@ def get_stats():
         }
 
 
+def get_source_performance(days=30, limit=12):
+    with app.app_context():
+        since = _utcnow() - timedelta(days=days)
+        active_sources = TenderSource.query.filter_by(active=True).all()
+        rows = []
+        for source in active_sources:
+            q = TenderResult.query.filter(
+                TenderResult.source_id == source.id,
+                TenderResult.created_at >= since,
+            )
+            total = q.count()
+            if total == 0:
+                continue
+            high_fit = q.filter(TenderResult.score >= 70).count()
+            avg_score = db.session.query(db.func.avg(TenderResult.score)).filter(
+                TenderResult.source_id == source.id,
+                TenderResult.created_at >= since,
+            ).scalar() or 0.0
+            last_seen = db.session.query(db.func.max(TenderResult.created_at)).filter(
+                TenderResult.source_id == source.id,
+                TenderResult.created_at >= since,
+            ).scalar()
+            rows.append({
+                "source": source.name,
+                "total": int(total),
+                "high_fit": int(high_fit),
+                "hit_rate": round((high_fit / total) * 100, 1) if total else 0.0,
+                "avg_score": round(float(avg_score), 1),
+                "last_seen": last_seen.strftime("%Y-%m-%d") if last_seen else "N/A",
+            })
+    rows.sort(key=lambda r: (r["total"], r["high_fit"], r["avg_score"]), reverse=True)
+    return rows[:max(1, limit)]
+
+
 def get_upcoming_deadlines(limit=8, horizon_days=30):
     with app.app_context():
         since = _utcnow() - timedelta(days=30)
@@ -1440,6 +1516,26 @@ if page == "Dashboard":
             st.dataframe(cat_df, hide_index=True, width="stretch")
         else:
             st.caption("No category distribution available yet.")
+
+    st.markdown("---")
+    st.subheader("Source Performance")
+    source_rows = get_source_performance(days=30, limit=10)
+    if source_rows:
+        for row in source_rows:
+            c1, c2, c3, c4, c5 = st.columns([4, 1, 1, 1, 1])
+            with c1:
+                st.markdown(f"**{row['source']}**")
+                st.caption(f"Last seen: {row['last_seen']}")
+            with c2:
+                st.metric("Results", row["total"])
+            with c3:
+                st.metric("High Fit", row["high_fit"])
+            with c4:
+                st.metric("Hit Rate", f"{row['hit_rate']}%")
+            with c5:
+                st.metric("Avg Score", f"{row['avg_score']}")
+    else:
+        st.caption("No source activity yet in the last 30 days.")
 
 elif page == "Scan & Results":
     st.title("Scan & Results")
@@ -1824,6 +1920,9 @@ elif page == "Scan & Results":
                     )
                     for kw in keywords:
                         chips.append(f"<span class='meta-chip'>Keyword: {kw}</span>")
+                    direct_hits = _direct_match_keywords(tender, limit=2)
+                    for kw in direct_hits:
+                        chips.append(f"<span class='meta-chip direct'>Direct match: {kw}</span>")
                     chips.append(f"<span class='meta-chip deadline {deadline_class}'>Deadline: {deadline_meta['label']}</span>")
                     chips_html = "".join(chips)
 
@@ -1847,6 +1946,25 @@ elif page == "Scan & Results":
                         """,
                         unsafe_allow_html=True,
                     )
+
+                    why = _why_matched_summary(tender)
+                    with st.expander("Why this matched", expanded=False):
+                        st.markdown(
+                            f"Priority: `{why['priority'] or 'N/A'}` | "
+                            f"F2 fit: `{why['fit'] or 'N/A'}` | "
+                            f"Keywords found: `{why['keywords_found']}`"
+                        )
+                        if direct_hits:
+                            st.markdown("Direct phrase matches:")
+                            for kw in direct_hits:
+                                st.markdown(f"- `{kw}`")
+                        if why["matched_phrases"]:
+                            st.markdown("Scoring phrases:")
+                            for kw in why["matched_phrases"][:4]:
+                                st.markdown(f"- `{kw}`")
+                        if why["domains"]:
+                            st.markdown("Domains:")
+                            st.markdown(", ".join([f"`{d}`" for d in why["domains"]]))
 
                     col1, col2, col3, col4 = st.columns(4)
 
