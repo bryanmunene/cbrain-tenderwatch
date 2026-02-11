@@ -1659,6 +1659,9 @@ elif page == "Scan & Results":
                         chips.append(f"<span class='meta-chip'>Priority: {tender.priority_level}</span>")
                     if tender.likely_fit_for_f2:
                         chips.append(f"<span class='meta-chip'>F2 Fit: {tender.likely_fit_for_f2}</span>")
+                    keywords = _keyword_list(getattr(tender, "keywords_matched", ""), limit=4)
+                    for kw in keywords:
+                        chips.append(f"<span class='meta-chip'>Keyword: {kw}</span>")
                     chips.append(f"<span class='meta-chip deadline {deadline_class}'>Deadline: {deadline_meta['label']}</span>")
                     chips_html = "".join(chips)
 
@@ -1666,11 +1669,6 @@ elif page == "Scan & Results":
                     description_line = (tender.description_translated or tender.description or "").replace("\n", " ").strip()
                     if len(description_line) > 220:
                         description_line = f"{description_line[:220].rstrip()}..."
-                    keywords = _keyword_list(getattr(tender, "keywords_matched", ""), limit=8)
-                    if keywords:
-                        keyword_html = "".join([f"<span class='keyword-chip'>{k}</span>" for k in keywords])
-                    else:
-                        keyword_html = "<span class='keyword-empty'>No keyword hits recorded</span>"
 
                     st.markdown(
                         f"""
@@ -1685,10 +1683,6 @@ elif page == "Scan & Results":
                             <div class="meta-chips">{chips_html}</div>
                             <div class="result-muted">Captured: {created_label}</div>
                             <div class="result-summary">{description_line or 'No description available.'}</div>
-                            <div class="keyword-card">
-                                <div class="keyword-card-title">Matched Keywords</div>
-                                <div class="keyword-chips">{keyword_html}</div>
-                            </div>
                             <div class="result-actions"></div>
                         </div>
                         """,
