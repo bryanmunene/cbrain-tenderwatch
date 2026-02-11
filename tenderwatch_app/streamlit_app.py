@@ -1577,7 +1577,17 @@ elif page == "Scan & Results":
 
         results_mode = st.session_state.get("results_mode", "fresh")
         if results_mode == "fresh":
-            st.info("Fresh session view is active. Run a new scan to see current results, or load historical results for reporting.")
+            st.markdown(
+                """
+                <div style='padding:1rem 1.1rem;border:1px solid var(--border-color);border-radius:12px;background:var(--card-bg);margin-bottom:1rem;'>
+                    <div style='font-weight:650;color:var(--text-primary);margin-bottom:0.35rem;'>Fresh View</div>
+                    <div style='color:var(--text-secondary);font-size:0.92rem;line-height:1.45;'>
+                        This page starts clean for a neater workflow. Run a new scan to populate current results, or load historical results for analytics/reporting.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             st.stop()
     
         # Filters and Export
