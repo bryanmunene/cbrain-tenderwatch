@@ -1,7 +1,7 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 """
-TenderWatch — F2-Aligned Tender Intelligence Logic (v3, practical + high-precision)
+TenderWatch â€” F2-Aligned Tender Intelligence Logic (v3, practical + high-precision)
 ==================================================================================
 
 Goal
@@ -90,7 +90,7 @@ def _normalize(text: str) -> str:
 
     # Normalize separators for consistent phrase matching
     t = re.sub(r"[\-/\\_|]+", " ", t)
-    t = re.sub(r"[“”\"'`´]", " ", t)
+    t = re.sub(r"[â€œâ€\"'`Â´]", " ", t)
     t = re.sub(r"[\(\)\[\]\{\}]", " ", t)
     t = re.sub(r"[,:;]+", " ", t)
 
@@ -171,229 +171,131 @@ def _near_tokens(text: str, a: str, b: str, window: int = 6) -> bool:
 # =============================================================================
 
 KEYWORD_DOMAINS: Dict[str, List[str]] = {
-    # Core platform signals
     "EDMS": [
-        "electronic document management",
-        "document management system",
-        "document management",
-        "edms",
+        "electronic document and records management system",
+        "document and records management system",
+        "electronic document management system",
+        "electronic records management system",
         "edrms",
-        "electronic document and records management",
-        "document repository",
-        "document tracking",
-        "correspondence management",
-        "mailroom",
-        "digital registry",
-        "registry modernization",
-        # FR / PT / ES / AR
-        "gestion electronique des documents",
-        "ged",
-        "gestion documentaire",
-        "gestao documental",
-        "gestao de documentos",
-        "gestion documental",
-        "archivo electronico",
-        "نظام إدارة الوثائق",
+        "edms",
+        "document management system",
+        "document repository system",
+        "document tracking system",
+        "correspondence management system",
+        "correspondence tracking system",
+        "mailroom management system",
+        "incoming mail management system",
+        "outgoing mail management system",
+        "digital registry system",
+        "registry management system",
+        "file registry system",
+        "file tracking system",
+        "registry modernization"
     ],
     "ECM": [
         "enterprise content management",
         "ecm",
         "content services platform",
-        "content services",
-        "content management",
-        "enterprise content services",
-        # FR/ES
-        "services de contenu",
-        "plateforme de services de contenu",
+        "enterprise content services platform"
     ],
     "Records": [
-        "records management",
-        "records lifecycle",
-        "records retention",
+        "records management system",
+        "records information system",
+        "records information management system",
+        "enterprise records system",
+        "records lifecycle management",
+        "records retention schedule",
         "retention schedule",
-        "records disposal",
-        "digital records",
-        "archives",
-        "archival system",
-        "archiving",
-        "electronic archiving",
-        "e archiving",
-        "e archive",
+        "file plan",
         "classification scheme",
         "classification plan",
-        "file plan",
+        "records disposal",
         "information governance",
         "audit trail",
         "audit logging",
         "legal hold",
+        "electronic archiving system",
+        "electronic archiving",
+        "e archiving system",
+        "e archiving",
+        "archival management system",
+        "archival system",
+        "archives management system",
+        "digital archiving system",
         "iso 15489",
-        "right to information",
-        "freedom of information",
-        "foia",
-        # FR / PT / ES / AR
-        "archivage electronique",
-        "sae",
-        "gestion des archives",
-        "gestao de arquivos",
-        "gestion de archivos",
-        "الأرشفة الإلكترونية",
-        "نظام إدارة السجلات",
-    ],
-    "Workflow": [
-        "workflow",
-        "workflow automation",
-        "workflow management",
-        "approval workflow",
-        "business process management",
-        "bpm",
-        "bpm system",
-        "process automation",
-        "digital process automation",
-        "process orchestration",
-        "task routing",
-        "work item",
-        "case workflow",
-        "bpmn",
-        # FR / ES / PT / AR
-        "automatisation des processus",
-        "gestion des processus",
-        "tramitacion",
-        "tramitación",
-        "سير العمل",
+        "freedom of information management system",
+        "right to information management system"
     ],
     "Case": [
-        "case management",
         "case management system",
-        "case handling",
-        "case tracking",
-        "case processing",
-        "docket",
-        "matter management",
-        "complaint management",
-        "complaints management",
-        "grievance",
-        "grievance redress",
-        "inspection management",
-        "permit management",
-        "licensing system",
-        "enforcement case",
-        "regulatory case",
-        # FR / ES / PT / AR
-        "gestion des dossiers",
-        "gestion de dossiers",
-        "gestion des cas",
-        "gestion de cas",
-        "gestion de expedientes",
-        "gestao de processos",
-        "gestao de casos",
-        "إدارة القضايا",
+        "electronic case management system",
+        "case handling system",
+        "case tracking system",
+        "case workflow system",
+        "complaint management system",
+        "complaints and case handling system",
+        "grievance redress system",
+        "dispute management system",
+        "matter management system",
+        "docket management system",
+        "regulatory case management system",
+        "inspection management system",
+        "enforcement case management system",
+        "permit management system",
+        "licensing management system",
+        "online permits system",
+        "online licensing system"
     ],
-    # Helpful but non-core
-    "Forms": [
-        "electronic forms",
-        "e forms",
-        "digital forms",
-        "form automation",
-        "electronic memos",
-        "digital correspondence",
-        "e filing",
-        "electronic filing",
+    "Workflow": [
+        "workflow management system",
+        "workflow automation system",
+        "workflow system",
+        "business process management system",
+        "process automation system",
+        "digital process automation",
+        "bpm system",
+        "bpmn workflow",
+        "electronic filing system",
+        "e filing system",
+        "case filing and tracking system",
+        "case and document management system",
+        "case and records management system",
+        "workflow and document management system",
+        "workflow and records management system",
+        "document imaging and workflow system"
     ],
     "ServiceDelivery": [
-        "service request",
-        "service requests",
-        "citizen services",
-        "e services",
-        "service delivery",
-        "citizen portal",
-        "government portal",
-        "one stop shop",
-        "one-stop shop",
-        "single window",
+        "service request management system",
+        "service request system",
+        "service delivery management system",
+        "citizen services portal workflow",
+        "public service portal workflow",
+        "e services portal workflow",
+        "one stop service portal",
+        "single window portal"
     ],
     "Gov": [
-        "e government",
-        "digital government",
-        "e governance",
-        "public sector",
-        "public administration",
-        "government",
-        "ministry",
-        "department",
-        "agency",
-        "authority",
-        "commission",
-        "regulator",
-        "county government",
-        "municipality",
-        "state corporation",
-        "parastatal",
-        # FR / ES / PT
-        "administration publique",
-        "secteur public",
-        "secteur publique",
-        "ministere",
-        "ministère",
-        "sector publico",
-        "setor publico",
+        "e government platform",
+        "digital government platform",
+        "e governance platform",
+        "government workflow system",
+        "government case management system",
+        "government records management system",
+        "procurement records management system",
+        "e procurement records management system",
+        "contract lifecycle management system",
+        "contract management system",
+        "tender management system"
     ],
     "Digitalization": [
-        "digital transformation",
-        "digitization",
-        "digital first",
-        "government modernization",
-        "administrative reform",
-        "public administration reform",
-        "paperless government",
-        "knowledge management",
-        "dematerialisation",
-        "dématérialisation",
-        "desmaterializacao",
-        "desmaterialização",
+        "scanning and archiving edms",
+        "digitization and records management system",
+        "intelligent document processing for records management"
     ],
-    # Integration & identity (F2-friendly)
-    "Integration": [
-        "single sign on",
-        "sso",
-        "identity and access management",
-        "iam",
-        "active directory",
-        "azure ad",
-        "ldap",
-        "api integration",
-        "rest api",
-        "web service",
-        "email integration",
-        "outlook integration",
-        "e signature",
-        "e-signature",
-        "digital signature",
-        "electronic signature",
-    ],
-    # Implementation services (F2-friendly)
-    "Implementation": [
-        "implementation",
-        "configuration",
-        "rollout",
-        "deployment",
-        "migration",
-        "data migration",
-        "content migration",
-        "change management",
-        "training",
-        "support and maintenance",
-        "commissioning",
-    ],
-    # Pipeline/procurement stages (acronyms removed where noisy; keep full forms)
-    "Pipeline": [
-        "expression of interest",
-        "request for information",
-        "prior information notice",
-        "procurement plan",
-        "annual procurement plan",
-        "prequalification",
-        "pre qualification",
-    ],
+    # Kept for compatibility with downstream logic; intentionally empty.
+    "Integration": [],
+    "Implementation": [],
+    "Pipeline": []
 }
 
 ALL_KEYWORDS: List[str] = sorted({kw for kws in KEYWORD_DOMAINS.values() for kw in kws})
@@ -542,7 +444,7 @@ MEDICAL_SIGNALS: List[str] = [
     "patient records",
 ]
 
-# “Consulting-only” should NOT be hard-excluded (pipeline shaping), but does reduce platform-likelihood
+# â€œConsulting-onlyâ€ should NOT be hard-excluded (pipeline shaping), but does reduce platform-likelihood
 CONSULTING_SIGNALS: List[str] = [
     "solution architect",
     "enterprise architect",
@@ -659,27 +561,21 @@ GOVERNANCE_PHRASES: List[str] = [
     "audit logging",
     "legal hold",
     "iso 15489",
-    "freedom of information",
-    "right to information",
-    "foia",
+    "freedom of information management system",
+    "right to information management system",
     "electronic archiving",
-    "archivage electronique",
-    "sae",
 ]
 
 ENTERPRISE_PHRASES: List[str] = [
-    "enterprise wide",
-    "enterprise-wide",
-    "organization wide",
-    "organisation wide",
-    "ministry wide",
-    "ministry-wide",
-    "agency wide",
-    "agency-wide",
-    "shared services",
-    "whole of government",
-    "whole-of-government",
-    "national rollout",
+    "enterprise content services platform",
+    "enterprise content management",
+    "enterprise records system",
+    "digital government platform",
+    "e government platform",
+    "e governance platform",
+    "government workflow system",
+    "government case management system",
+    "government records management system",
 ]
 
 INTEGRATION_PHRASES: List[str] = KEYWORD_DOMAINS["Integration"]
@@ -898,7 +794,7 @@ def _penalty_model(
         is_pipeline = True
         rationale.append("Consulting/architecture scope; likely pipeline shaping rather than a platform award.")
 
-    # Pipeline terms: label pipeline if core isn’t strong yet
+    # Pipeline terms: label pipeline if core isnâ€™t strong yet
     if pipeline_hits and core_platform_score < 0.40:
         is_pipeline = True
 
@@ -1183,7 +1079,7 @@ def classify_tender(
     if openness_strong_hits:
         rationale.append("Strong openness signals present (technology/platform neutral).")
     elif openness_weak_hits:
-        rationale.append("Weak openness phrase present (e.g., 'or equivalent')—not treated as platform-neutral proof.")
+        rationale.append("Weak openness phrase present (e.g., 'or equivalent')â€”not treated as platform-neutral proof.")
 
     # Delivery mode
     if delivery_hits:
@@ -1235,3 +1131,6 @@ def classify_tender(
     }
 
     return out
+
+
+
