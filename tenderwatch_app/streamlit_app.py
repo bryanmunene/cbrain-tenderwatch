@@ -1550,8 +1550,6 @@ elif page == "Scan & Results":
                 with st.spinner("Scanning sources..."):
                     new_tenders = run_tender_scan(scan_depth=scan_depth)
                 elapsed = time.time() - started
-                st.session_state["results_mode"] = "session_scan"
-                st.session_state["scan_anchor_utc"] = scan_anchor
                 st.session_state["last_scan_info"] = {
                     "timestamp": _utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
                     "new_count": len(new_tenders),
@@ -1559,9 +1557,14 @@ elif page == "Scan & Results":
                     "scan_depth": scan_depth,
                 }
                 if new_tenders:
+                    st.session_state["results_mode"] = "session_scan"
+                    st.session_state["scan_anchor_utc"] = scan_anchor
                     st.success(f"Scan completed. Found {len(new_tenders)} new tenders.")
                 else:
-                    st.info("Scan completed. No new tenders were found.")
+                    # Avoid blank page after a zero-new scan; show latest known results.
+                    st.session_state["results_mode"] = "historical"
+                    st.session_state["scan_anchor_utc"] = None
+                    st.info("Scan completed with no new tenders. Showing latest available results.")
                 st.rerun()
             if st.button("Load Historical Results", key="load_historical_button", width="stretch"):
                 st.session_state["results_mode"] = "historical"
@@ -1693,12 +1696,14 @@ elif page == "Scan & Results":
             'strict_quality': strict_quality,
             'strict_min_score': 35,
             'allow_broad_fallback': allow_broad_fallback,
+            'require_keywords': strict_quality,
             'created_after': st.session_state.get("scan_anchor_utc") if results_mode == "session_scan" else None,
         }
     
         tenders, applied_f2_only, fallback_message = get_tenders_with_fallback(filters)
         tenders = _apply_deadline_window(tenders, deadline_window)
-        tenders = [t for t in tenders if _has_display_keywords(t)]
+        if filters.get("require_keywords"):
+            tenders = [t for t in tenders if _has_display_keywords(t)]
 
         if sort_by == "deadline":
             tenders = sorted(
