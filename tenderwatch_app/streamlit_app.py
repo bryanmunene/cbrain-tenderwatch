@@ -387,6 +387,170 @@ st.markdown(f"""
         border-color: {'#2d5965' if st.session_state.theme == 'dark' else '#bcddec'};
     }}
 
+    .result-card {{
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        padding: 0.95rem 1rem 0.85rem;
+        margin-bottom: 0.8rem;
+        background: linear-gradient(140deg, rgba(16, 32, 55, 0.95) 0%, rgba(12, 24, 44, 0.95) 100%);
+        position: relative;
+        overflow: hidden;
+    }}
+
+    .result-card::before {{
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 4px;
+        background: #3d8bfd;
+    }}
+
+    .result-card.high::before {{
+        background: #16a34a;
+    }}
+
+    .result-card.med::before {{
+        background: #d97706;
+    }}
+
+    .result-card.low::before {{
+        background: #64748b;
+    }}
+
+    .result-header {{
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }}
+
+    .result-title {{
+        margin: 0;
+        color: #e7edf7;
+        font-size: 1.03rem;
+        line-height: 1.35;
+        font-weight: 650;
+        max-width: 86%;
+    }}
+
+    .result-badges {{
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        align-items: flex-end;
+    }}
+
+    .badge-score {{
+        border-radius: 999px;
+        padding: 0.26rem 0.58rem;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        border: 1px solid rgba(255,255,255,0.15);
+        color: #e2e8f0;
+        background: rgba(30, 58, 138, 0.75);
+    }}
+
+    .badge-score.high {{
+        background: rgba(22, 163, 74, 0.23);
+        border-color: rgba(22, 163, 74, 0.55);
+        color: #dcfce7;
+    }}
+
+    .badge-score.med {{
+        background: rgba(217, 119, 6, 0.23);
+        border-color: rgba(217, 119, 6, 0.55);
+        color: #fef3c7;
+    }}
+
+    .badge-score.low {{
+        background: rgba(100, 116, 139, 0.28);
+        border-color: rgba(148, 163, 184, 0.45);
+        color: #e2e8f0;
+    }}
+
+    .meta-chips {{
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.62rem;
+    }}
+
+    .meta-chip {{
+        border-radius: 999px;
+        padding: 0.2rem 0.52rem;
+        font-size: 0.72rem;
+        font-weight: 560;
+        border: 1px solid rgba(148, 163, 184, 0.32);
+        color: #dbe6f6;
+        background: rgba(30, 58, 95, 0.45);
+    }}
+
+    .meta-chip.deadline {{
+        border-color: rgba(61, 139, 253, 0.45);
+        background: rgba(29, 78, 216, 0.22);
+    }}
+
+    .meta-chip.deadline.urgent {{
+        border-color: rgba(249, 115, 22, 0.58);
+        background: rgba(194, 65, 12, 0.24);
+    }}
+
+    .meta-chip.deadline.overdue {{
+        border-color: rgba(239, 68, 68, 0.6);
+        background: rgba(153, 27, 27, 0.3);
+    }}
+
+    .result-summary {{
+        margin-top: 0.55rem;
+        color: #c9d7ea;
+        font-size: 0.84rem;
+        line-height: 1.45;
+        max-width: 100%;
+    }}
+
+    .result-actions {{
+        margin-top: 0.75rem;
+        padding-top: 0.65rem;
+        border-top: 1px dashed rgba(148, 163, 184, 0.28);
+    }}
+
+    .result-muted {{
+        color: #94a3b8;
+        font-size: 0.74rem;
+        font-weight: 520;
+        letter-spacing: 0.01em;
+        margin-top: 0.45rem;
+    }}
+
+    .deadline-pill {{
+        border-radius: 999px;
+        padding: 0.22rem 0.55rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        border: 1px solid rgba(148, 163, 184, 0.38);
+        color: #e2e8f0;
+        background: rgba(51, 65, 85, 0.45);
+    }}
+
+    .deadline-pill.urgent {{
+        border-color: rgba(249, 115, 22, 0.58);
+        background: rgba(194, 65, 12, 0.24);
+        color: #ffedd5;
+    }}
+
+    .deadline-pill.upcoming {{
+        border-color: rgba(59, 130, 246, 0.52);
+        background: rgba(30, 64, 175, 0.26);
+        color: #dbeafe;
+    }}
+
+    .deadline-pill.overdue {{
+        border-color: rgba(239, 68, 68, 0.6);
+        background: rgba(153, 27, 27, 0.32);
+        color: #fee2e2;
+    }}
+
     @media (max-width: 1200px) {{
         .kpi-grid {{
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1320,75 +1484,84 @@ elif page == "Scan & Results":
         # Display tenders (card-only)
         if tenders:
             for tender in tenders:
-                # Determine score styling (neutral enterprise palette)
+                # Determine score styling
                 if tender.score >= 70:
-                    score_emoji = "HIGH"
-                    score_color = "#1e3a8a"
+                    score_level = "high"
+                    score_label = "High"
                 elif tender.score >= 40:
-                    score_emoji = "MED"
-                    score_color = "#334155"
+                    score_level = "med"
+                    score_label = "Medium"
                 else:
-                    score_emoji = "LOW"
-                    score_color = "#475569"
+                    score_level = "low"
+                    score_label = "Low"
 
-                # Clean simple card layout
                 with st.container():
-                    # Header row (prefer translated title if available)
                     display_title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
                     is_translated = tender.title_translated and tender.title_translated != tender.title
-                    col_title, col_score = st.columns([5, 1])
                     deadline_meta = _deadline_meta(tender.deadline)
-                    with col_title:
-                        title_suffix = " [Translated]" if is_translated else ""
-                        st.markdown(f"### {display_title}{title_suffix}")
-                    with col_score:
-                        st.markdown(f"<span style='background: {score_color}; color: white; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600;'>{score_emoji} {tender.score:.0f}%</span>", unsafe_allow_html=True)
-                        if deadline_meta["style"] == "overdue":
-                            st.markdown("<span style='background:#991b1b;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>OVERDUE</span>", unsafe_allow_html=True)
-                        elif deadline_meta["style"] == "urgent":
-                            st.markdown("<span style='background:#9a3412;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>URGENT</span>", unsafe_allow_html=True)
-                        elif deadline_meta["style"] == "upcoming":
-                            st.markdown("<span style='background:#1d4ed8;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>UPCOMING</span>", unsafe_allow_html=True)
-                        elif deadline_meta["style"] == "scheduled":
-                            st.markdown("<span style='background:#334155;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>SCHEDULED</span>", unsafe_allow_html=True)
-                        else:
-                            st.markdown("<span style='background:#6b7280;color:white;padding:0.2rem 0.5rem;border-radius:6px;font-size:0.72rem;font-weight:600;'>NO DEADLINE</span>", unsafe_allow_html=True)
+                    lifecycle = _lifecycle_label(tender.timing_status)
+                    deadline_class = deadline_meta["style"] if deadline_meta["style"] in {"urgent", "upcoming", "overdue"} else ""
+                    title_suffix = " [Translated]" if is_translated else ""
+                    created_label = tender.created_at.strftime("%Y-%m-%d") if tender.created_at else "Unknown date"
 
-                    # Tags row
-                    tags = []
+                    chips = []
                     if tender.category and tender.category != "Unclassified":
-                        tags.append(f"Category: {tender.category}")
-                    if tender.country:
-                        tags.append(f"Country: {tender.country}")
-                    tags.append(f"Deadline: {deadline_meta['label']}")
+                        chips.append(f"<span class='meta-chip'>Category: {tender.category}</span>")
+                    if tender.country and tender.country != "Unknown":
+                        chips.append(f"<span class='meta-chip'>Country: {tender.country}</span>")
+                    chips.append(f"<span class='meta-chip'>Lifecycle: {lifecycle}</span>")
+                    if tender.priority_level:
+                        chips.append(f"<span class='meta-chip'>Priority: {tender.priority_level}</span>")
+                    if tender.likely_fit_for_f2:
+                        chips.append(f"<span class='meta-chip'>F2 Fit: {tender.likely_fit_for_f2}</span>")
+                    chips.append(f"<span class='meta-chip deadline {deadline_class}'>Deadline: {deadline_meta['label']}</span>")
+                    chips_html = "".join(chips)
 
-                    if tags:
-                        st.markdown(" | ".join(tags))
+                    deadline_status = deadline_meta["style"].upper() if deadline_meta["style"] != "none" else "NO DEADLINE"
+                    description_line = (tender.description_translated or tender.description or "").replace("\n", " ").strip()
+                    if len(description_line) > 220:
+                        description_line = f"{description_line[:220].rstrip()}..."
 
-                    # Action buttons
+                    st.markdown(
+                        f"""
+                        <div class="result-card {score_level}">
+                            <div class="result-header">
+                                <h3 class="result-title">{display_title}{title_suffix}</h3>
+                                <div class="result-badges">
+                                    <span class="badge-score {score_level}">{score_label} {tender.score:.0f}%</span>
+                                    <span class="deadline-pill {deadline_class}">{deadline_status}</span>
+                                </div>
+                            </div>
+                            <div class="meta-chips">{chips_html}</div>
+                            <div class="result-muted">Captured: {created_label}</div>
+                            <div class="result-summary">{description_line or 'No description available.'}</div>
+                            <div class="result-actions"></div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
                     col1, col2, col3, col4 = st.columns(4)
 
                     with col1:
                         fav_label = "Favorited" if tender.favorite else "Favorite"
-                        if st.button(fav_label, key=f"fav_{tender.id}"):
+                        if st.button(fav_label, key=f"fav_{tender.id}", width="stretch"):
                             toggle_favorite(tender.id)
                             st.rerun()
 
                     with col2:
                         save_label = "Saved" if tender.saved else "Save"
-                        if st.button(save_label, key=f"save_{tender.id}"):
+                        if st.button(save_label, key=f"save_{tender.id}", width="stretch"):
                             toggle_saved(tender.id)
                             st.rerun()
 
                     with col3:
-                        st.link_button("View Source", tender.link)
+                        st.link_button("View Source", tender.link, width="stretch")
 
                     with col4:
-                        if st.button("Details", key=f"detail_{tender.id}"):
+                        if st.button("Details", key=f"detail_{tender.id}", width="stretch"):
                             st.session_state['selected_tender'] = tender.id
                             st.rerun()
-
-                    st.markdown("---")
         else:
             st.info("No results match the selected filters.")
 
