@@ -1262,20 +1262,30 @@ def delete_source(source_id):
             return True
     return False
 
-def run_tender_scan(scan_depth="fast"):
+def run_tender_scan(scan_depth="fast", discovery_mode="f2_ranked"):
     """Run tender scan"""
     started = time.time()
     depth_map = {
-        "fast": {"max_sources": 15, "translate": False, "timeout_s": 45},
-        "balanced": {"max_sources": 25, "translate": False, "timeout_s": 90},
-        "full": {"max_sources": None, "translate": True, "timeout_s": 180},
+        "fast": {"max_sources": 15, "translate": False, "timeout_s": 45, "per_source_cap": 12},
+        "balanced": {"max_sources": 25, "translate": False, "timeout_s": 90, "per_source_cap": 12},
+        "full": {"max_sources": None, "translate": True, "timeout_s": 180, "per_source_cap": 12},
     }
     depth_cfg = depth_map.get((scan_depth or "fast").lower(), depth_map["fast"])
+    if (discovery_mode or "").lower() == "manual_like":
+        # Broader recall profile to mimic manual portal searching.
+        manual_depth_map = {
+            "fast": {"max_sources": 20, "translate": False, "timeout_s": 75, "per_source_cap": 30},
+            "balanced": {"max_sources": 35, "translate": False, "timeout_s": 150, "per_source_cap": 35},
+            "full": {"max_sources": None, "translate": False, "timeout_s": 240, "per_source_cap": 40},
+        }
+        depth_cfg = manual_depth_map.get((scan_depth or "fast").lower(), manual_depth_map["fast"])
     with app.app_context():
         new_tenders = run_scan(
             flask_app=app,
             max_sources=depth_cfg["max_sources"],
             scan_timeout_seconds=depth_cfg["timeout_s"],
+            discovery_mode=discovery_mode,
+            max_new_per_source=depth_cfg["per_source_cap"],
         )
     # Run translation only in full scans to keep manual scans responsive.
     if depth_cfg["translate"] and new_tenders:
@@ -1572,17 +1582,25 @@ elif page == "Scan & Results":
                 index=0,
                 help="Fast: top priority sources only. Balanced: broader coverage. Full: all active sources + translation."
             )
+            discovery_mode_label = st.selectbox(
+                "Discovery Mode",
+                ["F2-ranked", "Manual-like"],
+                index=0,
+                help="F2-ranked: stricter qualification. Manual-like: broader keyword discovery like portal searches."
+            )
+            discovery_mode = "manual_like" if discovery_mode_label == "Manual-like" else "f2_ranked"
             if st.button("Run Scan", key="top_scan_button", type="primary", width="stretch"):
                 scan_anchor = _utcnow()
                 started = time.time()
                 with st.spinner("Scanning sources..."):
-                    new_tenders = run_tender_scan(scan_depth=scan_depth)
+                    new_tenders = run_tender_scan(scan_depth=scan_depth, discovery_mode=discovery_mode)
                 elapsed = time.time() - started
                 st.session_state["last_scan_info"] = {
                     "timestamp": _utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
                     "new_count": len(new_tenders),
                     "duration_s": elapsed,
                     "scan_depth": scan_depth,
+                    "discovery_mode": discovery_mode,
                 }
                 if new_tenders:
                     st.session_state["results_mode"] = "session_scan"
@@ -1695,11 +1713,14 @@ elif page == "Scan & Results":
                 help="Filter tenders by submission deadline window."
             )
 
+        active_discovery_mode = st.session_state.get("last_scan_info", {}).get("discovery_mode", "f2_ranked")
+        manual_like_view = active_discovery_mode == "manual_like"
+
         col13, col14 = st.columns(2)
         with col13:
             strict_quality = st.checkbox(
                 "Strict quality",
-                value=False,
+                value=(not manual_like_view),
                 help="Hide weak or noisy opportunities by default."
             )
         with col14:
@@ -1724,14 +1745,15 @@ elif page == "Scan & Results":
             'strict_quality': strict_quality,
             'strict_min_score': 35,
             'allow_broad_fallback': allow_broad_fallback,
-            'require_keywords': strict_quality,
+            'require_keywords': strict_quality and not manual_like_view,
             'created_after': st.session_state.get("scan_anchor_utc") if results_mode == "session_scan" else None,
         }
     
         tenders, applied_f2_only, fallback_message = get_tenders_with_fallback(filters)
         tenders = _apply_deadline_window(tenders, deadline_window)
         before_keyword_filter_count = len(tenders)
-        tenders = [t for t in tenders if _has_display_keywords(t)]
+        if not manual_like_view:
+            tenders = [t for t in tenders if _has_display_keywords(t)]
         keyword_filtered_out = before_keyword_filter_count - len(tenders)
 
         if sort_by == "deadline":
@@ -1744,8 +1766,10 @@ elif page == "Scan & Results":
             st.warning(fallback_message)
         elif f2_only and not applied_f2_only:
             st.warning("No F2-only matches found. Displaying all results.")
-        if keyword_filtered_out > 0:
+        if keyword_filtered_out > 0 and not manual_like_view:
             st.caption(f"Hidden {keyword_filtered_out} results with unavailable keywords.")
+        if manual_like_view:
+            st.caption("Manual-like mode active: broader discovery results are shown.")
         st.markdown(f"**{len(tenders)} tenders found**")
         st.markdown("---")
     

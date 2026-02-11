@@ -456,7 +456,12 @@ def cleanup_irrelevant_tenders():
         print(f" Removed {removed} non-F2 or closed tenders")
 
 
-def scan_source(source: SourceInfo, existing_links: Optional[Iterable[str]] = None) -> List[Dict]:
+def scan_source(
+    source: SourceInfo,
+    existing_links: Optional[Iterable[str]] = None,
+    max_new_per_source: int = MAX_NEW_TENDERS_PER_SOURCE,
+    discovery_mode: str = "f2_ranked",
+) -> List[Dict]:
     """Scan a single source URL and return candidate tender rows.
 
     Important: This function does **not** write to the database.
@@ -485,6 +490,7 @@ def scan_source(source: SourceInfo, existing_links: Optional[Iterable[str]] = No
     existing = existing_links if isinstance(existing_links, set) else set(existing_links or ())
 
     allow_pdf = bool(source.favorite) or (source.name in PDF_SOURCE_ALLOW)
+    manual_like = (discovery_mode or "").strip().lower() == "manual_like"
     seen_links: set[str] = set()
     seen_titles: set[str] = set()
     out: List[Dict] = []
@@ -629,8 +635,9 @@ def scan_source(source: SourceInfo, existing_links: Optional[Iterable[str]] = No
             if score <= 0 or keywords_found == 0:
                 # Controlled fallback: keep digital/ICT-adjacent leads from favorite sources.
                 broad_hits = _broad_discovery_hits(base_combined)
-                if bool(source.favorite) and broad_hits and (has_tender_term or has_ref_code):
-                    score = max(float(score or 0), 28.0)
+                allow_broad_capture = (bool(source.favorite) or manual_like) and (has_tender_term or has_ref_code or has_detail_url)
+                if allow_broad_capture and broad_hits:
+                    score = max(float(score or 0), 24.0 if manual_like else 28.0)
                     keywords_found = len(broad_hits)
                     matched = ", ".join([f"broad:{h}" for h in broad_hits[:4]])
                     breakdown["keywords_found"] = keywords_found
@@ -643,18 +650,18 @@ def scan_source(source: SourceInfo, existing_links: Optional[Iterable[str]] = No
                     procurement_status = breakdown.get("procurement_status", "open")
                 else:
                     continue
-            if likely_fit in {"excluded", "no-go"}:
+            if likely_fit in {"excluded", "no-go"} and not manual_like:
                 continue
-            if procurement_status in {"locked", "conditional_nogo"} and not source.favorite:
+            if procurement_status in {"locked", "conditional_nogo"} and (not source.favorite) and (not manual_like):
                 continue
-            if likely_fit == "uncertain" and score < 45:
+            if likely_fit == "uncertain" and score < 45 and not manual_like:
                 continue
-            strict_no_deadline = not bool(source.favorite)
+            strict_no_deadline = (not bool(source.favorite)) and (not manual_like)
             if strict_no_deadline and not deadline and likely_fit in {"uncertain", "discuss"} and score < 60:
                 continue
             if strict_no_deadline and not deadline and keywords_found < 3 and score < 65:
                 continue
-            if not _has_f2_intent(base_combined) and len(domains_matched) < 2 and score < MIN_RELEVANCE_SCORE:
+            if (not manual_like) and (not _has_f2_intent(base_combined)) and len(domains_matched) < 2 and score < MIN_RELEVANCE_SCORE:
                 continue
 
             bonus = _source_bias_bonus(source.name, link)
@@ -715,7 +722,11 @@ def scan_source(source: SourceInfo, existing_links: Optional[Iterable[str]] = No
         ),
         reverse=True,
     )
-    out = out[:MAX_NEW_TENDERS_PER_SOURCE]
+    try:
+        per_source_cap = max(1, int(max_new_per_source or MAX_NEW_TENDERS_PER_SOURCE))
+    except Exception:
+        per_source_cap = MAX_NEW_TENDERS_PER_SOURCE
+    out = out[:per_source_cap]
 
     logger.info("Source %s produced %d candidates in %.1fs", source.name, len(out), time.time() - t0)
     return out
@@ -745,7 +756,13 @@ def cleanup_old_tenders():
             print(f"  Removed {count} tender(s) older than 1 month")
 
 
-def run_scan(flask_app=None, max_sources=15, scan_timeout_seconds=None):
+def run_scan(
+    flask_app=None,
+    max_sources=15,
+    scan_timeout_seconds=None,
+    discovery_mode: str = "f2_ranked",
+    max_new_per_source: int = MAX_NEW_TENDERS_PER_SOURCE,
+):
     """Scan sources for tenders and return newly added TenderResult objects.
 
     Key properties:
@@ -810,7 +827,13 @@ def run_scan(flask_app=None, max_sources=15, scan_timeout_seconds=None):
     executor = ThreadPoolExecutor(max_workers=workers)
     try:
         future_to_source = {
-            executor.submit(scan_source, src, existing_links): src for src in sources_info
+            executor.submit(
+                scan_source,
+                src,
+                existing_links,
+                max_new_per_source,
+                discovery_mode,
+            ): src for src in sources_info
         }
 
         completed = 0
