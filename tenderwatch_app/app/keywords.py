@@ -1,40 +1,25 @@
 from __future__ import annotations
 
 """
-TenderWatch — F2-Aligned Tender Intelligence Logic (v2, practical + high-precision)
-=================================================================================
+TenderWatch — F2-Aligned Tender Intelligence Logic (v3, practical + high-precision)
+==================================================================================
 
 Goal
 ----
 Score tenders for suitability to cBrain F2-style opportunities:
-- Integrated *case + document/records + workflow* for public sector / regulated bodies
-- With governance/compliance signals (retention, audit trail, archiving, file plans)
-- Allow "pipeline shaping" items (Solution Architect / RFI / PIN / APP) to surface as WATCHLIST
+- Integrated case + document/records + workflow for public sector / regulated bodies
+- Governance/compliance signals (retention, audit trail, archiving, file plans)
+- Allow pipeline shaping items (Solution Architect / RFI / PIN / APP) to surface as WATCHLIST
 - Avoid false positives: hardware-only, construction, digitization-only, pure renewals, etc.
 
-Key design choices (to match “results like above”)
---------------------------------------------------
-1) NOT hard-excluding “consulting/solution architect” tenders.
-   They become opportunity_type="CONSULTING/ARCHITECTURE" and typically bucket WATCHLIST/GOOD.
-2) Hard excludes are reserved for obvious non-software categories (construction/roads/waterworks)
-   or hardware-only tenders *when core platform signals are absent*.
-3) Uses an F2-style rubric (0–1):
-   A) Core platform need (0–0.55)
-   B) Compliance/records governance (0–0.20)
-   C) Enterprise rollout (0–0.10)
-   D) Integration & identity (0–0.10)
-   E) Implementation services (0–0.05)
-   Penalties up to -0.30 for renewals-only/hardware-only/digitization-only/platform lock-in/etc.
-4) Timing logic is profile-based (GLOBAL vs AFRICA_STRICT).
-
-Usage
------
-- Call classify_tender(TenderInput(...), profile=GLOBAL_PROFILE) or AFRICA_STRICT_PROFILE.
-- Output includes:
-  - f2_fit (0–1), score (0–100), bucket (HIGH/GOOD/WATCHLIST/IGNORE)
-  - likely_fit_for_f2 (YES/CONDITIONAL/NO)
-  - platform lock flags (MICROSOFT hard/soft)
-  - matched_phrases, matched_domains, rationale
+Key changes vs v2
+-----------------
+- Fresh output dict per call (no shared nested lists/dicts).
+- Removed "app" acronym from pipeline keywords (major false-positive source).
+- Microsoft lock detection now requires Microsoft anchors; "implementation partner" etc. moved to delivery-mode.
+- Openness signals tightened; "or equivalent" treated as weak and does NOT neutralize Microsoft lock.
+- Bucket semantics: `fit_bucket` = pure fit; `bucket` = actionable bucket (timing-excluded forced to IGNORE).
+- Core scoring is presence-first (better recall on short notices) with capped extras.
 """
 
 import re
@@ -52,7 +37,7 @@ class ScanProfile:
     max_days_since_publication: int
     min_days_to_deadline: int
     allow_urgent_override: bool = True
-    urgent_override_min_fit: float = 0.85  # if deadline is too soon but fit is very high, keep as URGENT
+    urgent_override_min_fit: float = 0.85  # keep as URGENT if deadline is soon but fit is very high
     missing_deadline_behavior: str = "penalize"  # "penalize" | "pipeline" | "exclude"
     missing_publication_behavior: str = "penalize"  # "penalize" | "exclude"
     missing_deadline_penalty: float = 0.06
@@ -74,7 +59,7 @@ GLOBAL_PROFILE = ScanProfile(
 AFRICA_STRICT_PROFILE = ScanProfile(
     name="AFRICA_STRICT",
     max_days_since_publication=30,
-    min_days_to_deadline=0,  # Africa scan usually just needs deadline >= today; set 0 and enforce "open"
+    min_days_to_deadline=0,  # open-only: deadline >= today
     allow_urgent_override=True,
     urgent_override_min_fit=0.85,
     missing_deadline_behavior="pipeline",
@@ -103,8 +88,7 @@ def _normalize(text: str) -> str:
     if NORMALIZATION["lowercase"]:
         t = t.lower()
 
-    # Make common separators behave consistently for phrase matching
-    # (helps match "e-government", "e/filing", "edms/edrms", etc.)
+    # Normalize separators for consistent phrase matching
     t = re.sub(r"[\-/\\_|]+", " ", t)
     t = re.sub(r"[“”\"'`´]", " ", t)
     t = re.sub(r"[\(\)\[\]\{\}]", " ", t)
@@ -124,8 +108,7 @@ def _normalize_phrase(phrase: str) -> str:
 
 def _compile_phrase(phrase: str) -> re.Pattern:
     """
-    Compile a phrase matcher:
-    - Normalize separators in phrase the same way as text.
+    - Normalize separators in phrase like the text.
     - Allow variable whitespace between tokens.
     - Use unicode-aware word boundaries via (?<!\\w) ... (?!\\w)
     """
@@ -164,6 +147,23 @@ def _collect_hits(text: str, phrases: List[str], max_hits: Optional[int] = None)
             seen.add(h)
             out.append(h)
     return out
+
+
+def _near_tokens(text: str, a: str, b: str, window: int = 6) -> bool:
+    """
+    Token-window proximity check: does 'a' occur within `window` tokens of 'b' (either direction)?
+    Text is already normalized to space-delimited tokens.
+    """
+    a = re.escape(_normalize_phrase(a))
+    b = re.escape(_normalize_phrase(b))
+    if not a or not b:
+        return False
+
+    # a ... (<=window tokens) ... b
+    pat1 = re.compile(rf"(?<!\w){a}(?!\w)(?:\s+\w+){{0,{window}}}\s+{b}(?!\w)", re.UNICODE)
+    # b ... (<=window tokens) ... a
+    pat2 = re.compile(rf"(?<!\w){b}(?!\w)(?:\s+\w+){{0,{window}}}\s+{a}(?!\w)", re.UNICODE)
+    return bool(pat1.search(text) or pat2.search(text))
 
 
 # =============================================================================
@@ -315,8 +315,25 @@ KEYWORD_DOMAINS: Dict[str, List[str]] = {
         "e government",
         "digital government",
         "e governance",
+        "public sector",
+        "public administration",
+        "government",
+        "ministry",
+        "department",
+        "agency",
+        "authority",
+        "commission",
+        "regulator",
+        "county government",
+        "municipality",
+        "state corporation",
+        "parastatal",
         # FR / ES / PT
         "administration publique",
+        "secteur public",
+        "secteur publique",
+        "ministere",
+        "ministère",
         "sector publico",
         "setor publico",
     ],
@@ -367,17 +384,13 @@ KEYWORD_DOMAINS: Dict[str, List[str]] = {
         "support and maintenance",
         "commissioning",
     ],
-    # Pipeline/procurement stages
+    # Pipeline/procurement stages (acronyms removed where noisy; keep full forms)
     "Pipeline": [
         "expression of interest",
-        "eoi",
         "request for information",
-        "rfi",
         "prior information notice",
-        "pin",
         "procurement plan",
         "annual procurement plan",
-        "app",
         "prequalification",
         "pre qualification",
     ],
@@ -392,49 +405,92 @@ for domain, keywords in KEYWORD_DOMAINS.items():
         KEYWORD_TO_DOMAIN.setdefault(_normalize_phrase(kw), []).append(domain)
 
 # =============================================================================
-# LOCK-IN & PROCUREMENT OPENNESS
+# LOCK-IN, OPENNESS, DELIVERY MODE
 # =============================================================================
 
-MICROSOFT_HARD_LOCK_SIGNALS: List[str] = [
+# Microsoft anchors (presence alone => at most SOFT; requirement context => HARD)
+MICROSOFT_ANCHORS: List[str] = [
+    "power platform",
+    "power apps",
+    "power automate",
+    "dataverse",
+    "sharepoint",
+    "sharepoint online",
+    "microsoft 365",
+    "office 365",
+    "m365",
+    "azure ad",
+    "microsoft enterprise agreement",
+]
+
+REQUIREMENT_WORDS: List[str] = [
+    "must",
+    "shall",
+    "required",
+    "mandatory",
+    "to be built on",
+    "built on",
+    "shall be built on",
+    "must be built on",
+    "shall use",
+    "must use",
+]
+
+# Explicit hard-lock phrases (high confidence)
+MICROSOFT_HARD_LOCK_PHRASES: List[str] = [
     "must use power platform",
     "must use microsoft power platform",
     "solution shall be built on power platform",
     "built on power platform",
-    "power apps",
-    "power automate",
-    "dataverse",
     "must use sharepoint",
     "solution shall be built on sharepoint",
     "built on sharepoint",
     "deploy on sharepoint",
-    "sharepoint online",
 ]
 
-MICROSOFT_SOFT_LOCK_SIGNALS: List[str] = [
+# Soft commitment phrases (must include Microsoft anchor or EA)
+MICROSOFT_SOFT_CONTEXT: List[str] = [
     "existing sharepoint",
     "sharepoint environment",
-    "already procured microsoft",
+    "already procured power platform",
     "procured power platform",
     "microsoft enterprise agreement",
-    "licenses will be provided",
-    "excluding licenses",
-    "implementation partner",
-    "configuration services",
-    "si partner",
+    "office 365",
+    "microsoft 365",
+    "m365",
 ]
 
-OPENNESS_SIGNALS: List[str] = [
+# Strong openness signals only (these can reduce/neutralize lock penalties)
+OPENNESS_STRONG: List[str] = [
     "platform agnostic",
-    "vendor neutral",
     "technology neutral",
-    "or equivalent",
+    "vendor neutral",
+    "technology-agnostic",
+    "platform-agnostic",
+    "vendor-neutral",
     "alternative solutions",
     "alternative platforms",
     "open procurement",
-    "best value",
+    "fit for purpose",
     "total cost of ownership",
     "tco analysis",
-    "fit for purpose",
+]
+
+# Weak openness signals (for tagging only; do NOT neutralize lock penalties)
+OPENNESS_WEAK: List[str] = [
+    "or equivalent",
+    "and or equivalent",
+]
+
+# Delivery-mode signals (NOT platform lock-in)
+DELIVERY_MODE_SIGNALS: List[str] = [
+    "implementation partner",
+    "si partner",
+    "systems integrator",
+    "configuration services",
+    "professional services",
+    "excluding licenses",
+    "licenses will be provided",
 ]
 
 QUALIFICATION_QUESTIONS: List[str] = [
@@ -466,7 +522,6 @@ HARDWARE_SIGNALS: List[str] = [
     "supply of laptops",
     "supply of computers",
     "hardware supply",
-    "supply and delivery of",
     "network infrastructure",
     "cabling works",
     "data center",
@@ -541,56 +596,58 @@ NEGATIVE_SIGNALS: List[str] = [
 ]
 
 # =============================================================================
-# OUTPUT SCHEMA (superset of your original; keeps compatibility)
+# OUTPUT FACTORY (no shared mutable defaults)
 # =============================================================================
 
-OUTPUT_SCHEMA: Dict[str, Any] = {
-    "tender_id": "",
-    "title": "",
-    "source": "",
-    "publication_date": "",
-    "deadline": "",
-    # Compatibility fields:
-    "matched_keywords": [],
-    "matched_domains": [],
-    "score": 0,  # int 0-100
-    "priority": "LOW",  # LOW/MEDIUM/HIGH (compat)
-    "platform_locked": False,
-    "requires_qualification": False,
-    "hard_no_go": False,
-    "likely_fit_for_f2": "NO",  # NO/CONDITIONAL/YES
-    "qualification_questions": [],
-    # New, more useful fields:
-    "f2_fit": 0.0,  # float 0-1
-    "bucket": "IGNORE",  # IGNORE/WATCHLIST/GOOD/HIGH
-    "opportunity_type": "UNKNOWN",
-    "is_pipeline": False,
-    "is_urgent": False,
-    "timing": {
-        "days_to_deadline": None,
-        "days_since_publication": None,
-        "missing_deadline": False,
-        "missing_publication_date": False,
-        "excluded_by_timing": False,
-        "timing_reason": "",
-    },
-    "subscores": {
-        "core_platform": 0.0,   # 0-0.55
-        "governance": 0.0,      # 0-0.20
-        "enterprise": 0.0,      # 0-0.10
-        "integration": 0.0,     # 0-0.10
-        "implementation": 0.0,  # 0-0.05
-        "penalties": 0.0,       # 0-0.30 (reported as positive; subtracted from total)
-    },
-    "matched_phrases": [],     # list[str] (normalized phrases)
-    "rationale": [],           # list[str] short explanations
-}
+def _new_output() -> Dict[str, Any]:
+    return {
+        "tender_id": "",
+        "title": "",
+        "source": "",
+        "publication_date": "",
+        "deadline": "",
+        # Compatibility fields:
+        "matched_keywords": [],
+        "matched_domains": [],
+        "score": 0,  # int 0-100
+        "priority": "LOW",  # LOW/MEDIUM/HIGH (compat)
+        "platform_locked": False,
+        "requires_qualification": False,
+        "hard_no_go": False,
+        "likely_fit_for_f2": "NO",  # NO/CONDITIONAL/YES
+        "qualification_questions": [],
+        # New fields:
+        "status": "ACTIVE",          # ACTIVE | TIMING_EXCLUDED | HARD_EXCLUDED
+        "f2_fit": 0.0,               # float 0-1
+        "fit_bucket": "IGNORE",      # IGNORE/WATCHLIST/GOOD/HIGH (fit-only)
+        "bucket": "IGNORE",          # actionable bucket (timing-excluded forced to IGNORE)
+        "opportunity_type": "UNKNOWN",
+        "is_pipeline": False,
+        "is_urgent": False,
+        "timing": {
+            "days_to_deadline": None,
+            "days_since_publication": None,
+            "missing_deadline": False,
+            "missing_publication_date": False,
+            "excluded_by_timing": False,
+            "timing_reason": "",
+        },
+        "subscores": {
+            "core_platform": 0.0,   # 0-0.55
+            "governance": 0.0,      # 0-0.20
+            "enterprise": 0.0,      # 0-0.10
+            "integration": 0.0,     # 0-0.10
+            "implementation": 0.0,  # 0-0.05
+            "penalties": 0.0,       # 0-0.30 (reported as positive; subtracted from total)
+        },
+        "matched_phrases": [],
+        "rationale": [],
+    }
 
 # =============================================================================
 # INTERNAL SCORING MODEL (F2 rubric)
 # =============================================================================
 
-# Governance phrases are a focused subset to avoid overweighting generic "records"
 GOVERNANCE_PHRASES: List[str] = [
     "retention schedule",
     "records retention",
@@ -626,16 +683,19 @@ ENTERPRISE_PHRASES: List[str] = [
 ]
 
 INTEGRATION_PHRASES: List[str] = KEYWORD_DOMAINS["Integration"]
-
 IMPLEMENTATION_PHRASES: List[str] = KEYWORD_DOMAINS["Implementation"]
 
-# Core platform components
 DOC_PLATFORM_PHRASES: List[str] = KEYWORD_DOMAINS["EDMS"] + KEYWORD_DOMAINS["ECM"]
 RECORDS_PLATFORM_PHRASES: List[str] = KEYWORD_DOMAINS["Records"]
 WORKFLOW_PHRASES: List[str] = KEYWORD_DOMAINS["Workflow"]
 CASE_PHRASES: List[str] = KEYWORD_DOMAINS["Case"]
-
 GOV_CONTEXT_PHRASES: List[str] = KEYWORD_DOMAINS["Gov"]
+
+# Component weights (keep total core at 0.55)
+CORE_DOC_MAX = 0.20
+CORE_RECORDS_MAX = 0.15
+CORE_WORKFLOW_MAX = 0.10
+CORE_CASE_MAX = 0.10
 
 
 def _days_between(a: date, b: date) -> int:
@@ -645,15 +705,26 @@ def _days_between(a: date, b: date) -> int:
 def _saturating_score(hit_count: int, max_points: float, k: int = 3) -> float:
     """
     Convert hit_count to [0, max_points] with a smooth saturation curve.
-    k ~ how many hits to reach near-max.
+    Uses n/(n+k) saturation (cheap, stable).
     """
     if hit_count <= 0:
         return 0.0
-    # Simple saturation: 1 - exp(-n/k)
-    # Use a small approximation without importing math.exp for speed + simplicity:
-    # exp(-x) approx via pow(2.71828, -x) would require math anyway.
-    # We'll use a rational saturation: n/(n+k)
     return max_points * (hit_count / (hit_count + k))
+
+
+def _presence_first_component(hits: List[str], max_points: float, base_frac: float, k_extra: int) -> float:
+    """
+    Presence-first scoring:
+    - If any hit exists, grant base = max_points * base_frac.
+    - Remaining budget saturates with extra hit count (len(hits)-1).
+    """
+    if not hits:
+        return 0.0
+    base = max_points * base_frac
+    extra_budget = max_points - base
+    extra_hits = max(0, len(hits) - 1)
+    extra = _saturating_score(extra_hits, extra_budget, k=k_extra)
+    return min(max_points, base + extra)
 
 
 def _domain_hits(text: str) -> Tuple[List[str], List[str], List[str]]:
@@ -674,7 +745,7 @@ def _domain_hits(text: str) -> Tuple[List[str], List[str], List[str]]:
             matched_phrases.extend(hits)
             matched_keywords.extend([f"{domain}:{h}" for h in hits])
 
-    # de-dupe phrases/keywords while keeping order
+    # de-dupe while keeping order
     def _dedupe_keep_order(items: List[str]) -> List[str]:
         seen = set()
         out: List[str] = []
@@ -691,39 +762,65 @@ def _domain_hits(text: str) -> Tuple[List[str], List[str], List[str]]:
     )
 
 
-def _detect_platform_lock(text: str) -> Tuple[str, List[str], List[str], List[str]]:
-    hard = _collect_hits(text, MICROSOFT_HARD_LOCK_SIGNALS)
-    soft = _collect_hits(text, MICROSOFT_SOFT_LOCK_SIGNALS)
-    open_ = _collect_hits(text, OPENNESS_SIGNALS)
+def _detect_platform_lock(text: str) -> Tuple[str, List[str], List[str], List[str], List[str], List[str]]:
+    """
+    Returns:
+      platform_lock: NONE | MICROSOFT_SOFT | MICROSOFT_HARD
+      hard_hits (phrases)
+      soft_hits (phrases)
+      ms_anchor_hits
+      openness_strong_hits
+      openness_weak_hits
+    """
+    openness_strong = _collect_hits(text, OPENNESS_STRONG)
+    openness_weak = _collect_hits(text, OPENNESS_WEAK)
 
-    if hard:
-        return "MICROSOFT_HARD", hard, soft, open_
-    if soft:
-        return "MICROSOFT_SOFT", hard, soft, open_
-    return "NONE", hard, soft, open_
+    anchors = _collect_hits(text, MICROSOFT_ANCHORS)
+
+    # Explicit hard phrases first
+    hard_hits = _collect_hits(text, MICROSOFT_HARD_LOCK_PHRASES)
+
+    # Requirement proximity: requirement word near an MS anchor
+    req_context = False
+    if anchors:
+        for req in REQUIREMENT_WORDS:
+            for a in anchors:
+                if _near_tokens(text, req, a, window=6):
+                    req_context = True
+                    break
+            if req_context:
+                break
+
+    if hard_hits or req_context:
+        # If we concluded "hard" but no anchors matched (rare), still treat as hard based on explicit phrases
+        return "MICROSOFT_HARD", hard_hits, [], anchors, openness_strong, openness_weak
+
+    # Soft commitment requires anchors or explicit Microsoft soft context
+    soft_hits = _collect_hits(text, MICROSOFT_SOFT_CONTEXT)
+    if anchors or soft_hits:
+        return "MICROSOFT_SOFT", [], soft_hits, anchors, openness_strong, openness_weak
+
+    return "NONE", [], [], [], openness_strong, openness_weak
+
+
+def _detect_delivery_mode(text: str) -> List[str]:
+    return _collect_hits(text, DELIVERY_MODE_SIGNALS, max_hits=6)
 
 
 def _detect_opportunity_type(text: str, core_platform_score: float) -> str:
-    """
-    Classify the nature of the opportunity for business handling.
-    """
     renewal_hits = _collect_hits(text, RENEWAL_SIGNALS)
     consulting_hits = _collect_hits(text, CONSULTING_SIGNALS)
     pipeline_hits = _collect_hits(text, KEYWORD_DOMAINS["Pipeline"])
 
-    # Renewal-only (usually not F2-friendly unless it's replacement/upgrade, which should have core signals)
     if renewal_hits and core_platform_score < 0.25 and not _phrase_hit(text, "replacement") and not _phrase_hit(text, "upgrade"):
         return "RENEWAL/SUPPORT_ONLY"
 
-    # Pipeline / planning
     if pipeline_hits and core_platform_score < 0.35:
-        return "PIPELINE (RFI/PIN/APP/EOI)"
+        return "PIPELINE (RFI/PIN/PROC PLAN/EOI)"
 
-    # Consulting / architecture (keep, don’t exclude)
     if consulting_hits and core_platform_score < 0.40:
         return "CONSULTING/ARCHITECTURE"
 
-    # If core is strong, it’s typically a platform procurement
     if core_platform_score >= 0.40:
         return "PLATFORM PROCUREMENT (SOFTWARE+IMPLEMENTATION)"
 
@@ -731,9 +828,6 @@ def _detect_opportunity_type(text: str, core_platform_score: float) -> str:
 
 
 def _obvious_hard_exclude(text: str, core_platform_score: float) -> Tuple[bool, str]:
-    """
-    Hard exclude ONLY if obviously not a software/platform procurement AND core is weak.
-    """
     construction_hits = _collect_hits(text, CONSTRUCTION_SIGNALS, max_hits=3)
     medical_hits = _collect_hits(text, MEDICAL_SIGNALS, max_hits=3)
 
@@ -746,7 +840,14 @@ def _obvious_hard_exclude(text: str, core_platform_score: float) -> Tuple[bool, 
     return False, ""
 
 
-def _penalty_model(text: str, core_platform_score: float, platform_lock: str, openness_hits: List[str]) -> Tuple[float, List[str], bool]:
+def _penalty_model(
+    text: str,
+    core_platform_score: float,
+    doc_present: bool,
+    records_present: bool,
+    platform_lock: str,
+    openness_strong_hits: List[str],
+) -> Tuple[float, List[str], bool]:
     """
     Returns:
       penalties (0..0.30) as positive number to subtract
@@ -764,14 +865,13 @@ def _penalty_model(text: str, core_platform_score: float, platform_lock: str, op
     negative_hits = _collect_hits(text, NEGATIVE_SIGNALS, max_hits=4)
     pipeline_hits = _collect_hits(text, KEYWORD_DOMAINS["Pipeline"], max_hits=4)
 
-    # Platform lock-in: strong penalty for cBrain F2 if Microsoft-hard and no openness
-    if platform_lock == "MICROSOFT_HARD" and not openness_hits:
+    # Microsoft lock-in penalty: only neutralized by STRONG openness (not "or equivalent")
+    if platform_lock == "MICROSOFT_HARD" and not openness_strong_hits:
         penalties += 0.18
-        rationale.append("Hard Microsoft platform lock-in signals (Power Platform/SharePoint).")
-
-    elif platform_lock == "MICROSOFT_SOFT" and not openness_hits:
+        rationale.append("Hard Microsoft platform lock-in signals detected (requirement-level).")
+    elif platform_lock == "MICROSOFT_SOFT" and not openness_strong_hits:
         penalties += 0.08
-        rationale.append("Soft Microsoft commitment signals (existing SharePoint/licensing).")
+        rationale.append("Soft Microsoft commitment signals detected (existing Microsoft stack).")
 
     # Renewal-only: heavy penalty if core weak
     if renewal_hits and core_platform_score < 0.30:
@@ -787,8 +887,8 @@ def _penalty_model(text: str, core_platform_score: float, platform_lock: str, op
             penalties += 0.06
             rationale.append("Contains hardware/procurement language; ensure platform scope is primary.")
 
-    # Digitization-only: penalize if no strong platform signals (digitization can still be part of EDMS rollout)
-    if digit_hits and core_platform_score < 0.30 and not _phrase_hit(text, "document management"):
+    # Digitization-only: penalize when scanning appears without platform (doc/records)
+    if digit_hits and not (doc_present or records_present) and core_platform_score < 0.30:
         penalties += 0.18
         rationale.append("Digitization/scanning appears without clear EDMS/records platform component.")
 
@@ -831,15 +931,13 @@ def classify_tender(
     profile: ScanProfile = GLOBAL_PROFILE,
 ) -> Dict[str, Any]:
     """
-    Main classifier. Returns OUTPUT_SCHEMA-compatible dict + extended fields.
-
-    NOTE: This function does not "fetch" or "scrape" anything.
-    It assumes you already have t.title and t.text (notice + doc text where possible).
+    Main classifier. Returns a dict with compatibility fields + extended intelligence fields.
+    Assumes you already have t.title and t.text (notice + doc text where possible).
     """
     today = today or date.today()
     text = _normalize(f"{t.title} {t.text}")
 
-    out = dict(OUTPUT_SCHEMA)
+    out = _new_output()
     out["tender_id"] = t.tender_id
     out["title"] = t.title
     out["source"] = t.source
@@ -847,7 +945,7 @@ def classify_tender(
     out["deadline"] = t.deadline.isoformat() if t.deadline else ""
 
     # --- Timing evaluation (profile-based) ---
-    timing = dict(out["timing"])
+    timing = out["timing"]
     timing["missing_deadline"] = t.deadline is None
     timing["missing_publication_date"] = t.publication_date is None
 
@@ -861,22 +959,27 @@ def classify_tender(
         days_since_pub = _days_between(t.publication_date, today)
         timing["days_since_publication"] = days_since_pub
 
-    # compute domain hits early because timing may allow urgent override based on fit
+    # --- Domain hits ---
     matched_keywords, matched_domains, matched_phrases = _domain_hits(text)
     out["matched_keywords"] = matched_keywords
     out["matched_domains"] = matched_domains
     out["matched_phrases"] = matched_phrases
 
-    # --- Core scoring (0..0.55) ---
+    # --- Core scoring (0..0.55), presence-first ---
     doc_hits = _collect_hits(text, DOC_PLATFORM_PHRASES)
     records_hits = _collect_hits(text, RECORDS_PLATFORM_PHRASES)
     workflow_hits = _collect_hits(text, WORKFLOW_PHRASES)
     case_hits = _collect_hits(text, CASE_PHRASES)
 
-    core_doc = _saturating_score(len(doc_hits), 0.20, k=3)
-    core_records = _saturating_score(len(records_hits), 0.15, k=3)
-    core_workflow = _saturating_score(len(workflow_hits), 0.10, k=3)
-    core_case = _saturating_score(len(case_hits), 0.10, k=3)
+    doc_present = bool(doc_hits)
+    records_present = bool(records_hits)
+    workflow_present = bool(workflow_hits)
+    case_present = bool(case_hits)
+
+    core_doc = _presence_first_component(doc_hits, CORE_DOC_MAX, base_frac=0.60, k_extra=2)
+    core_records = _presence_first_component(records_hits, CORE_RECORDS_MAX, base_frac=0.55, k_extra=2)
+    core_workflow = _presence_first_component(workflow_hits, CORE_WORKFLOW_MAX, base_frac=0.55, k_extra=2)
+    core_case = _presence_first_component(case_hits, CORE_CASE_MAX, base_frac=0.55, k_extra=2)
     core_platform = core_doc + core_records + core_workflow + core_case  # 0..0.55
 
     # --- Governance (0..0.20) ---
@@ -896,47 +999,72 @@ def classify_tender(
     implementation = _saturating_score(len(impl_hits), 0.05, k=4)
 
     # --- Public sector context boost (soft) ---
-    gov_context_hits = _collect_hits(text, GOV_CONTEXT_PHRASES, max_hits=5)
-    has_gov_context = bool(gov_context_hits) or _phrase_hit(text, "government") or _phrase_hit(text, "ministry")
+    gov_context_hits = _collect_hits(text, GOV_CONTEXT_PHRASES, max_hits=8)
+    has_gov_context = bool(gov_context_hits)
 
-    # Base fit
     base_fit = core_platform + governance + enterprise + integration + implementation  # 0..1.0
-
-    # Apply mild down-weight if not public sector (F2 is strongest there)
     if not has_gov_context:
         base_fit *= 0.85
 
     # Platform lock & openness
-    platform_lock, hard_lock_hits, soft_lock_hits, openness_hits = _detect_platform_lock(text)
+    (
+        platform_lock,
+        hard_lock_hits,
+        soft_lock_hits,
+        ms_anchor_hits,
+        openness_strong_hits,
+        openness_weak_hits,
+    ) = _detect_platform_lock(text)
+
     out["platform_locked"] = platform_lock in ("MICROSOFT_HARD", "MICROSOFT_SOFT")
     out["requires_qualification"] = out["platform_locked"]
     if out["requires_qualification"]:
         out["qualification_questions"] = QUALIFICATION_QUESTIONS.copy()
 
+    # Delivery mode (tagging)
+    delivery_hits = _detect_delivery_mode(text)
+
     # Opportunity type + penalties
     opportunity_type = _detect_opportunity_type(text, core_platform)
-    penalties, penalty_rationale, is_pipeline_hint = _penalty_model(text, core_platform, platform_lock, openness_hits)
+    penalties, penalty_rationale, is_pipeline_hint = _penalty_model(
+        text=text,
+        core_platform_score=core_platform,
+        doc_present=doc_present,
+        records_present=records_present,
+        platform_lock=platform_lock,
+        openness_strong_hits=openness_strong_hits,
+    )
 
     # Hard exclude only in obvious cases
     hard_exclude, hard_exclude_reason = _obvious_hard_exclude(text, core_platform)
     if hard_exclude:
+        out["status"] = "HARD_EXCLUDED"
         out["hard_no_go"] = True
         out["likely_fit_for_f2"] = "NO"
+        out["fit_bucket"] = "IGNORE"
         out["bucket"] = "IGNORE"
         out["priority"] = "LOW"
         out["f2_fit"] = 0.0
-        out["score"] = -999
+        out["score"] = 0
         out["opportunity_type"] = "HARD_EXCLUDED"
         out["rationale"] = [hard_exclude_reason]
-        out["timing"] = timing
+        out["subscores"] = {
+            "core_platform": float(round(core_platform, 4)),
+            "governance": float(round(governance, 4)),
+            "enterprise": float(round(enterprise, 4)),
+            "integration": float(round(integration, 4)),
+            "implementation": float(round(implementation, 4)),
+            "penalties": float(round(penalties, 4)),
+        }
         return out
 
-    # Final fit (0..1) after penalties
+    # Final fit after penalties
     f2_fit = max(0.0, min(1.0, base_fit - penalties))
 
     # --- Timing filters (post-fit so urgent override can apply) ---
     excluded_by_timing = False
     timing_reason = ""
+    is_urgent = False
 
     # Publication age
     if t.publication_date:
@@ -951,9 +1079,7 @@ def classify_tender(
             f2_fit = max(0.0, f2_fit - profile.missing_publication_penalty)
 
     # Deadline logic
-    is_urgent = False
     if t.deadline:
-        # For Africa strict scanning, open-only is typically "deadline >= today"
         if profile.min_days_to_deadline <= 0:
             if days_to_deadline is not None and days_to_deadline < 0:
                 excluded_by_timing = True
@@ -977,22 +1103,25 @@ def classify_tender(
 
     timing["excluded_by_timing"] = excluded_by_timing
     timing["timing_reason"] = timing_reason
-    out["timing"] = timing
     out["is_urgent"] = is_urgent
 
-    # If excluded by timing, mark hard_no_go (for inclusion filters) but still return scored object.
     if excluded_by_timing:
+        out["status"] = "TIMING_EXCLUDED"
         out["hard_no_go"] = True
 
-    # Bucket thresholds (aligned to the “refined prompt” logic)
+    # Fit bucket thresholds
     if f2_fit >= 0.80:
-        bucket = "HIGH"
+        fit_bucket = "HIGH"
     elif f2_fit >= 0.75:
-        bucket = "GOOD"
+        fit_bucket = "GOOD"
     elif f2_fit >= 0.70:
-        bucket = "WATCHLIST"
+        fit_bucket = "WATCHLIST"
     else:
-        bucket = "IGNORE"
+        fit_bucket = "IGNORE"
+    out["fit_bucket"] = fit_bucket
+
+    # Actionable bucket: force IGNORE if timing-excluded
+    bucket = "IGNORE" if excluded_by_timing else fit_bucket
     out["bucket"] = bucket
 
     # Compatibility "priority"
@@ -1003,33 +1132,30 @@ def classify_tender(
     else:
         out["priority"] = "LOW"
 
-    # Gate: require meaningful core platform need (prevents governance-only false positives)
-    core_gate_ok = core_platform >= 0.35
+    # Core gate: require real platform need (prevents governance-only false positives)
+    # Gate rule: doc is present AND at least one of (workflow/case/records) is present, with minimum core score.
+    core_gate_ok = doc_present and (workflow_present or case_present or records_present) and (core_platform >= 0.28)
 
-    # likely_fit_for_f2 logic (platform lock aware)
+    # likely_fit_for_f2 logic (platform lock aware; openness_strong can keep it CONDITIONAL)
     if out["hard_no_go"]:
         likely = "NO"
-    elif platform_lock == "MICROSOFT_HARD" and not openness_hits:
+    elif platform_lock == "MICROSOFT_HARD" and not openness_strong_hits:
         likely = "NO"
-    elif bucket == "HIGH" and core_gate_ok:
+    elif fit_bucket == "HIGH" and core_gate_ok:
         likely = "YES"
-    elif bucket in ("GOOD", "WATCHLIST") and core_gate_ok:
+    elif fit_bucket in ("GOOD", "WATCHLIST") and core_gate_ok:
         likely = "CONDITIONAL"
     else:
         likely = "NO"
     out["likely_fit_for_f2"] = likely
 
-    # Pipeline flag:
-    # - if profile says pipeline for missing deadline
-    # - or we saw pipeline terms / consulting shaping and core not strong
+    # Pipeline flag
     out["is_pipeline"] = bool(is_pipeline_hint)
 
-    # Populate rationale (short, actionable)
+    # Rationale (short, actionable)
     rationale: List[str] = []
 
-    # Why it matches
     if core_gate_ok:
-        # Pick 2-4 strongest phrases as "matched highlights"
         highlights: List[str] = []
         for grp in (doc_hits, records_hits, workflow_hits, case_hits, gov_hits):
             for h in grp:
@@ -1049,13 +1175,19 @@ def classify_tender(
     if integration > 0:
         rationale.append("Integration/identity signals present (SSO/IAM/APIs/email/e-sign).")
 
-    # Platform lock explanation
+    # Lock/open explanations
     if platform_lock == "MICROSOFT_HARD":
-        rationale.append("Hard Microsoft lock-in indicators detected.")
+        rationale.append("Hard Microsoft lock-in indicators detected (requirement-level).")
     elif platform_lock == "MICROSOFT_SOFT":
-        rationale.append("Soft Microsoft commitment indicators detected.")
-    if openness_hits:
-        rationale.append("Openness signals present (technology neutral / or equivalent).")
+        rationale.append("Microsoft stack indicators detected (soft commitment).")
+    if openness_strong_hits:
+        rationale.append("Strong openness signals present (technology/platform neutral).")
+    elif openness_weak_hits:
+        rationale.append("Weak openness phrase present (e.g., 'or equivalent')—not treated as platform-neutral proof.")
+
+    # Delivery mode
+    if delivery_hits:
+        rationale.append("Delivery-mode signals present (SI/implementation partner framing).")
 
     # Penalty rationale
     rationale.extend(penalty_rationale)
@@ -1064,30 +1196,35 @@ def classify_tender(
     if is_urgent:
         rationale.append("URGENT: deadline is soon but fit is very high (kept by override).")
     if out["is_pipeline"]:
-        rationale.append("PIPELINE: likely early-stage (RFI/PIN/APP/architecture).")
+        rationale.append("PIPELINE: likely early-stage (procurement plan / RFI / EOI / architecture).")
+    if excluded_by_timing and timing_reason:
+        rationale.append("Excluded by timing: " + timing_reason)
 
     out["rationale"] = rationale
 
-    # Matched keywords enrichment (lock/open/neg tags)
-    # (keeps a similar shape to your original module’s extra tags)
+    # Matched keyword enrichment (lock/open/neg tags)
     if hard_lock_hits:
         out["matched_keywords"].extend([f"MS_HARD_LOCK:{h}" for h in hard_lock_hits])
     if soft_lock_hits:
-        out["matched_keywords"].extend([f"MS_SOFT_LOCK:{h}" for h in soft_lock_hits])
-    if openness_hits:
-        out["matched_keywords"].extend([f"OPENNESS:{h}" for h in openness_hits])
+        out["matched_keywords"].extend([f"MS_SOFT_CTX:{h}" for h in soft_lock_hits])
+    if ms_anchor_hits:
+        out["matched_keywords"].extend([f"MS_ANCHOR:{h}" for h in ms_anchor_hits])
+    if openness_strong_hits:
+        out["matched_keywords"].extend([f"OPENNESS_STRONG:{h}" for h in openness_strong_hits])
+    if openness_weak_hits:
+        out["matched_keywords"].extend([f"OPENNESS_WEAK:{h}" for h in openness_weak_hits])
+    if delivery_hits:
+        out["matched_keywords"].extend([f"DELIVERY_MODE:{h}" for h in delivery_hits])
 
-    # Negative tags
     neg_hits = _collect_hits(text, NEGATIVE_SIGNALS, max_hits=6)
     if neg_hits:
         out["matched_keywords"].extend([f"NEG:{h}" for h in neg_hits])
 
-    # Final score fields
+    # Final numeric fields
     out["f2_fit"] = float(round(f2_fit, 4))
     out["score"] = int(round(f2_fit * 100))
     out["opportunity_type"] = opportunity_type
 
-    # Subscores
     out["subscores"] = {
         "core_platform": float(round(core_platform, 4)),
         "governance": float(round(governance, 4)),
