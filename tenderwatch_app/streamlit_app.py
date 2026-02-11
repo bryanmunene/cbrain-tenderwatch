@@ -1266,6 +1266,7 @@ def get_source_performance(days=30, limit=12):
                 TenderResult.created_at >= since,
             ).scalar()
             rows.append({
+                "source_id": source.id,
                 "source": source.name,
                 "total": int(total),
                 "high_fit": int(high_fit),
@@ -1275,6 +1276,18 @@ def get_source_performance(days=30, limit=12):
             })
     rows.sort(key=lambda r: (r["total"], r["high_fit"], r["avg_score"]), reverse=True)
     return rows[:max(1, limit)]
+
+
+def _source_health(row):
+    total = int(row.get("total", 0) or 0)
+    hit_rate = float(row.get("hit_rate", 0.0) or 0.0)
+    avg_score = float(row.get("avg_score", 0.0) or 0.0)
+
+    if total >= 10 and hit_rate >= 18 and avg_score >= 55:
+        return "Strong"
+    if total >= 5 and (hit_rate < 5 or avg_score < 30):
+        return "Weak"
+    return "Watch"
 
 
 def get_upcoming_deadlines(limit=8, horizon_days=30):
@@ -1521,11 +1534,31 @@ if page == "Dashboard":
     st.subheader("Source Performance")
     source_rows = get_source_performance(days=30, limit=10)
     if source_rows:
+        weak_sources = [r for r in source_rows if _source_health(r) == "Weak"]
+        action_col1, action_col2 = st.columns([2, 5])
+        with action_col1:
+            if st.button("Disable weak sources", key="disable_weak_sources_btn", width="stretch"):
+                disabled = 0
+                for r in weak_sources:
+                    try:
+                        if toggle_source(r["source_id"]):
+                            disabled += 1
+                    except Exception:
+                        continue
+                if disabled:
+                    st.success(f"Disabled {disabled} weak source(s).")
+                else:
+                    st.info("No weak sources were disabled.")
+                st.rerun()
+        with action_col2:
+            st.caption("Health is based on last 30 days: volume, high-fit hit rate, and average score.")
+
         for row in source_rows:
-            c1, c2, c3, c4, c5 = st.columns([4, 1, 1, 1, 1])
+            health = _source_health(row)
+            c1, c2, c3, c4, c5, c6, c7 = st.columns([3.3, 0.9, 0.9, 0.9, 0.9, 0.9, 1.2])
             with c1:
                 st.markdown(f"**{row['source']}**")
-                st.caption(f"Last seen: {row['last_seen']}")
+                st.caption(f"Last seen: {row['last_seen']} | Health: {health}")
             with c2:
                 st.metric("Results", row["total"])
             with c3:
@@ -1534,6 +1567,16 @@ if page == "Dashboard":
                 st.metric("Hit Rate", f"{row['hit_rate']}%")
             with c5:
                 st.metric("Avg Score", f"{row['avg_score']}")
+            with c6:
+                st.metric("Health", health)
+            with c7:
+                if health == "Weak":
+                    if st.button("Disable", key=f"disable_src_{row['source_id']}", width="stretch"):
+                        if toggle_source(row["source_id"]):
+                            st.success(f"Disabled {row['source']}.")
+                            st.rerun()
+                else:
+                    st.caption(" ")
     else:
         st.caption("No source activity yet in the last 30 days.")
 
