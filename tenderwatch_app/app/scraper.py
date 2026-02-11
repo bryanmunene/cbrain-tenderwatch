@@ -132,6 +132,19 @@ BROAD_DISCOVERY_TERMS = [
 ]
 
 
+def _has_keyword_hint(text: str) -> bool:
+    hay = (text or "").lower()
+    if not hay:
+        return False
+    for kw in ALL_KEYWORDS:
+        k = (kw or "").strip().lower()
+        if len(k) < 4:
+            continue
+        if k in hay:
+            return True
+    return False
+
+
 # -----------------------------------------------------------------------------
 # Parsing heuristics (module-level to avoid re-allocating per-source)
 # -----------------------------------------------------------------------------
@@ -489,8 +502,10 @@ def scan_source(
 
     existing = existing_links if isinstance(existing_links, set) else set(existing_links or ())
 
-    allow_pdf = bool(source.favorite) or (source.name in PDF_SOURCE_ALLOW)
     manual_like = (discovery_mode or "").strip().lower() == "manual_like"
+    # PDF extraction is costly and can trigger repeated SSL retries on unstable hosts.
+    # Keep it for known high-signal sources in strict mode; disable in manual-like mode for speed.
+    allow_pdf = (source.name in PDF_SOURCE_ALLOW) and (not manual_like)
     seen_links: set[str] = set()
     seen_titles: set[str] = set()
     out: List[Dict] = []
@@ -597,11 +612,16 @@ def scan_source(
             if len(title_key) < 18 and not (has_detail_url or deadline or has_ref_code or is_pdf):
                 continue
 
-            # Must have at least one strong tender signal
+            keyword_hint = _has_keyword_hint(base_combined)
+
+            # Must have at least one strong tender signal.
+            # In manual-like mode, allow keyword-led discovery if strong link metadata is missing.
             if not (has_tender_term or has_detail_url or has_ref_code or deadline):
-                continue
+                if not (manual_like and keyword_hint):
+                    continue
             if not deadline and not has_ref_code and not has_detail_url and not (has_ref_hint and has_date_hint):
-                continue
+                if not (manual_like and (has_tender_term or keyword_hint)):
+                    continue
 
             if _is_closed_award(base_combined) or lifecycle_status == "awarded":
                 continue

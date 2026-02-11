@@ -79,6 +79,11 @@ NORMALIZATION: Dict[str, Any] = {
 }
 
 _PATTERN_CACHE: Dict[str, re.Pattern] = {}
+_TOKEN_SPLIT_RE = re.compile(r"[a-z0-9]+")
+_STOP_TOKENS = {
+    "and", "or", "of", "for", "the", "to", "in", "on", "with", "by", "a", "an",
+    "system", "platform", "management", "services", "service",
+}
 
 
 def _normalize(text: str) -> str:
@@ -121,6 +126,12 @@ def _compile_phrase(phrase: str) -> re.Pattern:
     return re.compile(pattern, flags=re.UNICODE)
 
 
+def _tokens(value: str) -> List[str]:
+    if not value:
+        return []
+    return _TOKEN_SPLIT_RE.findall(value.lower())
+
+
 def _phrase_hit(text: str, phrase: str) -> bool:
     key = _normalize_phrase(phrase)
     if not key:
@@ -129,7 +140,45 @@ def _phrase_hit(text: str, phrase: str) -> bool:
     if pat is None:
         pat = _compile_phrase(key)
         _PATTERN_CACHE[key] = pat
-    return pat.search(text) is not None
+    if pat.search(text) is not None:
+        return True
+
+    # Fallback recall path for long phrases:
+    # allow partial token overlap to catch wording variants seen in manual portal searches.
+    phrase_tokens = [t for t in _tokens(key) if t not in _STOP_TOKENS]
+    if len(phrase_tokens) < 2:
+        return False
+
+    text_tokens = set(_tokens(text))
+    if not text_tokens:
+        return False
+
+    overlap = sum(1 for t in phrase_tokens if t in text_tokens)
+    # Dynamic threshold:
+    # - 2-token phrases: require both tokens
+    # - 3-4 tokens: require at least 2
+    # - 5+ tokens: require at least 3
+    if len(phrase_tokens) <= 2:
+        threshold = 2
+    elif len(phrase_tokens) <= 4:
+        threshold = 2
+    else:
+        threshold = 3
+
+    if overlap >= threshold:
+        return True
+
+    # Controlled semantic fallback for digital/governance phrasing variants.
+    if "digital" in phrase_tokens and "digital" in text_tokens:
+        contextual_tokens = {
+            "system", "platform", "workflow", "process", "management",
+            "records", "record", "document", "governance", "registry",
+            "automation", "government", "strategy",
+        }
+        if any(t in text_tokens for t in contextual_tokens):
+            return True
+
+    return False
 
 
 def _collect_hits(text: str, phrases: List[str], max_hits: Optional[int] = None) -> List[str]:

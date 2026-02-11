@@ -741,6 +741,9 @@ GENERIC_KEYWORD_BLOCKLIST = {
     "state corporation",
     "municipal",
     "municipality",
+    "unavailable",
+    "keyword unavailable",
+    "keyword: unavailable",
 }
 
 
@@ -759,6 +762,12 @@ def _keyword_list(matched: str, fallback_text: str = "", limit: int = 8):
             t = token.strip()
             if not t:
                 continue
+            # Normalize display prefixes like "DOMAIN:term" / "keyword: term" / "broad:term"
+            t = re.sub(r"^(keyword|broad|domain)\s*:\s*", "", t, flags=re.IGNORECASE).strip()
+            if ":" in t:
+                head, tail = t.split(":", 1)
+                if head.isalpha() and len(head) <= 16:
+                    t = tail.strip()
             # Remove trailing summaries like "(+3 more)" if present.
             t = re.sub(r"\(\+\d+\s+more\)\s*$", "", t).strip()
             if t:
@@ -782,6 +791,8 @@ def _keyword_list(matched: str, fallback_text: str = "", limit: int = 8):
     unique = []
     for p in parts:
         key = p.lower()
+        if "unavailable" in key:
+            continue
         if key in GENERIC_KEYWORD_BLOCKLIST:
             continue
         if key in seen:
@@ -794,15 +805,13 @@ def _keyword_list(matched: str, fallback_text: str = "", limit: int = 8):
 
 
 def _has_display_keywords(tender) -> bool:
+    return bool(_keyword_list(getattr(tender, "keywords_matched", ""), fallback_text="", limit=1))
+
+
+def _tender_fallback_text(tender) -> str:
     display_title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
     description_line = (tender.description_translated or tender.description or "").replace("\n", " ").strip()
-    return bool(
-        _keyword_list(
-            getattr(tender, "keywords_matched", ""),
-            fallback_text=f"{display_title} {description_line}",
-            limit=1,
-        )
-    )
+    return f"{display_title} {description_line}".strip()
 
 
 def _passes_strict_quality(tender, min_score: int = 35) -> bool:
@@ -1585,7 +1594,7 @@ elif page == "Scan & Results":
             discovery_mode_label = st.selectbox(
                 "Discovery Mode",
                 ["F2-ranked", "Manual-like"],
-                index=0,
+                index=1,
                 help="F2-ranked: stricter qualification. Manual-like: broader keyword discovery like portal searches."
             )
             discovery_mode = "manual_like" if discovery_mode_label == "Manual-like" else "f2_ranked"
@@ -1745,15 +1754,14 @@ elif page == "Scan & Results":
             'strict_quality': strict_quality,
             'strict_min_score': 35,
             'allow_broad_fallback': allow_broad_fallback,
-            'require_keywords': strict_quality and not manual_like_view,
+            'require_keywords': strict_quality,
             'created_after': st.session_state.get("scan_anchor_utc") if results_mode == "session_scan" else None,
         }
     
         tenders, applied_f2_only, fallback_message = get_tenders_with_fallback(filters)
         tenders = _apply_deadline_window(tenders, deadline_window)
         before_keyword_filter_count = len(tenders)
-        if not manual_like_view:
-            tenders = [t for t in tenders if _has_display_keywords(t)]
+        tenders = [t for t in tenders if _has_display_keywords(t)]
         keyword_filtered_out = before_keyword_filter_count - len(tenders)
 
         if sort_by == "deadline":
@@ -1766,7 +1774,7 @@ elif page == "Scan & Results":
             st.warning(fallback_message)
         elif f2_only and not applied_f2_only:
             st.warning("No F2-only matches found. Displaying all results.")
-        if keyword_filtered_out > 0 and not manual_like_view:
+        if keyword_filtered_out > 0:
             st.caption(f"Hidden {keyword_filtered_out} results with unavailable keywords.")
         if manual_like_view:
             st.caption("Manual-like mode active: broader discovery results are shown.")
@@ -1811,7 +1819,7 @@ elif page == "Scan & Results":
                         description_line = f"{description_line[:220].rstrip()}..."
                     keywords = _keyword_list(
                         getattr(tender, "keywords_matched", ""),
-                        fallback_text=f"{display_title} {description_line}",
+                        fallback_text=_tender_fallback_text(tender),
                         limit=4,
                     )
                     for kw in keywords:
