@@ -968,10 +968,14 @@ def bootstrap_once():
     st.session_state["bootstrap_done"] = True
 
 
-def get_tenders(filters=None, days_window=30):
+def get_tenders(filters=None, days_window=30, created_after=None):
     """Get tenders with optional filters."""
     with app.app_context():
         query = TenderResult.query
+        if created_after is None and filters:
+            created_after = filters.get("created_after")
+        if created_after is not None:
+            query = query.filter(TenderResult.created_at >= created_after)
         if days_window is not None:
             since = _utcnow() - timedelta(days=days_window)
             query = query.filter(TenderResult.created_at >= since)
@@ -1392,6 +1396,10 @@ if page == "Dashboard":
 
 elif page == "Scan & Results":
     st.title("Scan & Results")
+    if "results_mode" not in st.session_state:
+        st.session_state["results_mode"] = "fresh"  # fresh | session_scan | historical
+    if "scan_anchor_utc" not in st.session_state:
+        st.session_state["scan_anchor_utc"] = None
 
     st.markdown("""
     <div class="hero-banner">
@@ -1537,10 +1545,13 @@ elif page == "Scan & Results":
                 help="Fast: top priority sources only. Balanced: broader coverage. Full: all active sources + translation."
             )
             if st.button("Run Scan", key="top_scan_button", type="primary", width="stretch"):
+                scan_anchor = _utcnow()
                 started = time.time()
                 with st.spinner("Scanning sources..."):
                     new_tenders = run_tender_scan(scan_depth=scan_depth)
                 elapsed = time.time() - started
+                st.session_state["results_mode"] = "session_scan"
+                st.session_state["scan_anchor_utc"] = scan_anchor
                 st.session_state["last_scan_info"] = {
                     "timestamp": _utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
                     "new_count": len(new_tenders),
@@ -1552,8 +1563,22 @@ elif page == "Scan & Results":
                 else:
                     st.info("Scan completed. No new tenders were found.")
                 st.rerun()
+            if st.button("Load Historical Results", key="load_historical_button", width="stretch"):
+                st.session_state["results_mode"] = "historical"
+                st.session_state["scan_anchor_utc"] = None
+                st.rerun()
+            if st.session_state.get("results_mode") != "fresh":
+                if st.button("Start Fresh View", key="start_fresh_results_button", width="stretch"):
+                    st.session_state["results_mode"] = "fresh"
+                    st.session_state["scan_anchor_utc"] = None
+                    st.rerun()
     
         st.markdown("---")
+
+        results_mode = st.session_state.get("results_mode", "fresh")
+        if results_mode == "fresh":
+            st.info("Fresh session view is active. Run a new scan to see current results, or load historical results for reporting.")
+            st.stop()
     
         # Filters and Export
         col_filter, col_export = st.columns([4, 1])
@@ -1658,6 +1683,7 @@ elif page == "Scan & Results":
             'strict_quality': strict_quality,
             'strict_min_score': 35,
             'allow_broad_fallback': allow_broad_fallback,
+            'created_after': st.session_state.get("scan_anchor_utc") if results_mode == "session_scan" else None,
         }
     
         tenders, applied_f2_only, fallback_message = get_tenders_with_fallback(filters)
