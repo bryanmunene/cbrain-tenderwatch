@@ -1761,8 +1761,6 @@ elif page == "Scan & Results":
                     )
                     for kw in keywords:
                         chips.append(f"<span class='meta-chip'>Keyword: {kw}</span>")
-                    if not keywords:
-                        chips.append("<span class='meta-chip'>Keyword: unavailable</span>")
                     chips.append(f"<span class='meta-chip deadline {deadline_class}'>Deadline: {deadline_meta['label']}</span>")
                     chips_html = "".join(chips)
 
