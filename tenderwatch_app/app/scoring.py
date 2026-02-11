@@ -132,14 +132,31 @@ def score_text(title: str, text: str = ""):
     Any keyword hit is a signal. Multiple hits increase relevance.
     Irrelevant tenders (construction, email security, etc.) return score=0.
     """
-    combined = f"{title} {text}".lower()
+    # Normalize text similarly to app.keywords to improve recall and reduce false negatives
+    # (handles hyphens/underscores, collapses whitespace, etc.).
+    _normalize = getattr(kw, "_normalize", None)
+    if callable(_normalize):
+        combined = _normalize(f"{title} {text}")
+    else:
+        combined = f"{title} {text}".lower()
     
     # ==========================================================================
     # STEP 0: Check for irrelevant signals (EXCLUDE these tenders)
     # ==========================================================================
+    _norm_phrase = getattr(kw, "_normalize_phrase", None)
+
     irrelevant_found = []
     for signal in IRRELEVANT_SIGNALS:
-        if signal.lower() in combined:
+        sig = (signal or "").strip()
+        if not sig:
+            continue
+        needle = sig.lower()
+        if callable(_norm_phrase):
+            try:
+                needle = _norm_phrase(sig)
+            except Exception:
+                needle = sig.lower()
+        if needle and needle in combined:
             irrelevant_found.append(signal)
     
     # If irrelevant signals found AND no core F2 keywords, return 0
@@ -162,8 +179,20 @@ def score_text(title: str, text: str = ""):
         "citizen portal", "e-services", "service delivery platform",
         "one-stop-shop", "citizen services",
     ]
-    has_core_f2_term = any(term in combined for term in core_f2_terms)
+    def _needle(s: str) -> str:
+        s = (s or "").strip()
+        if not s:
+            return ""
+        if callable(_norm_phrase):
+            try:
+                return _norm_phrase(s)
+            except Exception:
+                return s.lower()
+        return s.lower()
+
+    has_core_f2_term = any(_needle(term) in combined for term in core_f2_terms)
     
+    # If irrelevant signals found AND no core F2 terms, hard-exclude.
     if irrelevant_found and not has_core_f2_term:
         return 0, "", json.dumps({
             "keywords_found": 0,
@@ -176,47 +205,42 @@ def score_text(title: str, text: str = ""):
             "procurement_status": "excluded",
         })
     
-        # STRICT F2-ONLY FILTER: Require at least one core F2 keyword, always exclude if not present
-        if not has_core_f2_term:
-            return 0, "", json.dumps({
-                "keywords_found": 0,
-                "domains_matched": [],
-                "irrelevant_signals": irrelevant_found,
-                "excluded": True,
-                "exclusion_reason": "No F2 core keyword present",
-                "priority": "EXCLUDED",
-                "likely_fit_for_F2": "excluded",
-                "procurement_status": "excluded",
-            })
-    
-        # If irrelevant signals found, always exclude (even if F2 term present)
-        if irrelevant_found:
-            return 0, "", json.dumps({
-                "keywords_found": 0,
-                "domains_matched": [],
-                "irrelevant_signals": irrelevant_found,
-                "excluded": True,
-                "exclusion_reason": f"Irrelevant tender: {irrelevant_found[0]}",
-                "priority": "EXCLUDED",
-                "likely_fit_for_F2": "excluded",
-                "procurement_status": "excluded",
-            })
-    
     # ==========================================================================
     # STEP 1: Find all keyword matches
     # ==========================================================================
+    # ======================================================================
+    # STEP 1: Find all keyword/domain matches
+    # ======================================================================
     matched_keywords = []
     matched_domains = set()
-    
-    for kw in ALL_KEYWORDS:
-        if kw in combined:
-            matched_keywords.append(kw)
-            # Track which domains matched
-            if kw in KEYWORD_TO_DOMAIN:
-                for domain in KEYWORD_TO_DOMAIN[kw]:
+
+    # Prefer the more robust matcher from app.keywords (handles boundaries + normalization).
+    _domain_hits = getattr(kw, "_domain_hits", None)
+    if callable(_domain_hits):
+        try:
+            matched_kw, domains, phrases = _domain_hits(combined)
+            matched_domains.update(domains or [])
+            # phrases are normalized; keep a short list for display
+            matched_keywords = list(phrases or [])
+        except Exception:
+            matched_keywords = []
+            matched_domains = set()
+    else:
+        # Fallback (legacy): simple substring matching.
+        for k in ALL_KEYWORDS:
+            if k and k in combined:
+                matched_keywords.append(k)
+                key = k
+                # KEYWORD_TO_DOMAIN keys are typically normalized; try both.
+                if hasattr(kw, "_normalize_phrase"):
+                    try:
+                        key = kw._normalize_phrase(k)
+                    except Exception:
+                        key = k
+                for domain in (KEYWORD_TO_DOMAIN.get(key) or KEYWORD_TO_DOMAIN.get(k) or []):
                     matched_domains.add(domain)
     
-    # No matches = still include but with minimal score
+    # No matches = still include but with minimal score (downstream gates may filter out)
     if not matched_keywords:
         return 5, "", json.dumps({
             "keywords_found": 0,
@@ -232,7 +256,15 @@ def score_text(title: str, text: str = ""):
     # ==========================================================================
     # STEP 2: Base score (+1 per keyword hit)
     # ==========================================================================
-    base_score = len(matched_keywords)
+    # De-dupe while keeping order
+    seen = set()
+    unique_keywords = []
+    for k in matched_keywords:
+        if k not in seen:
+            seen.add(k)
+            unique_keywords.append(k)
+
+    base_score = len(unique_keywords)
     
     # ==========================================================================
     # STEP 3: Domain combination bonuses
@@ -280,7 +312,16 @@ def score_text(title: str, text: str = ""):
     priority_phrases_found = []
     
     for phrase in PRIORITY_PHRASES:
-        if phrase.lower() in combined:
+        p = (phrase or "").strip()
+        if not p:
+            continue
+        needle = p.lower()
+        if callable(_norm_phrase):
+            try:
+                needle = _norm_phrase(p)
+            except Exception:
+                needle = p.lower()
+        if needle and needle in combined:
             priority_phrases_found.append(phrase)
             word_count = len(phrase.split())
             if word_count >= 5:
@@ -297,7 +338,16 @@ def score_text(title: str, text: str = ""):
     negative_signals_found = []
     
     for neg in NEGATIVE_SIGNALS:
-        if neg.lower() in combined:
+        n = (neg or "").strip()
+        if not n:
+            continue
+        needle = n.lower()
+        if callable(_norm_phrase):
+            try:
+                needle = _norm_phrase(n)
+            except Exception:
+                needle = n.lower()
+        if needle and needle in combined:
             negative_signals_found.append(neg)
     
     # Only penalize if ONLY negative signals (no positive workflow/case/records)
@@ -313,25 +363,61 @@ def score_text(title: str, text: str = ""):
     # General platform lock-in signals
     platform_lockin_found = []
     for signal in PLATFORM_LOCKIN_SIGNALS:
-        if signal.lower() in combined:
+        s = (signal or "").strip()
+        if not s:
+            continue
+        needle = s.lower()
+        if callable(_norm_phrase):
+            try:
+                needle = _norm_phrase(s)
+            except Exception:
+                needle = s.lower()
+        if needle and needle in combined:
             platform_lockin_found.append(signal)
     
     # STRONGER: Microsoft platform commitment signals (SI-only engagement)
     microsoft_commitment_found = []
     for signal in MICROSOFT_COMMITMENT_SIGNALS:
-        if signal.lower() in combined:
+        s = (signal or "").strip()
+        if not s:
+            continue
+        needle = s.lower()
+        if callable(_norm_phrase):
+            try:
+                needle = _norm_phrase(s)
+            except Exception:
+                needle = s.lower()
+        if needle and needle in combined:
             microsoft_commitment_found.append(signal)
     
     # Open procurement signals
     open_procurement_found = []
     for signal in OPEN_PROCUREMENT_SIGNALS:
-        if signal.lower() in combined:
+        s = (signal or "").strip()
+        if not s:
+            continue
+        needle = s.lower()
+        if callable(_norm_phrase):
+            try:
+                needle = _norm_phrase(s)
+            except Exception:
+                needle = s.lower()
+        if needle and needle in combined:
             open_procurement_found.append(signal)
     
     # Platform openness signals (buyer may consider alternatives)
     platform_openness_found = []
     for signal in PLATFORM_OPENNESS_SIGNALS:
-        if signal.lower() in combined:
+        s = (signal or "").strip()
+        if not s:
+            continue
+        needle = s.lower()
+        if callable(_norm_phrase):
+            try:
+                needle = _norm_phrase(s)
+            except Exception:
+                needle = s.lower()
+        if needle and needle in combined:
             platform_openness_found.append(signal)
     
     # ==========================================================================
@@ -431,7 +517,8 @@ def score_text(title: str, text: str = ""):
     # ==========================================================================
     # BUILD OUTPUT
     # ==========================================================================
-    unique_keywords = sorted(set(matched_keywords))
+    # Keep user-facing keywords stable: keep order from matching rather than alpha sort.
+    unique_keywords = unique_keywords
     
     breakdown = {
         "keywords_found": len(unique_keywords),
