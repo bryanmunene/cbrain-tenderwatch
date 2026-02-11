@@ -31,6 +31,7 @@ from app.models import TenderSource, TenderResult, AppSettings
 from app.scraper import run_scan, cleanup_irrelevant_tenders
 from app.scoring import score_text
 from app.categorizer import categorize
+from app.keywords import ALL_KEYWORDS
 
 # Set page config
 st.set_page_config(
@@ -749,18 +750,34 @@ def _keyword_count(matched: str) -> int:
     return len([k for k in (p.strip() for p in matched.split(",")) if k])
 
 
-def _keyword_list(matched: str, limit: int = 8):
+def _keyword_list(matched: str, fallback_text: str = "", limit: int = 8):
     if not matched:
+        parts = []
+    else:
+        parts = []
+        for token in matched.split(","):
+            t = token.strip()
+            if not t:
+                continue
+            # Remove trailing summaries like "(+3 more)" if present.
+            t = re.sub(r"\(\+\d+\s+more\)\s*$", "", t).strip()
+            if t:
+                parts.append(t)
+
+    # Fallback extraction from title/description if stored keyword list is empty.
+    if not parts and fallback_text:
+        text = fallback_text.lower()
+        # Prefer longer phrases first to avoid generic substring noise.
+        for kw in sorted(ALL_KEYWORDS, key=len, reverse=True):
+            k = (kw or "").strip().lower()
+            if not k:
+                continue
+            if k in text:
+                parts.append(k)
+
+    if not parts:
         return []
-    parts = []
-    for token in matched.split(","):
-        t = token.strip()
-        if not t:
-            continue
-        # Remove trailing summaries like "(+3 more)" if present.
-        t = re.sub(r"\(\+\d+\s+more\)\s*$", "", t).strip()
-        if t:
-            parts.append(t)
+
     seen = set()
     unique = []
     for p in parts:
@@ -1680,9 +1697,15 @@ elif page == "Scan & Results":
                         chips.append(f"<span class='meta-chip'>Priority: {tender.priority_level}</span>")
                     if tender.likely_fit_for_f2:
                         chips.append(f"<span class='meta-chip'>F2 Fit: {tender.likely_fit_for_f2}</span>")
-                    keywords = _keyword_list(getattr(tender, "keywords_matched", ""), limit=4)
+                    keywords = _keyword_list(
+                        getattr(tender, "keywords_matched", ""),
+                        fallback_text=f"{display_title} {description_line}",
+                        limit=4,
+                    )
                     for kw in keywords:
                         chips.append(f"<span class='meta-chip'>Keyword: {kw}</span>")
+                    if not keywords:
+                        chips.append("<span class='meta-chip'>Keyword: unavailable</span>")
                     chips.append(f"<span class='meta-chip deadline {deadline_class}'>Deadline: {deadline_meta['label']}</span>")
                     chips_html = "".join(chips)
 
