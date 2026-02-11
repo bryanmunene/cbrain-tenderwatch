@@ -793,6 +793,18 @@ def _keyword_list(matched: str, fallback_text: str = "", limit: int = 8):
     return unique
 
 
+def _has_display_keywords(tender) -> bool:
+    display_title = tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title
+    description_line = (tender.description_translated or tender.description or "").replace("\n", " ").strip()
+    return bool(
+        _keyword_list(
+            getattr(tender, "keywords_matched", ""),
+            fallback_text=f"{display_title} {description_line}",
+            limit=1,
+        )
+    )
+
+
 def _passes_strict_quality(tender, min_score: int = 35) -> bool:
     score = float(getattr(tender, "score", 0) or 0)
     if score < min_score:
@@ -1650,6 +1662,7 @@ elif page == "Scan & Results":
     
         tenders, applied_f2_only, fallback_message = get_tenders_with_fallback(filters)
         tenders = _apply_deadline_window(tenders, deadline_window)
+        tenders = [t for t in tenders if _has_display_keywords(t)]
 
         if sort_by == "deadline":
             tenders = sorted(
