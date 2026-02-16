@@ -2412,7 +2412,7 @@ elif page == "Settings":
     with app.app_context():
         settings = AppSettings.query.first()
 
-        st.subheader("Web-Wide Discovery (SerpAPI/Google)")
+        st.subheader("Web-Wide Discovery (SerpAPI)")
         st.caption("Enable API-based global web discovery and merge discovered opportunities into scan results.")
 
         auto_discovery_enabled = st.checkbox(
@@ -2421,41 +2421,22 @@ elif page == "Settings":
             help="When enabled, scans will also discover tenders from search APIs (not only your configured source list).",
         )
 
-        col_d1, col_d2 = st.columns(2)
-        with col_d1:
-            st.markdown("**SerpAPI (recommended for global coverage)**")
-            has_db_serp_key = bool(settings and getattr(settings, "bing_api_key", ""))
-            has_secret_serp_key = bool(os.getenv("SERPAPI_API_KEY", "").strip())
-            if has_db_serp_key and has_secret_serp_key:
-                st.caption("SerpAPI key is saved in DB and available via secrets/env.")
-            elif has_db_serp_key:
-                st.caption("SerpAPI key is currently saved in DB.")
-            elif has_secret_serp_key:
-                st.caption("SerpAPI key is loaded from Streamlit secrets/env.")
-            serpapi_key_input = st.text_input(
-                "SerpAPI Key",
-                value="",
-                type="password",
-                placeholder="Paste SerpAPI key to set/update",
-                help="Leave blank to keep current saved key.",
-            )
-
-        with col_d2:
-            st.markdown("**Google Custom Search (optional)**")
-            if settings and getattr(settings, "google_api_key", "") and getattr(settings, "google_cx", ""):
-                st.caption("Google API key + CX are currently saved.")
-            google_api_key_input = st.text_input(
-                "Google API Key",
-                value="",
-                type="password",
-                placeholder="Optional: paste Google key",
-                help="Leave blank to keep current saved key.",
-            )
-            google_cx_input = st.text_input(
-                "Google CX (Search Engine ID)",
-                value=settings.google_cx if settings and hasattr(settings, "google_cx") and settings.google_cx else "",
-                placeholder="Optional: Search Engine ID",
-            )
+        st.markdown("**SerpAPI (recommended for global coverage)**")
+        has_db_serp_key = bool(settings and getattr(settings, "bing_api_key", ""))
+        has_secret_serp_key = bool(os.getenv("SERPAPI_API_KEY", "").strip())
+        if has_db_serp_key and has_secret_serp_key:
+            st.caption("SerpAPI key is saved in DB and available via secrets/env.")
+        elif has_db_serp_key:
+            st.caption("SerpAPI key is currently saved in DB.")
+        elif has_secret_serp_key:
+            st.caption("SerpAPI key is loaded from Streamlit secrets/env.")
+        serpapi_key_input = st.text_input(
+            "SerpAPI Key",
+            value="",
+            type="password",
+            placeholder="Paste SerpAPI key to set/update",
+            help="Leave blank to keep current saved key.",
+        )
 
         existing_queries_raw = settings.discovery_queries if settings and hasattr(settings, "discovery_queries") and settings.discovery_queries else ""
         discovery_queries_default = ""
@@ -2491,9 +2472,6 @@ elif page == "Settings":
                 settings.auto_discovery_enabled = auto_discovery_enabled
                 if serpapi_key_input:
                     settings.bing_api_key = serpapi_key_input.strip()
-                if google_api_key_input:
-                    settings.google_api_key = google_api_key_input.strip()
-                settings.google_cx = (google_cx_input or "").strip()
                 settings.discovery_queries = discovery_queries_json
                 settings.results_per_query = int(results_per_query)
                 db.session.commit()
@@ -2501,8 +2479,6 @@ elif page == "Settings":
                 settings = AppSettings(
                     auto_discovery_enabled=auto_discovery_enabled,
                     bing_api_key=serpapi_key_input.strip() if serpapi_key_input else "",
-                    google_api_key=google_api_key_input.strip() if google_api_key_input else "",
-                    google_cx=(google_cx_input or "").strip(),
                     discovery_queries=discovery_queries_json,
                     results_per_query=int(results_per_query),
                 )
