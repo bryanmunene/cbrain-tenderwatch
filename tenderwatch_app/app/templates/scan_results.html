@@ -16,7 +16,7 @@
     </div>
     <div class="d-flex gap-2">
         {% if results %}
-        <a href="{{ url_for('main.export_csv', sort=sort_by, category=category, min_score=min_score, search=search) }}" class="btn btn-outline-success" style="border-radius: 12px; padding: 0.75rem 1.5rem; border-width: 2px;">
+        <a href="{{ url_for('main.export_csv', sort=sort_by, category=category, min_score=min_score, search=search, recent_days=recent_days) }}" class="btn btn-outline-success" style="border-radius: 12px; padding: 0.75rem 1.5rem; border-width: 2px;">
             <i class="fas fa-download"></i> Export CSV
         </a>
         {% endif %}
@@ -32,7 +32,7 @@
 <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
     <div class="card-body p-4">
         <form method="get" class="row g-3 align-items-end">
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <label for="search" class="form-label" style="font-weight: 600; color: #334155;">Search</label>
                 <input type="text" class="form-control" id="search" name="search" placeholder="Title, description..." value="{{ search }}" style="border-radius: 10px;">
             </div>
@@ -57,13 +57,21 @@
             <div class="col-md-2">
                 <label for="sort" class="form-label" style="font-weight: 600; color: #334155;">Sort By</label>
                 <select class="form-select" id="sort" name="sort" style="border-radius: 10px;">
-                    <option value="score" {% if sort_by == 'score' %}selected{% endif %}>Score</option>
                     <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest</option>
+                    <option value="score" {% if sort_by == 'score' %}selected{% endif %}>Score</option>
                     <option value="deadline" {% if sort_by == 'deadline' %}selected{% endif %}>Deadline</option>
                 </select>
             </div>
-            <div class="col-md-3 d-flex gap-2">
-                <button type="submit" class="btn btn-primary flex-grow-1" style="border-radius: 10px;">
+            <div class="col-md-2">
+                <label for="recent_days" class="form-label" style="font-weight: 600; color: #334155;">Recent Window</label>
+                <select class="form-select" id="recent_days" name="recent_days" style="border-radius: 10px;">
+                    {% for days in recent_window_options %}
+                    <option value="{{ days }}" {% if recent_days == days %}selected{% endif %}>Last {{ days }} days</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 d-flex gap-2 justify-content-end">
+                <button type="submit" class="btn btn-primary" style="border-radius: 10px;">
                     <i class="fas fa-filter"></i> Apply Filters
                 </button>
                 <a href="{{ url_for('main.scan') }}" class="btn btn-outline-secondary" style="border-radius: 10px;">

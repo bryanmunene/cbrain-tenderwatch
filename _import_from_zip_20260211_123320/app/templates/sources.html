@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Sources - TenderWatch{% endblock %}
+
+{% block content %}
+
+<!-- Page Header -->
+<div class="mb-4">
+    <h1 style="font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">
+        <i class="fas fa-link" style="color: #667eea;"></i> Tender Sources
+    </h1>
+    <p class="text-muted">Manage and monitor your tender opportunity sources</p>
+</div>
+
+{% if error %}
+<div class="alert alert-warning" style="border-radius: 12px; border: none; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
+    <i class="fas fa-exclamation-circle" style="color: #d97706;"></i> 
+    <span style="color: #92400e;">{{ error }}</span>
+</div>
+{% endif %}
+
+<!-- Add New Source -->
+<div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center mb-4">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                <i class="fas fa-plus-circle" style="color: white; font-size: 1.25rem;"></i>
+            </div>
+            <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Add New Source</h4>
+        </div>
+        <form method="post">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label for="name" class="form-label" style="font-weight: 600; color: #334155;">Source Name</label>
+                    <input type="text" class="form-control" id="name" name="name" placeholder="e.g., UNDP Kenya" required style="border-radius: 10px;">
+                    <small class="text-muted">Name of the organization or platform</small>
+                </div>
+                <div class="col-md-5">
+                    <label for="url" class="form-label" style="font-weight: 600; color: #334155;">Source URL</label>
+                    <input type="url" class="form-control" id="url" name="url" placeholder="https://example.com/tenders" required style="border-radius: 10px;">
+                    <small class="text-muted">Direct link to tender listing page</small>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100" style="border-radius: 10px; padding: 0.7rem;">
+                        <i class="fas fa-plus"></i> Add
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Active Sources -->
+{% if active_sources %}
+<div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center mb-4">
+            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                <i class="fas fa-check-circle" style="color: white; font-size: 1.25rem;"></i>
+            </div>
+            <div>
+                <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Active Sources</h4>
+                <p class="mb-0 text-muted" style="font-size: 0.875rem;">{{ active_sources|length }} sources being scanned</p>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead style="border-bottom: 2px solid #e2e8f0;">
+                    <tr>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Source</th>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">URL</th>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Status</th>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Added</th>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem; text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in active_sources %}
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 1rem 0.75rem;">
+                            <div class="d-flex align-items-center">
+                                <strong style="color: #334155;">{{ s.name }}</strong>
+                                {% if s.favorite %}
+                                <i class="fas fa-star ms-2" style="color: #f59e0b;" title="Favorite source"></i>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td style="padding: 1rem 0.75rem;">
+                            <a href="{{ s.url }}" target="_blank" class="text-decoration-none" style="color: #667eea; font-weight: 500;">
+                                <i class="fas fa-external-link-alt"></i> {{ s.url[:40] }}{% if s.url|length > 40 %}...{% endif %}
+                            </a>
+                        </td>
+                        <td style="padding: 1rem 0.75rem;">
+                            <span class="badge" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 0.5rem 0.75rem; border-radius: 8px; font-weight: 500;">
+                                <i class="fas fa-circle" style="font-size: 0.5rem;"></i> Active
+                            </span>
+                        </td>
+                        <td style="padding: 1rem 0.75rem;">
+                            <small class="text-muted">{{ s.created_at.strftime('%b %d, %Y') }}</small>
+                        </td>
+                        <td style="padding: 1rem 0.75rem; text-align: right;">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ s.url }}" target="_blank" class="btn btn-outline-primary" title="Visit source" style="border-radius: 8px 0 0 8px;">
+                                    <i class="fas fa-globe"></i>
+                                </a>
+                                {% if s.favorite %}
+                                <form method="post" action="{{ url_for('main.toggle_source_favorite', sid=s.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-warning" title="Remove from favorites" style="border-radius: 0; border-left: 1px solid rgba(255,255,255,0.3); border-right: 1px solid rgba(255,255,255,0.3);">
+                                        <i class="fas fa-star"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <form method="post" action="{{ url_for('main.toggle_source_favorite', sid=s.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-warning" title="Add to favorites" style="border-radius: 0;">
+                                        <i class="far fa-star"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                <form method="post" action="{{ url_for('main.toggle_source_active', sid=s.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-secondary" title="Pause source" style="border-radius: 0;">
+                                        <i class="fas fa-pause"></i>
+                                    </button>
+                                </form>
+                                <form method="post" action="{{ url_for('main.delete_source', sid=s.id) }}" class="d-inline" onclick="return confirm('Delete this source permanently?');">
+                                    <button type="submit" class="btn btn-outline-danger" title="Delete source" style="border-radius: 0 8px 8px 0;">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Inactive Sources -->
+{% if inactive_sources %}
+<div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center mb-4">
+            <div style="background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                <i class="fas fa-pause-circle" style="color: white; font-size: 1.25rem;"></i>
+            </div>
+            <div>
+                <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Paused Sources</h4>
+                <p class="mb-0 text-muted" style="font-size: 0.875rem;">{{ inactive_sources|length }} sources temporarily disabled</p>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead style="border-bottom: 2px solid #e2e8f0;">
+                    <tr>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Source</th>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">URL</th>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Status</th>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Added</th>
+                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem; text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in inactive_sources %}
+                    <tr style="border-bottom: 1px solid #f1f5f9; opacity: 0.7;">
+                        <td style="padding: 1rem 0.75rem;">
+                            <strong class="text-muted">{{ s.name }}</strong>
+                        </td>
+                        <td style="padding: 1rem 0.75rem;">
+                            <a href="{{ s.url }}" target="_blank" class="text-muted text-decoration-none">
+                                <i class="fas fa-external-link-alt"></i> {{ s.url[:40] }}{% if s.url|length > 40 %}...{% endif %}
+                            </a>
+                        </td>
+                        <td style="padding: 1rem 0.75rem;">
+                            <span class="badge bg-secondary" style="padding: 0.5rem 0.75rem; border-radius: 8px; font-weight: 500;">
+                                <i class="fas fa-circle" style="font-size: 0.5rem;"></i> Paused
+                            </span>
+                        </td>
+                        <td style="padding: 1rem 0.75rem;">
+                            <small class="text-muted">{{ s.created_at.strftime('%b %d, %Y') }}</small>
+                        </td>
+                        <td style="padding: 1rem 0.75rem; text-align: right;">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <form method="post" action="{{ url_for('main.toggle_source_active', sid=s.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-success" title="Activate source" style="border-radius: 8px 0 0 8px;">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                </form>
+                                <form method="post" action="{{ url_for('main.delete_source', sid=s.id) }}" class="d-inline" onclick="return confirm('Delete this source permanently?');">
+                                    <button type="submit" class="btn btn-outline-danger" title="Delete source" style="border-radius: 0 8px 8px 0;">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Empty State -->
+{% if not active_sources and not inactive_sources %}
+<div class="card border-0 shadow-sm text-center py-5" style="border-radius: 16px;">
+    <div class="card-body">
+        <i class="fas fa-link" style="font-size: 4rem; color: #cbd5e1; margin-bottom: 1.5rem;"></i>
+        <h4 style="color: #64748b; font-weight: 600; margin-bottom: 1rem;">No Sources Yet</h4>
+        <p class="text-muted mb-0">Add your first tender source above to start discovering opportunities!</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Tips Card -->
+<div class="card border-0 shadow-sm mt-4" style="border-radius: 16px;">
+    <div class="card-body p-4">
+        <div class="d-flex align-items-center mb-4">
+            <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                <i class="fas fa-lightbulb" style="color: white; font-size: 1.25rem;"></i>
+            </div>
+            <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Tips & Best Practices</h4>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="p-3 rounded" style="background: #f8fafc; border-left: 4px solid #10b981;">
+                    <div class="d-flex align-items-start">
+                        <i class="fas fa-check-circle" style="color: #10b981; font-size: 1.25rem; margin-right: 0.75rem; margin-top: 0.25rem;"></i>
+                        <div>
+                            <strong style="color: #334155;">Active Sources</strong>
+                            <p class="small text-muted mb-0">Only active sources are scanned automatically. Keep relevant sources active.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 rounded" style="background: #f8fafc; border-left: 4px solid #f59e0b;">
+                    <div class="d-flex align-items-start">
+                        <i class="fas fa-star" style="color: #f59e0b; font-size: 1.25rem; margin-right: 0.75rem; margin-top: 0.25rem;"></i>
+                        <div>
+                            <strong style="color: #334155;">Favorites</strong>
+                            <p class="small text-muted mb-0">Mark productive sources as favorites for quick identification.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 rounded" style="background: #f8fafc; border-left: 4px solid #94a3b8;">
+                    <div class="d-flex align-items-start">
+                        <i class="fas fa-pause-circle" style="color: #94a3b8; font-size: 1.25rem; margin-right: 0.75rem; margin-top: 0.25rem;"></i>
+                        <div>
+                            <strong style="color: #334155;">Pause Temporarily</strong>
+                            <p class="small text-muted mb-0">Pause sources you want to keep but not scan right now.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 rounded" style="background: #f8fafc; border-left: 4px solid #ef4444;">
+                    <div class="d-flex align-items-start">
+                        <i class="fas fa-trash-alt" style="color: #ef4444; font-size: 1.25rem; margin-right: 0.75rem; margin-top: 0.25rem;"></i>
+                        <div>
+                            <strong style="color: #334155;">Delete Unused</strong>
+                            <p class="small text-muted mb-0">Remove sources that no longer provide relevant opportunities.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

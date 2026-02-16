@@ -1,8 +1,9 @@
 """Auto-discovery utilities.
 
-Discovery now supports a no-key mode by default. If Google/Bing API credentials
-are present, API search is used. Otherwise the engine falls back to crawling
-known public tender/source pages and feed endpoints.
+Discovery supports no-key crawling by default. If API credentials are present,
+API search is used (SerpAPI preferred, Google/Bing optional fallback).
+Otherwise the engine falls back to crawling known public tender/source pages
+and feed endpoints.
 """
 
 import requests
@@ -163,32 +164,42 @@ class NoKeyDiscoveryManager:
 
 
 class SearchAPIManager:
-    """Manages both Google and Bing search APIs with quota tracking and fallback."""
+    """Manages SerpAPI/Google/Bing search APIs with quota tracking and fallback."""
     
-    def __init__(self, google_api_key: str = None, google_cx: str = None, 
-                 bing_api_key: str = None):
+    def __init__(
+        self,
+        google_api_key: str = None,
+        google_cx: str = None,
+        bing_api_key: str = None,
+        serpapi_api_key: str = None,
+    ):
         """
         Initialize search API manager.
         
         Args:
             google_api_key: Google Custom Search API key
             google_cx: Google Custom Search Engine ID
-            bing_api_key: Bing Search API key (Ocp-Apim-Subscription-Key)
+            bing_api_key: Legacy Bing Search API key (deprecated by Microsoft)
+            serpapi_api_key: SerpAPI key (web-wide search)
         """
         self.google_api_key = google_api_key
         self.google_cx = google_cx
         self.bing_api_key = bing_api_key
+        self.serpapi_api_key = serpapi_api_key
         
         # API endpoints
+        self.serpapi_url = "https://serpapi.com/search.json"
         self.google_url = "https://www.googleapis.com/customsearch/v1"
         self.bing_url = "https://api.bing.microsoft.com/v7.0/search"
         
         # Quota tracking (reset daily)
+        self.serpapi_quota_used = 0
         self.google_quota_used = 0
         self.bing_quota_used = 0
         self.quota_reset_date = datetime.utcnow().date()
         
         # Limits
+        self.SERPAPI_DAILY_LIMIT = 5000
         self.GOOGLE_DAILY_LIMIT = 100
         self.BING_DAILY_LIMIT = 33  # ~1000/month
     
@@ -196,10 +207,58 @@ class SearchAPIManager:
         """Reset quota counters if new day."""
         today = datetime.utcnow().date()
         if today > self.quota_reset_date:
+            self.serpapi_quota_used = 0
             self.google_quota_used = 0
             self.bing_quota_used = 0
             self.quota_reset_date = today
             logger.info(f"Search API quotas reset for {today}")
+
+    def search_serpapi(self, query: str, num_results: int = 10) -> List[Dict]:
+        """Search using SerpAPI (preferred global web search provider)."""
+        if not self.serpapi_api_key:
+            logger.info("SerpAPI key not configured")
+            return []
+
+        self._reset_quota_if_needed()
+        if self.serpapi_quota_used >= self.SERPAPI_DAILY_LIMIT:
+            logger.warning(f"SerpAPI daily quota soft-limit reached ({self.SERPAPI_DAILY_LIMIT})")
+            return []
+
+        try:
+            params = {
+                "engine": "google",
+                "q": query,
+                "num": max(1, min(num_results, 100)),
+                "api_key": self.serpapi_api_key,
+            }
+            response = requests.get(self.serpapi_url, params=params, timeout=20)
+            response.raise_for_status()
+
+            self.serpapi_quota_used += 1
+            data = response.json()
+
+            results = []
+            for item in data.get("organic_results", []):
+                results.append(
+                    {
+                        "title": item.get("title", ""),
+                        "link": item.get("link", ""),
+                        "snippet": item.get("snippet", ""),
+                        "source": "serpapi",
+                    }
+                )
+
+            logger.info(
+                "SerpAPI search '%s' returned %d results (quota: %d/%d)",
+                query,
+                len(results),
+                self.serpapi_quota_used,
+                self.SERPAPI_DAILY_LIMIT,
+            )
+            return results
+        except requests.RequestException as e:
+            logger.error(f"SerpAPI search error: {e}")
+            return []
     
     def search_google(self, query: str, num_results: int = 10) -> List[Dict]:
         """
@@ -306,11 +365,11 @@ class SearchAPIManager:
     
     def search_all(self, query: str, num_results: int = 10) -> List[Dict]:
         """
-        Search using both Google and Bing, return combined results.
+        Search using SerpAPI/Google/Bing and return combined results.
         
         Args:
             query: Search query string
-            num_results: Results per API (total = num_results * 2)
+            num_results: Results per provider
         
         Returns:
             Combined list of search results, deduplicated by URL
@@ -318,29 +377,42 @@ class SearchAPIManager:
         results = []
         seen_urls = set()
         
-        # Try Google first (usually better for specific queries)
+        # Prefer SerpAPI for global web coverage.
+        serp_results = self.search_serpapi(query, num_results)
+        for result in serp_results:
+            url = result['link']
+            if url and url not in seen_urls:
+                results.append(result)
+                seen_urls.add(url)
+
+        # Then Google CSE (if configured).
         google_results = self.search_google(query, num_results)
         for result in google_results:
             url = result['link']
-            if url not in seen_urls:
+            if url and url not in seen_urls:
                 results.append(result)
                 seen_urls.add(url)
         
-        # Then Bing (for broader coverage)
+        # Finally Bing (legacy fallback).
         bing_results = self.search_bing(query, num_results)
         for result in bing_results:
             url = result['link']
-            if url not in seen_urls:
+            if url and url not in seen_urls:
                 results.append(result)
                 seen_urls.add(url)
         
-        logger.info(f"Combined search for '{query}': {len(results)} unique results from Google + Bing")
+        logger.info(f"Combined search for '{query}': {len(results)} unique results across SerpAPI/Google/Bing")
         return results
     
     def get_quota_status(self) -> Dict:
         """Get current API quota usage."""
         self._reset_quota_if_needed()
         return {
+            'serpapi': {
+                'used': self.serpapi_quota_used,
+                'limit': self.SERPAPI_DAILY_LIMIT,
+                'remaining': self.SERPAPI_DAILY_LIMIT - self.serpapi_quota_used
+            },
             'google': {
                 'used': self.google_quota_used,
                 'limit': self.GOOGLE_DAILY_LIMIT,
@@ -515,24 +587,30 @@ _discovery_manager: Optional[SearchAPIManager] = None
 _discovery_engine: Optional[TenderDiscovery] = None
 
 
-def init_discovery(google_api_key: str = None, google_cx: str = None, 
-                   bing_api_key: str = None):
+def init_discovery(
+    google_api_key: str = None,
+    google_cx: str = None,
+    bing_api_key: str = None,
+    serpapi_api_key: str = None,
+):
     """
     Initialize global auto-discovery system.
     
     Args:
         google_api_key: Google Custom Search API key
         google_cx: Google Custom Search Engine ID
-        bing_api_key: Bing Search API key
+        bing_api_key: Legacy Bing Search API key
+        serpapi_api_key: SerpAPI key
     """
     global _discovery_manager, _discovery_engine
     
-    has_api = bool((google_api_key and google_cx) or bing_api_key)
+    has_api = bool((google_api_key and google_cx) or bing_api_key or serpapi_api_key)
     if has_api:
         _discovery_manager = SearchAPIManager(
             google_api_key=google_api_key,
             google_cx=google_cx,
-            bing_api_key=bing_api_key
+            bing_api_key=bing_api_key,
+            serpapi_api_key=serpapi_api_key,
         )
         logger.info("Auto-discovery initialized in API mode")
     else:

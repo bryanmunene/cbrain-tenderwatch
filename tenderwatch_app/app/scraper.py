@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import threading
 import warnings
@@ -24,6 +25,7 @@ from app.categorizer import categorize
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
+from app.auto_discovery import init_discovery, get_discovery_engine
 from app.models import TenderSource, TenderResult
 from app.scoring import score_text
 from app.source_bias import COUNTRY_MAP
@@ -724,6 +726,9 @@ def scan_source(
                     "qualification_reason": qualification_reason,
                     "platform_commitment_signals": platform_signals,
                     "timing_status": lifecycle_status,
+                    "discovery_method": "manual",
+                    "search_query": "",
+                    "search_source": source.name,
                     "source_id": source.id,
                 }
             )
@@ -774,6 +779,136 @@ def cleanup_old_tenders():
                 db.session.delete(tender)
             db.session.commit()
             print(f"  Removed {count} tender(s) older than 1 month")
+
+
+def _discover_rows(
+    flask_app,
+    existing_links: set[str],
+    max_candidates: int = 120,
+) -> List[Dict]:
+    """Discover web-wide opportunities via configured search providers.
+
+    Uses AppSettings credentials when present, and falls back to environment vars.
+    Returns candidate rows compatible with run_scan batch insertion.
+    """
+    with flask_app.app_context():
+        from app.models import AppSettings
+        import json as json_lib
+
+        settings = AppSettings.query.first()
+        if not settings:
+            return []
+
+        auto_enabled = bool(getattr(settings, "auto_discovery_enabled", False))
+        google_api_key = (getattr(settings, "google_api_key", "") or "").strip()
+        google_cx = (getattr(settings, "google_cx", "") or "").strip()
+        # We store SerpAPI key in settings.bing_api_key for backward compatibility
+        # with existing DB schema/settings forms.
+        serpapi_api_key = (getattr(settings, "bing_api_key", "") or "").strip() or (os.getenv("SERPAPI_API_KEY", "") or "").strip()
+        bing_api_key = (os.getenv("BING_API_KEY", "") or "").strip()
+
+        # Require explicit enable and at least one API credential.
+        if not auto_enabled or not ((google_api_key and google_cx) or serpapi_api_key or bing_api_key):
+            return []
+
+        raw_queries = (getattr(settings, "discovery_queries", "") or "").strip()
+        queries: Optional[List[str]] = None
+        if raw_queries:
+            # Support JSON list and line-based fallback.
+            try:
+                parsed = json_lib.loads(raw_queries)
+                if isinstance(parsed, list):
+                    queries = [str(x).strip() for x in parsed if str(x).strip()]
+            except Exception:
+                line_queries = [q.strip() for q in raw_queries.splitlines() if q.strip()]
+                if line_queries:
+                    queries = line_queries
+
+        results_per_query = int(getattr(settings, "results_per_query", 10) or 10)
+        results_per_query = max(3, min(30, results_per_query))
+
+        init_discovery(
+            google_api_key=google_api_key or None,
+            google_cx=google_cx or None,
+            serpapi_api_key=serpapi_api_key or None,
+            bing_api_key=bing_api_key or None,
+        )
+        engine = get_discovery_engine()
+        if not engine:
+            return []
+
+        discovered = engine.discover_tenders(queries=queries, results_per_query=results_per_query)
+        if not discovered:
+            return []
+
+        rows: List[Dict] = []
+        seen_local: set[str] = set()
+
+        for item in discovered:
+            link = (item.get("link") or "").strip()
+            if not link or link in existing_links or link in seen_local:
+                continue
+
+            title = (item.get("title") or "").strip()
+            description = (item.get("description") or "").strip()
+            if not title:
+                continue
+
+            score, matched, scoring_breakdown = score_text(title, description)
+            try:
+                breakdown = json_lib.loads(scoring_breakdown)
+            except Exception:
+                breakdown = {}
+
+            keywords_found = int(breakdown.get("keywords_found", 0) or 0)
+            if score <= 0 or keywords_found == 0:
+                continue
+
+            category, _, confidence = categorize(title, description, source_name="Auto Discovery")
+            domains_matched = breakdown.get("domains_matched", []) or []
+            likely_fit = breakdown.get("likely_fit_for_F2", "uncertain")
+            procurement_status = breakdown.get("procurement_status", "open")
+            deadline = parse_deadline(f"{title} {description}") or ""
+            lifecycle_status = _classify_lifecycle(f"{title} {description} {link}")
+
+            rows.append(
+                {
+                    "title": title,
+                    "title_translated": title,
+                    "link": link,
+                    "description": description,
+                    "description_translated": description,
+                    "score": float(score),
+                    "keywords_matched": matched,
+                    "scoring_breakdown": scoring_breakdown,
+                    "category": category,
+                    "confidence": confidence,
+                    "deadline": deadline,
+                    "publication_date": "",
+                    "buyer": "Auto Discovery",
+                    "country": _source_country(str(item.get("search_source", "")), link),
+                    "inferred_domains": json_lib.dumps(domains_matched),
+                    "priority_level": breakdown.get("priority", "LOW"),
+                    "likely_fit_for_f2": likely_fit,
+                    "procurement_status": procurement_status,
+                    "requires_qualification": bool(breakdown.get("requires_qualification", False)),
+                    "qualification_reason": breakdown.get("qualification_reason", ""),
+                    "platform_commitment_signals": json_lib.dumps(breakdown.get("microsoft_commitment_signals", [])),
+                    "timing_status": lifecycle_status,
+                    "discovery_method": "auto",
+                    "search_query": str(item.get("search_query", "") or ""),
+                    "search_source": str(item.get("search_source", "") or ""),
+                    "source_id": None,
+                }
+            )
+            seen_local.add(link)
+
+            if len(rows) >= max_candidates:
+                break
+
+        if rows:
+            print(f" Auto-discovery added {len(rows)} web-discovered candidate(s).")
+        return rows
 
 
 def run_scan(
@@ -880,6 +1015,14 @@ def run_scan(
         # Critical: do not wait for hung workers after timeout.
         executor.shutdown(wait=False, cancel_futures=True)
 
+    # --- Phase 2b: Optional auto-discovery (web-wide via APIs) ---
+    try:
+        discovered_rows = _discover_rows(flask_app, existing_links=existing_links, max_candidates=120)
+        if discovered_rows:
+            candidate_rows.extend(discovered_rows)
+    except Exception as e:
+        logger.warning("Auto-discovery step failed: %s", str(e)[:160])
+
     # --- Phase 3: Batch insert (app context) ---
     fresh_tenders: List[TenderResult] = []
     if not candidate_rows:
@@ -926,6 +1069,9 @@ def run_scan(
                         qualification_reason=row.get("qualification_reason", ""),
                         platform_commitment_signals=row.get("platform_commitment_signals", "[]"),
                         timing_status=row.get("timing_status", "open"),
+                        discovery_method=row.get("discovery_method", "manual"),
+                        search_query=row.get("search_query", ""),
+                        search_source=row.get("search_source", ""),
                         source_id=row.get("source_id"),
                     )
                 )

@@ -11,6 +11,15 @@ from app.translator import translate_to_english, detect_language
 
 
 main = Blueprint("main", __name__)
+RECENT_WINDOW_OPTIONS = [7, 30, 60, 90, 180]
+
+
+def _parse_recent_days(value: str) -> int:
+    try:
+        days = int(value)
+    except (TypeError, ValueError):
+        return 30
+    return days if days in RECENT_WINDOW_OPTIONS else 30
 
 
 @main.route("/api/source-status")
@@ -104,19 +113,21 @@ def scan():
         return redirect(url_for("main.scan"))
 
     # Get filtering and sorting parameters
-    sort_by = request.args.get("sort", "score")
+    # Default ordering is newest first so recently floated tenders surface first.
+    sort_by = request.args.get("sort", "newest")
     category = request.args.get("category", "")
     min_score = request.args.get("min_score", "0")
     search = request.args.get("search", "").strip()
+    recent_days = _parse_recent_days(request.args.get("recent_days", "30"))
     
     try:
         min_score = float(min_score)
     except (ValueError, TypeError):
         min_score = 0
     
-    # Build query - filter by date (last month only)
-    one_month_ago = datetime.utcnow() - timedelta(days=30)
-    query = TenderResult.query.filter(TenderResult.created_at >= one_month_ago)
+    # Build query - filter by selected recent window
+    cutoff = datetime.utcnow() - timedelta(days=recent_days)
+    query = TenderResult.query.filter(TenderResult.created_at >= cutoff)
     
     if category:
         query = query.filter_by(category=category)
@@ -140,7 +151,7 @@ def scan():
         results = sorted(results, key=lambda x: x.score or 0, reverse=True)
     elif sort_by == "deadline":
         results = sorted(results, key=lambda x: x.deadline or "", reverse=False)
-    elif sort_by == "newest":
+    else:
         results = sorted(results, key=lambda x: x.created_at, reverse=True)
 
     # Get categories for filter dropdown
@@ -154,6 +165,8 @@ def scan():
         category=category,
         min_score=min_score,
         search=search,
+        recent_days=recent_days,
+        recent_window_options=RECENT_WINDOW_OPTIONS,
         categories=categories,
     )
 
@@ -261,7 +274,18 @@ def saved():
         .order_by(TenderResult.created_at.desc())
         .all()
     )
-    return render_template("scan_results.html", results=results, title="Saved Tenders")
+    return render_template(
+        "scan_results.html",
+        results=results,
+        title="Saved Tenders",
+        sort_by="newest",
+        category="",
+        min_score=0,
+        search="",
+        recent_days=30,
+        recent_window_options=RECENT_WINDOW_OPTIONS,
+        categories=[],
+    )
 
 
 @main.route("/favorites")
@@ -270,10 +294,21 @@ def favorites():
     results = (
         TenderResult.query
         .filter_by(favorite=True)
-        .order_by(TenderResult.score.desc(), TenderResult.created_at.desc())
+        .order_by(TenderResult.created_at.desc())
         .all()
     )
-    return render_template("scan_results.html", results=results, title="Favorite Tenders")
+    return render_template(
+        "scan_results.html",
+        results=results,
+        title="Favorite Tenders",
+        sort_by="newest",
+        category="",
+        min_score=0,
+        search="",
+        recent_days=30,
+        recent_window_options=RECENT_WINDOW_OPTIONS,
+        categories=[],
+    )
 
 
 @main.route("/save/<int:rid>", methods=["POST"])
@@ -432,19 +467,20 @@ def ml_score_tender(rid):
 def export_csv():
     """Export tenders to CSV file"""
     # Get same filters as scan page
-    sort_by = request.args.get("sort", "score")
+    sort_by = request.args.get("sort", "newest")
     category = request.args.get("category", "")
     min_score = request.args.get("min_score", "0")
     search = request.args.get("search", "").strip()
+    recent_days = _parse_recent_days(request.args.get("recent_days", "30"))
     
     try:
         min_score = float(min_score)
     except (ValueError, TypeError):
         min_score = 0
     
-    # Build query - filter by date (last month only)
-    one_month_ago = datetime.utcnow() - timedelta(days=30)
-    query = TenderResult.query.filter(TenderResult.created_at >= one_month_ago)
+    # Build query - filter by selected recent window
+    cutoff = datetime.utcnow() - timedelta(days=recent_days)
+    query = TenderResult.query.filter(TenderResult.created_at >= cutoff)
     
     if category:
         query = query.filter_by(category=category)
@@ -468,7 +504,7 @@ def export_csv():
         results = sorted(results, key=lambda x: x.score or 0, reverse=True)
     elif sort_by == "deadline":
         results = sorted(results, key=lambda x: x.deadline or "", reverse=False)
-    elif sort_by == "newest":
+    else:
         results = sorted(results, key=lambda x: x.created_at, reverse=True)
     
     # Create CSV

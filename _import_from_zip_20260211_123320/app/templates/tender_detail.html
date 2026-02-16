@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tender.title[:50] }} - TenderWatch{% endblock %}
+
+{% block content %}
+
+<div class="page-header mb-4">
+    <a href="{{ url_for('main.scan') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Results
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Tender Title & Main Info -->
+        <div class="card shadow-sm mb-4" style="border-radius: 15px; overflow: hidden;">
+            <!-- Header with gradient -->
+            <div style="background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%); padding: 2rem;">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        {% if tender.title_translated and tender.title_translated != tender.title %}
+                        <h2 class="text-white mb-2" style="font-weight: 700;">
+                            <span id="original-title">{{ tender.title }}</span>
+                            <span id="translated-title" style="display:none;">{{ tender.title_translated }}</span>
+                            <button class="btn btn-sm btn-light ms-2" onclick="toggleDetailTranslation()" title="Toggle translation">
+                                <i class="fas fa-language"></i>
+                            </button>
+                        </h2>
+                        <div class="badge bg-light text-dark mb-2">
+                            <i class="fas fa-globe"></i> Translation available
+                        </div>
+                        {% else %}
+                        <h2 class="text-white mb-2" style="font-weight: 700;">{{ tender.title }}</h2>
+                        {% endif %}
+                        <div class="d-flex gap-3 text-white" style="opacity: 0.9;">
+                            <span><i class="fas fa-calendar"></i> {{ tender.created_at.strftime('%B %d, %Y') }}</span>
+                            <span><i class="fas fa-globe"></i> {{ tender.country or 'Global' }}</span>
+                        </div>
+                    </div>
+                    <div>
+                        {% if tender.favorite %}
+                        <form method=\"post\" action=\"{{ url_for('main.toggle_favorite', rid=tender.id) }}\" class=\"d-inline\">
+                            <button class=\"btn btn-warning\" type=\"submit\" title=\"Remove from favorites\">
+                                <i class=\"fas fa-star\"></i> Favorited
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method=\"post\" action=\"{{ url_for('main.toggle_favorite', rid=tender.id) }}\" class=\"d-inline\">
+                            <button class=\"btn btn-light\" type=\"submit\" title=\"Add to favorites\">
+                                <i class=\"far fa-star\"></i> Add Favorite
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class=\"card-body\" style=\"padding: 2rem;\">
+                <!-- Key Information Cards -->
+                <div class=\"row g-3 mb-4\">
+                    <div class=\"col-md-6\">
+                        <div style=\"background: #f8f9fa; padding: 1.5rem; border-radius: 12px; border-left: 4px solid #667eea;\">
+                            <h6 class=\"text-muted mb-2\"><i class=\"fas fa-building\"></i> Source Organization</h6>
+                            <p class=\"mb-0 fw-bold\">{{ tender.buyer }}</p>
+                        </div>
+                    </div>
+                    <div class=\"col-md-6\">
+                        <div style=\"background: #f8f9fa; padding: 1.5rem; border-radius: 12px; border-left: 4px solid #f59e0b;\">
+                            <h6 class=\"text-muted mb-2\"><i class=\"fas fa-clock\"></i> Submission Deadline</h6>
+                            {% if tender.deadline %}
+                            <p class=\"mb-0 fw-bold text-danger\">{{ tender.deadline }}</p>
+                            {% else %}
+                            <p class=\"mb-0 text-muted\">No deadline specified</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Description Section -->
+                {% if tender.description %}
+                <div class=\"mb-4\" style=\"background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); padding: 1.5rem; border-radius: 12px;\">
+                    <h5 class=\"mb-3\">
+                        <i class=\"fas fa-file-alt text-primary\"></i> Description
+                    </h5>
+                    <p class=\"mb-0\" style=\"line-height: 1.8;\">{{ tender.description }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Keywords Section -->
+                {% if tender.keywords_matched %}
+                <div class=\"mb-4\">
+                    <h5 class=\"mb-3\">
+                        <i class=\"fas fa-tags text-success\"></i> Matched Keywords
+                    </h5>
+                    <div class=\"d-flex flex-wrap gap-2\">
+                        {% for keyword in tender.keywords_matched.split(', ') %}
+                        <span class="badge" style="background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%); padding: 0.5rem 1rem; font-size: 0.9rem; border-radius: 20px;">
+                            {{ keyword }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Action Button -->
+                <div class=\"d-grid gap-2\">
+                    <a href="{{ tender.link }}" target="_blank" class="btn btn-primary btn-lg" style="border-radius: 12px; background: linear-gradient(135deg, #2d3e50 0%, #2ba8d8 100%); border: none;">
+                        <i class=\"fas fa-external-link-alt\"></i> Open Full Tender Document
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar: Scoring Details -->
+    <div class=\"col-lg-4\">
+        <!-- Overall Score -->\n        <div class=\"card shadow-sm mb-4\" style=\"border-radius: 15px; overflow: hidden;\">\n            <div class=\"card-header text-center\" style=\"background: #f8f9fa; border-bottom: 2px solid #e5e7eb;\">\n                <h5 class=\"card-title mb-0 mt-2\"><i class=\"fas fa-chart-line\"></i> Relevance Score</h5>\n            </div>
+            <div class=\"card-body text-center\" style=\"padding: 2rem;\">
+                {% set score = tender.score or 0 %}
+                {% if score >= 70 %}
+                <div style=\"font-size: 3.5rem; font-weight: 700; color: #10b981; margin: 1rem 0;\">
+                    🎯 {{ \"%.0f\"|format(score) }}%
+                </div>
+                <span class=\"badge bg-success\" style=\"font-size: 1rem; padding: 0.5rem 1.5rem; border-radius: 20px;\">Highly Relevant</span>
+                <p class=\"text-muted mt-3 mb-0\">This tender is an excellent match for your criteria!</p>
+                {% elif score >= 40 %}
+                <div style=\"font-size: 3.5rem; font-weight: 700; color: #f59e0b; margin: 1rem 0;\">
+                    📊 {{ \"%.0f\"|format(score) }}%
+                </div>
+                <span class=\"badge bg-warning text-dark\" style=\"font-size: 1rem; padding: 0.5rem 1.5rem; border-radius: 20px;\">Good Match</span>
+                <p class=\"text-muted mt-3 mb-0\">This tender has moderate relevance to your needs.</p>
+                {% else %}
+                <div style=\"font-size: 3.5rem; font-weight: 700; color: #6b7280; margin: 1rem 0;\">
+                    📝 {{ \"%.0f\"|format(score) }}%
+                </div>
+                <p class="mt-3 mb-0">
+                    <span class="badge bg-danger">Low Relevance</span>
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Scoring Breakdown -->
+        {% if scoring_info %}
+        <div class="card mb-4 border-0">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie"></i> Scoring Breakdown
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong class="text-muted">Match Percentage:</strong>
+                    <p class="mb-0">{{ scoring_info.get('match_percentage', 0) }}%</p>
+                </div>
+
+                <div class="mb-3">
+                    <strong class="text-muted">Keywords Found:</strong>
+                    <p class="mb-0">{{ scoring_info.get('keywords_found', 0) }} / {{ scoring_info.get('total_keywords_in_system', 0) }}</p>
+                </div>
+
+                {% if scoring_info.get('matched_groups') %}
+                <div class="mb-0">
+                    <strong class="text-muted d-block mb-2">Matched Categories:</strong>
+                    {% for group in scoring_info.get('matched_groups', []) %}
+                    <div class="mb-2">
+                        <span class="badge bg-primary">{{ group.group }}</span>
+                        <small class="text-muted">
+                            ({{ group.count }} keyword{{ 's' if group.count > 1 else '' }})
+                        </small>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Category Info -->
+        <div class="card mb-4 border-0">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-folder"></i> Classification
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong class="text-muted">Category:</strong>
+                    <p class="mb-0">
+                        <span class="badge bg-info">{{ tender.category or 'Unclassified' }}</span>
+                    </p>
+                </div>
+                <div class="mb-0">
+                    <strong class="text-muted">Classification Confidence:</strong>
+                    {% set conf = tender.confidence or 0 %}
+                    {% set conf_percent = (conf * 100)|int %}
+                    <div class="progress" style="height: 1.5rem;">
+                        <div class="progress-bar bg-success" data-width="{{ conf_percent }}">
+                            {{ "%.1f"|format(conf * 100) }}%
+                        </div>
+                    </div>
+                </div>
+            </div>s
+        </div>
+
+        <script>
+            document.querySelectorAll('[data-width]').forEach(el => {
+                el.style.width = el.getAttribute('data-width') + '%';
+            });
+
+            function toggleDetailTranslation() {
+                const original = document.getElementById('original-title');
+                const translated = document.getElementById('translated-title');
+                
+                if (original && translated) {
+                    if (original.style.display === 'none') {
+                        original.style.display = 'inline';
+                        translated.style.display = 'none';
+                    } else {
+                        original.style.display = 'none';
+                        translated.style.display = 'inline';
+                    }
+                }
+            }
+        </script>
+
+        <!-- Action Buttons -->
+        <div class="d-grid gap-2">
+            {% if tender.saved %}
+            <form method="post" action="{{ url_for('main.unsave', rid=tender.id) }}">
+                <button class="btn btn-warning w-100" type="submit">
+                    <i class="fas fa-bookmark"></i> Remove from Saved
+                </button>
+            </form>
+            {% else %}
+            <form method="post" action="{{ url_for('main.save', rid=tender.id) }}">
+                <button class="btn btn-outline-secondary w-100" type="submit">
+                    <i class="far fa-bookmark"></i> Save Tender
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

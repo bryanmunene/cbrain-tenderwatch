@@ -10,7 +10,8 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlsplit, urlunsplit
+from typing import Dict
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import pandas as pd
 import streamlit as st
@@ -40,6 +41,51 @@ from app.ml_ranker import (
     record_feedback,
     train_relevance_model,
 )
+
+NAV_PAGES = ["Dashboard", "Scan & Results", "Sources", "Favorites", "Saved", "Settings"]
+NAV_QUERY_MAP = {
+    "dashboard": "Dashboard",
+    "scan": "Scan & Results",
+    "sources": "Sources",
+    "favorites": "Favorites",
+    "saved": "Saved",
+    "settings": "Settings",
+}
+
+
+def _qp_value(name: str, default: str = "") -> str:
+    val = st.query_params.get(name, default)
+    if isinstance(val, list):
+        return str(val[0]) if val else str(default)
+    if val is None:
+        return str(default)
+    return str(val)
+
+
+def _qp_bool(name: str, default: bool = False) -> bool:
+    raw = _qp_value(name, "1" if default else "0").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _qp_int(name: str, default: int = 0) -> int:
+    raw = _qp_value(name, str(default))
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+def _nav_href(nav: str, **params) -> str:
+    query: Dict[str, str] = {"nav": nav}
+    query["tap"] = str(int(time.time() * 1000))
+    for key, value in params.items():
+        if value is None:
+            continue
+        if isinstance(value, bool):
+            query[key] = "true" if value else "false"
+        else:
+            query[key] = str(value)
+    return "?" + urlencode(query)
 
 # Set page config
 st.set_page_config(
@@ -343,11 +389,56 @@ st.markdown(f"""
         margin-bottom: 0.75rem;
     }}
 
-    .kpi-card {{
+    .st-key-kpi_total button,
+    .st-key-kpi_high_fit button,
+    .st-key-kpi_deadline_7d button,
+    .st-key-kpi_saved button,
+    .st-key-kpi_favorites button {{
+        width: 100%;
+        min-height: 96px;
         border-radius: 12px;
         border: 1px solid var(--border-color);
-        padding: 0.9rem 1rem 0.8rem;
-        background: var(--card-bg);
+        padding: 0.75rem 0.9rem;
+        text-align: left;
+        white-space: pre-line;
+        line-height: 1.25;
+        color: var(--text-primary) !important;
+        font-weight: 600;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }}
+
+    .st-key-kpi_total button:hover,
+    .st-key-kpi_high_fit button:hover,
+    .st-key-kpi_deadline_7d button:hover,
+    .st-key-kpi_saved button:hover,
+    .st-key-kpi_favorites button:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+    }}
+
+    .st-key-kpi_total button {{
+        background: linear-gradient(135deg, {'#102842' if st.session_state.theme == 'dark' else '#edf4ff'} 0%, {'#0f2239' if st.session_state.theme == 'dark' else '#e4eefc'} 100%);
+        border-color: {'#2f4a67' if st.session_state.theme == 'dark' else '#c6d7f3'};
+    }}
+
+    .st-key-kpi_high_fit button {{
+        background: linear-gradient(135deg, {'#102e28' if st.session_state.theme == 'dark' else '#edf9f2'} 0%, {'#0f2621' if st.session_state.theme == 'dark' else '#e4f3ea'} 100%);
+        border-color: {'#2b5a50' if st.session_state.theme == 'dark' else '#c2e3d1'};
+    }}
+
+    .st-key-kpi_deadline_7d button {{
+        background: linear-gradient(135deg, {'#332313' if st.session_state.theme == 'dark' else '#fff8ec'} 0%, {'#2b1e10' if st.session_state.theme == 'dark' else '#fbf0de'} 100%);
+        border-color: {'#5e4630' if st.session_state.theme == 'dark' else '#ecd2ac'};
+    }}
+
+    .st-key-kpi_saved button {{
+        background: linear-gradient(135deg, {'#2a1f39' if st.session_state.theme == 'dark' else '#f7f0ff'} 0%, {'#22192f' if st.session_state.theme == 'dark' else '#eee4fb'} 100%);
+        border-color: {'#4e3f66' if st.session_state.theme == 'dark' else '#d9c8f5'};
+    }}
+
+    .st-key-kpi_favorites button {{
+        background: linear-gradient(135deg, {'#112d36' if st.session_state.theme == 'dark' else '#ecf9fd'} 0%, {'#0f252d' if st.session_state.theme == 'dark' else '#e0f1f8'} 100%);
+        border-color: {'#2d5965' if st.session_state.theme == 'dark' else '#bcddec'};
     }}
 
     .kpi-label {{
@@ -1078,6 +1169,14 @@ def get_tenders(filters=None, days_window=30, created_after=None):
                     TenderResult.description.ilike(search_term) |
                     TenderResult.description_translated.ilike(search_term)
                 )
+            min_score = filters.get("min_score")
+            if min_score is not None:
+                try:
+                    min_score = float(min_score)
+                except (TypeError, ValueError):
+                    min_score = 0.0
+                if min_score > 0:
+                    query = query.filter(TenderResult.score >= min_score)
             if filters.get('favorites_only'):
                 query = query.filter(TenderResult.favorite == True)
             if filters.get('saved_only'):
@@ -1423,11 +1522,21 @@ with st.sidebar:
     st.title("TenderWatch")
     st.markdown("**cBrain F2 TenderWatch**")
     st.markdown("---")
-    
+
+    requested_nav_raw = _qp_value("nav", "").strip().lower()
+    requested_nav = NAV_QUERY_MAP.get(requested_nav_raw)
+    nav_request_key = f"{requested_nav_raw}|{_qp_value('tap', '')}"
+    if "sidebar_page" not in st.session_state:
+        st.session_state["sidebar_page"] = "Dashboard"
+    if requested_nav and st.session_state.get("_last_nav_request_key") != nav_request_key:
+        st.session_state["sidebar_page"] = requested_nav
+        st.session_state["_last_nav_request_key"] = nav_request_key
+
     page = st.radio(
         "Navigation",
-        ["Dashboard", "Scan & Results", "Sources", "Favorites", "Saved", "Settings"],
-        label_visibility="collapsed"
+        NAV_PAGES,
+        label_visibility="collapsed",
+        key="sidebar_page",
     )
     
     st.markdown("---")
@@ -1456,24 +1565,51 @@ if page == "Dashboard":
         else:
             st.info(f"Active sources: {stats['active_sources']}. Run a scan from `Scan & Results`.")
 
-    kpi_cards = [
-        ("Total Opportunities", stats['total'], stats.get('delta_total') or "", "tone-navy"),
-        ("High Fit (>=70)", stats['high_score'], stats.get('delta_high_score') or "", "tone-green"),
-        ("Deadlines in 7 Days", stats.get('upcoming_7d', 0), "", "tone-amber"),
-        ("Saved", stats['saved'], stats.get('delta_saved') or "", "tone-plum"),
-        ("Favorites", stats['favorites'], stats.get('delta_favorites') or "", "tone-cyan"),
-    ]
-    card_html = '<div class="kpi-grid">'
-    for label, value, delta, tone in kpi_cards:
-        card_html += (
-            f'<div class="kpi-card {tone}">'
-            f'<div class="kpi-label">{label}</div>'
-            f'<div class="kpi-value">{value}</div>'
-            f'<div class="kpi-delta">{delta}</div>'
-            f'</div>'
-        )
-    card_html += "</div>"
-    st.markdown(card_html, unsafe_allow_html=True)
+    c1, c2, c3, c4, c5 = st.columns(5)
+
+    with c1:
+        label = f"TOTAL OPPORTUNITIES\n{stats['total']}\n{stats.get('delta_total') or ''}"
+        if st.button(label, key="kpi_total", width="stretch"):
+            st.session_state["sidebar_page"] = "Scan & Results"
+            st.session_state["results_mode"] = "historical"
+            st.session_state["scan_sort_by"] = "date"
+            st.session_state["scan_min_score"] = 0
+            st.session_state["scan_open_only"] = False
+            st.session_state["scan_deadline_window"] = "All"
+            st.rerun()
+
+    with c2:
+        label = f"HIGH FIT (>=70)\n{stats['high_score']}\n{stats.get('delta_high_score') or ''}"
+        if st.button(label, key="kpi_high_fit", width="stretch"):
+            st.session_state["sidebar_page"] = "Scan & Results"
+            st.session_state["results_mode"] = "historical"
+            st.session_state["scan_sort_by"] = "score"
+            st.session_state["scan_min_score"] = 70
+            st.session_state["scan_open_only"] = True
+            st.session_state["scan_deadline_window"] = "All"
+            st.rerun()
+
+    with c3:
+        label = f"DEADLINES IN 7 DAYS\n{stats.get('upcoming_7d', 0)}\n"
+        if st.button(label, key="kpi_deadline_7d", width="stretch"):
+            st.session_state["sidebar_page"] = "Scan & Results"
+            st.session_state["results_mode"] = "historical"
+            st.session_state["scan_sort_by"] = "deadline"
+            st.session_state["scan_deadline_window"] = "Next 7 days"
+            st.session_state["scan_open_only"] = True
+            st.rerun()
+
+    with c4:
+        label = f"SAVED\n{stats['saved']}\n{stats.get('delta_saved') or ''}"
+        if st.button(label, key="kpi_saved", width="stretch"):
+            st.session_state["sidebar_page"] = "Saved"
+            st.rerun()
+
+    with c5:
+        label = f"FAVORITES\n{stats['favorites']}\n{stats.get('delta_favorites') or ''}"
+        if st.button(label, key="kpi_favorites", width="stretch"):
+            st.session_state["sidebar_page"] = "Favorites"
+            st.rerun()
 
     st.markdown("---")
     st.subheader("Action Queue")
@@ -1609,6 +1745,12 @@ elif page == "Scan & Results":
         st.session_state["results_mode"] = "fresh"  # fresh | session_scan | historical
     if "scan_anchor_utc" not in st.session_state:
         st.session_state["scan_anchor_utc"] = None
+
+    requested_mode = _qp_value("mode", "").strip().lower()
+    if requested_mode in {"fresh", "session_scan", "historical"}:
+        st.session_state["results_mode"] = requested_mode
+        if requested_mode != "session_scan":
+            st.session_state["scan_anchor_utc"] = None
 
     st.markdown("""
     <div class="hero-banner">
@@ -1835,18 +1977,41 @@ elif page == "Scan & Results":
                 )
     
         # Row 1: Score, Category, Sort, Search
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
 
         with col1:
             all_tenders = get_tenders()
             categories = ["All"] + sorted(list(set([t.category for t in all_tenders if t.category]))) if all_tenders else ["All"]
-            category = st.selectbox("Category", categories)
+            qp_category = _qp_value("category", "All")
+            if qp_category not in categories:
+                qp_category = "All"
+            if st.session_state.get("scan_category") != qp_category:
+                st.session_state["scan_category"] = qp_category
+            category = st.selectbox("Category", categories, key="scan_category")
 
         with col2:
-            sort_by = st.selectbox("Sort By", ["score", "date", "deadline"])
+            sort_options = ["score", "date", "deadline"]
+            qp_sort = _qp_value("sort", "score")
+            if qp_sort not in sort_options:
+                qp_sort = "score"
+            if st.session_state.get("scan_sort_by") != qp_sort:
+                st.session_state["scan_sort_by"] = qp_sort
+            sort_by = st.selectbox("Sort By", sort_options, key="scan_sort_by")
 
         with col3:
-            search = st.text_input("Search", placeholder="Search titles...", help="Search in tender titles")
+            qp_search = _qp_value("search", "")
+            if st.session_state.get("scan_search") != qp_search:
+                st.session_state["scan_search"] = qp_search
+            search = st.text_input("Search", placeholder="Search titles...", help="Search in tender titles", key="scan_search")
+
+        with col4:
+            min_score_options = [0, 40, 70, 85]
+            qp_min_score = _qp_int("min_score", 0)
+            if qp_min_score not in min_score_options:
+                qp_min_score = 0
+            if st.session_state.get("scan_min_score") != qp_min_score:
+                st.session_state["scan_min_score"] = qp_min_score
+            min_score = st.selectbox("Min Score", min_score_options, key="scan_min_score")
         
         # Row 2: Priority, Procurement, Lifecycle, Country, F2 Fit, Toggles
         col5, col6, col7, col8, col9, col10, col11, col12 = st.columns(8)
@@ -1872,15 +2037,28 @@ elif page == "Scan & Results":
             f2_fit_filter = st.selectbox("F2 Fit", f2_fit_options, help="Filter by F2 fit likelihood")
 
         with col10:
-            f2_only = st.checkbox("F2-only", value=False, help="Show only F2-relevant tenders.")
+            qp_f2_only = _qp_bool("f2_only", False)
+            if st.session_state.get("scan_f2_only") != qp_f2_only:
+                st.session_state["scan_f2_only"] = qp_f2_only
+            f2_only = st.checkbox("F2-only", key="scan_f2_only", help="Show only F2-relevant tenders.")
 
         with col11:
-            open_only = st.checkbox("Open-only", value=False, help="Hide locked or no-go opportunities.")
+            qp_open_only = _qp_bool("open_only", False)
+            if st.session_state.get("scan_open_only") != qp_open_only:
+                st.session_state["scan_open_only"] = qp_open_only
+            open_only = st.checkbox("Open-only", key="scan_open_only", help="Hide locked or no-go opportunities.")
 
         with col12:
+            deadline_window_options = ["All", "Next 7 days", "Next 14 days", "Next 30 days", "No deadline"]
+            qp_deadline_window = _qp_value("deadline_window", "All")
+            if qp_deadline_window not in deadline_window_options:
+                qp_deadline_window = "All"
+            if st.session_state.get("scan_deadline_window") != qp_deadline_window:
+                st.session_state["scan_deadline_window"] = qp_deadline_window
             deadline_window = st.selectbox(
                 "Deadline Window",
-                ["All", "Next 7 days", "Next 14 days", "Next 30 days", "No deadline"],
+                deadline_window_options,
+                key="scan_deadline_window",
                 help="Filter tenders by submission deadline window."
             )
 
@@ -1906,6 +2084,7 @@ elif page == "Scan & Results":
             'category': category,
             'sort_by': sort_by,
             'search': search,
+            'min_score': min_score,
             'priority': priority_filter,
             'status': status_filter,
             'lifecycle': lifecycle_filter,
@@ -2188,6 +2367,73 @@ elif page == "Settings":
     with app.app_context():
         settings = AppSettings.query.first()
 
+        st.subheader("Web-Wide Discovery (SerpAPI/Google)")
+        st.caption("Enable API-based global web discovery and merge discovered opportunities into scan results.")
+
+        auto_discovery_enabled = st.checkbox(
+            "Enable Web Discovery",
+            value=settings.auto_discovery_enabled if settings and hasattr(settings, "auto_discovery_enabled") else False,
+            help="When enabled, scans will also discover tenders from search APIs (not only your configured source list).",
+        )
+
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            st.markdown("**SerpAPI (recommended for global coverage)**")
+            if settings and getattr(settings, "bing_api_key", ""):
+                st.caption("SerpAPI key is currently saved.")
+            serpapi_key_input = st.text_input(
+                "SerpAPI Key",
+                value="",
+                type="password",
+                placeholder="Paste SerpAPI key to set/update",
+                help="Leave blank to keep current saved key.",
+            )
+
+        with col_d2:
+            st.markdown("**Google Custom Search (optional)**")
+            if settings and getattr(settings, "google_api_key", "") and getattr(settings, "google_cx", ""):
+                st.caption("Google API key + CX are currently saved.")
+            google_api_key_input = st.text_input(
+                "Google API Key",
+                value="",
+                type="password",
+                placeholder="Optional: paste Google key",
+                help="Leave blank to keep current saved key.",
+            )
+            google_cx_input = st.text_input(
+                "Google CX (Search Engine ID)",
+                value=settings.google_cx if settings and hasattr(settings, "google_cx") and settings.google_cx else "",
+                placeholder="Optional: Search Engine ID",
+            )
+
+        existing_queries_raw = settings.discovery_queries if settings and hasattr(settings, "discovery_queries") and settings.discovery_queries else ""
+        discovery_queries_default = ""
+        if existing_queries_raw:
+            try:
+                parsed_q = json.loads(existing_queries_raw)
+                if isinstance(parsed_q, list):
+                    discovery_queries_default = "\n".join([str(q) for q in parsed_q if str(q).strip()])
+                else:
+                    discovery_queries_default = str(existing_queries_raw)
+            except Exception:
+                discovery_queries_default = str(existing_queries_raw)
+
+        discovery_queries_text = st.text_area(
+            "Discovery Queries (one per line)",
+            value=discovery_queries_default,
+            height=120,
+            help="Leave empty to use default discovery queries.",
+        )
+
+        results_per_query = st.slider(
+            "Results per query",
+            min_value=3,
+            max_value=30,
+            value=int(settings.results_per_query) if settings and hasattr(settings, "results_per_query") and settings.results_per_query else 10,
+            help="Number of search results to request per query.",
+        )
+        st.markdown("---")
+
         st.subheader("Maintenance")
         col_m1, col_m2 = st.columns(2)
         with col_m1:
@@ -2402,7 +2648,19 @@ elif page == "Settings":
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             if st.button("Save Settings", key="save_settings_button", type="primary", width="stretch"):
+                discovery_queries_list = [q.strip() for q in (discovery_queries_text or "").splitlines() if q.strip()]
+                discovery_queries_json = json.dumps(discovery_queries_list) if discovery_queries_list else ""
+
                 if settings:
+                    settings.auto_discovery_enabled = auto_discovery_enabled
+                    if serpapi_key_input:
+                        settings.bing_api_key = serpapi_key_input.strip()
+                    if google_api_key_input:
+                        settings.google_api_key = google_api_key_input.strip()
+                    settings.google_cx = (google_cx_input or "").strip()
+                    settings.discovery_queries = discovery_queries_json
+                    settings.results_per_query = int(results_per_query)
+
                     settings.notifications_enabled = notification_enabled
                     settings.min_score_to_notify = float(min_score)
                     settings.notify_email = email_enabled if 'email_enabled' in dir() else False
@@ -2417,6 +2675,12 @@ elif page == "Settings":
                     st.success("Settings saved.")
                 else:
                     new_settings = AppSettings(
+                        auto_discovery_enabled=auto_discovery_enabled,
+                        bing_api_key=serpapi_key_input.strip() if serpapi_key_input else "",
+                        google_api_key=google_api_key_input.strip() if google_api_key_input else "",
+                        google_cx=(google_cx_input or "").strip(),
+                        discovery_queries=discovery_queries_json,
+                        results_per_query=int(results_per_query),
                         notifications_enabled=notification_enabled,
                         min_score_to_notify=float(min_score),
                         notify_email=email_enabled if 'email_enabled' in dir() else False

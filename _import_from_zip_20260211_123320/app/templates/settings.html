@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - TenderWatch{% endblock %}
+
+{% block content %}
+
+<!-- Page Header -->
+<div class="mb-4">
+    <h1 style="font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">
+        <i class="fas fa-cog" style="color: #667eea;"></i> Settings
+    </h1>
+    <p class="text-muted">Configure your TenderWatch preferences</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <form method="POST">
+            <!-- Autonomous Scanning Settings -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-4">
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                            <i class="fas fa-robot" style="color: white; font-size: 1.25rem;"></i>
+                        </div>
+                        <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Autonomous Scanning</h4>
+                    </div>
+                    
+                    <div class="form-check form-switch mb-4" style="padding-left: 3rem;">
+                        <input class="form-check-input" type="checkbox" id="auto_scan_enabled" 
+                               name="auto_scan_enabled" {% if settings.auto_scan_enabled %}checked{% endif %}
+                               style="width: 3rem; height: 1.5rem; cursor: pointer;">
+                        <label class="form-check-label" for="auto_scan_enabled" style="margin-left: 0.5rem; cursor: pointer;">
+                            <strong style="color: #334155;">Enable Automatic Scanning</strong>
+                            <div class="text-muted small">Automatically scan for new tenders at regular intervals</div>
+                        </label>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="scan_interval_minutes" class="form-label" style="font-weight: 600; color: #334155;">Scan Interval</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="scan_interval_minutes" 
+                                   name="scan_interval_minutes" value="{{ settings.scan_interval_minutes }}" 
+                                   min="5" max="1440" required style="border-radius: 10px 0 0 10px;">
+                            <span class="input-group-text" style="background: #f8fafc; border-radius: 0 10px 10px 0;">minutes</span>
+                        </div>
+                        <div class="form-text">Minimum: 5 minutes • Maximum: 24 hours (1440 minutes)</div>
+                    </div>
+                    
+                    {% if scheduler_status.running %}
+                    <div class="alert mb-0" style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: none; border-radius: 12px;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-check-circle" style="color: #059669; font-size: 1.5rem; margin-right: 1rem;"></i>
+                            <div>
+                                <strong style="color: #065f46;">Scheduler Active</strong>
+                                {% if scheduler_status.jobs %}
+                                    {% for job in scheduler_status.jobs %}
+                                        <div class="small" style="color: #047857; margin-top: 0.25rem;">
+                                            Next scan: {{ job.next_run }}
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert mb-0" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: none; border-radius: 12px;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-triangle" style="color: #d97706; font-size: 1.5rem; margin-right: 1rem;"></i>
+                            <div>
+                                <strong style="color: #92400e;">Scheduler Inactive</strong>
+                                <div class="small" style="color: #b45309;">Enable automatic scanning above to start</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Notification Settings -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-4">
+                        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                            <i class="fas fa-bell" style="color: white; font-size: 1.25rem;"></i>
+                        </div>
+                        <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Notifications</h4>
+                    </div>
+                    
+                    <div class="form-check form-switch mb-3" style="padding-left: 3rem;">
+                        <input class="form-check-input" type="checkbox" id="notifications_enabled" 
+                               name="notifications_enabled" {% if settings.notifications_enabled %}checked{% endif %}
+                               style="width: 3rem; height: 1.5rem; cursor: pointer;">
+                        <label class="form-check-label" for="notifications_enabled" style="margin-left: 0.5rem; cursor: pointer;">
+                            <strong style="color: #334155;">Enable Notifications</strong>
+                            <div class="text-muted small">Receive alerts when new tenders are found</div>
+                        </label>
+                    </div>
+                    
+                    <div class="form-check form-switch mb-3" style="padding-left: 3rem;">
+                        <input class="form-check-input" type="checkbox" id="notify_desktop" 
+                               name="notify_desktop" {% if settings.notify_desktop %}checked{% endif %}
+                               style="width: 3rem; height: 1.5rem; cursor: pointer;">
+                        <label class="form-check-label" for="notify_desktop" style="margin-left: 0.5rem; cursor: pointer;">
+                            <strong style="color: #334155;">Desktop Notifications</strong>
+                            <div class="text-muted small">Show desktop popup notifications</div>
+                        </label>
+                    </div>
+                    
+                    <div class="form-check form-switch mb-4" style="padding-left: 3rem;">
+                        <input class="form-check-input" type="checkbox" id="notify_email" 
+                               name="notify_email" {% if settings.notify_email %}checked{% endif %}
+                               style="width: 3rem; height: 1.5rem; cursor: pointer;">
+                        <label class="form-check-label" for="notify_email" style="margin-left: 0.5rem; cursor: pointer;">
+                            <strong style="color: #334155;">Email Notifications</strong>
+                            <div class="text-muted small">Send email alerts (configure settings below)</div>
+                        </label>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="min_score_to_notify" class="form-label" style="font-weight: 600; color: #334155;">Minimum Score Threshold</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="min_score_to_notify" 
+                                   name="min_score_to_notify" value="{{ settings.min_score_to_notify }}" 
+                                   min="0" max="100" step="0.1" required style="border-radius: 10px 0 0 10px;">
+                            <span class="input-group-text" style="background: #f8fafc; border-radius: 0 10px 10px 0;">%</span>
+                        </div>
+                        <div class="form-text">Only notify about tenders scoring this percentage or higher</div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-primary" id="testNotification" style="border-radius: 10px; border-width: 2px;">
+                        <i class="fas fa-vial"></i> Test Desktop Notification
+                    </button>
+                </div>
+            </div>
+
+            <!-- Email Configuration -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-4">
+                        <div style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                            <i class="fas fa-envelope" style="color: white; font-size: 1.25rem;"></i>
+                        </div>
+                        <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Email Configuration</h4>
+                    </div>
+                    
+                    <div class="alert alert-info mb-4" style="border-radius: 12px; border: none; background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);">
+                        <i class="fas fa-info-circle" style="color: #0284c7;"></i> 
+                        <strong style="color: #0c4a6e;">Gmail Users:</strong> <span style="color: #075985;">Use an <a href="https://support.google.com/accounts/answer/185833" target="_blank" style="color: #0369a1; font-weight: 600;">App Password</a> instead of your regular password.</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email_recipients" class="form-label" style="font-weight: 600; color: #334155;">Recipients</label>
+                        <input type="text" class="form-control" id="email_recipients" 
+                               name="email_recipients" value="{{ settings.email_recipients }}"
+                               placeholder="user1@example.com, user2@example.com" style="border-radius: 10px;">
+                        <div class="form-text">Comma-separated email addresses</div>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label for="smtp_server" class="form-label" style="font-weight: 600; color: #334155;">SMTP Server</label>
+                            <input type="text" class="form-control" id="smtp_server" 
+                                   name="smtp_server" value="{{ settings.smtp_server }}" 
+                                   placeholder="smtp.gmail.com" style="border-radius: 10px;">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="smtp_port" class="form-label" style="font-weight: 600; color: #334155;">Port</label>
+                            <input type="number" class="form-control" id="smtp_port" 
+                                   name="smtp_port" value="{{ settings.smtp_port }}" 
+                                   placeholder="587" style="border-radius: 10px;">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 mt-3">
+                        <label for="smtp_username" class="form-label" style="font-weight: 600; color: #334155;">SMTP Username</label>
+                        <input type="email" class="form-control" id="smtp_username" 
+                               name="smtp_username" value="{{ settings.smtp_username }}"
+                               placeholder="your.email@gmail.com" style="border-radius: 10px;">
+                    </div>
+                    
+                    <div class="mb-0">
+                        <label for="smtp_password" class="form-label" style="font-weight: 600; color: #334155;">SMTP Password</label>
+                        <input type="password" class="form-control" id="smtp_password" 
+                               name="smtp_password" placeholder="Leave blank to keep current" style="border-radius: 10px;">
+                        <div class="form-text">Your email password or app-specific password</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-flex gap-3 justify-content-between">
+                <button type="submit" class="btn btn-primary btn-lg flex-grow-1" style="border-radius: 12px;">
+                    <i class="fas fa-save"></i> Save Settings
+                </button>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary btn-lg" style="border-radius: 12px;">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Sidebar Info -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm" style="border-radius: 16px;">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-4">
+                    <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                        <i class="fas fa-lightbulb" style="color: white; font-size: 1.25rem;"></i>
+                    </div>
+                    <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Quick Tips</h4>
+                </div>
+                
+                <div class="mb-4 p-3 rounded" style="background: #f8fafc; border-left: 4px solid #667eea;">
+                    <h6 style="color: #334155; font-weight: 600; margin-bottom: 0.5rem;">
+                        <i class="fas fa-robot" style="color: #667eea;"></i> Autonomous Scanning
+                    </h6>
+                    <p class="small text-muted mb-0">
+                        Runs automatically in the background without manual intervention. Perfect for continuous monitoring.
+                    </p>
+                </div>
+                
+                <div class="mb-4 p-3 rounded" style="background: #f8fafc; border-left: 4px solid #f093fb;">
+                    <h6 style="color: #334155; font-weight: 600; margin-bottom: 0.5rem;">
+                        <i class="fas fa-desktop" style="color: #f093fb;"></i> Desktop Notifications
+                    </h6>
+                    <p class="small text-muted mb-0">
+                        Get instant popup alerts on Windows, macOS, and Linux when high-score tenders are found.
+                    </p>
+                </div>
+                
+                <div class="mb-4 p-3 rounded" style="background: #f8fafc; border-left: 4px solid #30cfd0;">
+                    <h6 style="color: #334155; font-weight: 600; margin-bottom: 0.5rem;">
+                        <i class="fas fa-envelope" style="color: #30cfd0;"></i> Email Alerts
+                    </h6>
+                    <p class="small text-muted mb-0">
+                        Receive detailed email reports with tender summaries. Stay informed even when away from your desk.
+                    </p>
+                </div>
+                
+                <div class="p-3 rounded" style="background: #f8fafc; border-left: 4px solid #fa709a;">
+                    <h6 style="color: #334155; font-weight: 600; margin-bottom: 0.5rem;">
+                        <i class="fas fa-sliders-h" style="color: #fa709a;"></i> Score Threshold
+                    </h6>
+                    <p class="small text-muted mb-0">
+                        Control notification frequency. Higher thresholds = fewer but more relevant alerts.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('testNotification').addEventListener('click', function() {
+    const btn = this;
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    
+    fetch('{{ url_for("main.test_notification") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        if (data.success) {
+            showToast('✅ Test notification sent! Check your desktop.', 'success');
+        } else {
+            showToast('❌ Failed to send notification. Check settings.', 'error');
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        showToast('❌ Failed to send notification. Make sure notifications are enabled.', 'error');
+    });
+});
+
+function showToast(message, type) {
+    // Simple toast notification (will be replaced with proper toast system later)
+    alert(message);
+}
+</script>
+
+{% endblock %}

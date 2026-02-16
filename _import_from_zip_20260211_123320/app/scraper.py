@@ -1,0 +1,880 @@
+from __future__ import annotations
+
+import logging
+import re
+import threading
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from io import BytesIO
+from typing import Dict, Iterable, List, Optional
+from urllib.parse import urljoin
+
+import requests
+import urllib3
+from bs4 import BeautifulSoup
+from flask import current_app
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+
+from app.deadlines import parse_deadline, is_deadline_valid
+from app.source_bias import SOURCE_BIAS
+from app.categorizer import categorize
+from sqlalchemy.exc import IntegrityError
+
+from app.extensions import db
+from app.models import TenderSource, TenderResult
+from app.scoring import score_text
+from app.source_bias import COUNTRY_MAP
+from app.keywords import ALL_KEYWORDS
+
+logger = logging.getLogger(__name__)
+logging.getLogger("pypdf").setLevel(logging.ERROR)
+logging.getLogger("pypdf._reader").setLevel(logging.ERROR)
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+
+
+# Networking
+# Use a slightly more forgiving read timeout (many tender portals are slow) while
+# keeping connect fast. This improves recall without materially hurting scan speed
+# thanks to parallelism.
+HTTP_CONNECT_TIMEOUT = int(3)
+HTTP_READ_TIMEOUT = int(10)
+HTTP_TIMEOUT = (HTTP_CONNECT_TIMEOUT, HTTP_READ_TIMEOUT)
+
+# PDF limits (adaptive parsing uses up to PDF_MAX_PAGES pages)
+PDF_MAX_BYTES = 2_000_000  # 2 MB
+PDF_MAX_PAGES = 2
+MAX_ANCHORS_PER_SOURCE = 180
+MAX_NEW_TENDERS_PER_SOURCE = 12
+
+# Default scan parallelism (safe for SQLite because we avoid DB writes in threads)
+DEFAULT_SCAN_WORKERS = 15
+
+USER_AGENT = "TenderWatch/1.3 (+https://tenderwatch.local; contact: ops@tenderwatch.local)"
+DEFAULT_HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
+# Prefer PDF parsing for these high-signal sources (plus any favorites).
+PDF_SOURCE_ALLOW = {
+    "KAA Procurement",
+    "KEMSA Tenders",
+    "KENHA Tenders",
+    "KRA Tenders",
+    "Kenya Power Tenders",
+    "KEBS Tenders",
+    "ICT Authority",
+    "CBK Tenders",
+    "Kenya Railways",
+    "KPA Tenders",
+}
+
+CLOSED_HINTS = [
+    "awarded", "award", "awarding", "award notice", "contract award",
+    "winner", "winners", "successful bidder", "successful bidders",
+    "evaluation", "evaluated", "results", "result", "list of awardees",
+    "notice of award", "award of tender", "tender results",
+]
+
+LIFECYCLE_HINTS = {
+    "awarded": [
+        "awarded", "award notice", "contract award", "successful bidder",
+        "winners", "winner", "award of tender", "tender results",
+    ],
+    "clarification": [
+        "clarification", "corrigendum", "addendum", "q&a", "questions and answers",
+        "extension notice", "deadline extension",
+    ],
+    "cancelled": [
+        "cancelled", "canceled", "withdrawn", "terminated", "annulled",
+    ],
+    "pre_notice": [
+        "prior information notice", "forecast", "pipeline", "upcoming procurement",
+    ],
+}
+
+GENERIC_TITLE_PATTERNS = [
+    "global tenders",
+    "govt tenders",
+    "government tenders",
+    "tenders country",
+    "tender notices",
+    "procurement notices",
+    "view tender",
+    "view details",
+]
+
+F2_INTENT_TERMS = [
+    "document management", "records management", "edms", "edrms",
+    "enterprise content management", "ecm", "workflow", "workflow automation",
+    "business process management", "bpm", "case management", "complaint management",
+    "grievance", "e-filing", "electronic filing", "registry management",
+    "digital transformation", "paperless", "digital government", "e-government",
+    "citizen portal", "service delivery platform",
+]
+
+MIN_RELEVANCE_SCORE = 22
+
+
+# -----------------------------------------------------------------------------
+# Parsing heuristics (module-level to avoid re-allocating per-source)
+# -----------------------------------------------------------------------------
+
+NAV_PATTERNS = {
+    "about us", "about", "contact us", "contact", "home", "login", "sign in", "register",
+    "search", "help", "faq", "privacy", "terms", "cookie", "accessibility",
+    "menu", "navigation", "sitemap", "site map", "back to top", "read more", "learn more",
+    "click here", "view all", "see all", "show more", "load more",
+    "who we are", "what we do", "how we work", "our work", "our team", "our partners",
+    "our office", "our history", "our mission", "our vision", "our values",
+    "careers", "jobs", "employment", "vacancies", "work with us", "join us",
+    "how we buy", "what we buy", "how to apply", "how to register", "how to submit",
+    "qualifications", "eligibility", "supplier", "vendor", "guidance", "guidelines",
+    "resources", "training", "certification", "statistics", "reports", "annual report",
+    "code of conduct", "protest", "sanctions", "policies", "procedures",
+    "guiding principles", "strategy", "sustainable", "framework",
+    "facebook", "twitter", "linkedin", "instagram", "youtube", "share", "follow us",
+    "subscribe", "newsletter", "email us", "call us",
+    "press release", "news", "blog", "article", "publication", "brochure",
+    "quarterly report", "financial report",
+}
+
+TENDER_TERMS = [
+    "tender", "rfp", "rfq", "procurement", "bid", "invitation to bid",
+    "request for proposal", "request for quotation", "expression of interest",
+    "eoi", "notice of", "call for", "solicitation",
+]
+
+URL_TERMS = [
+    "tender", "tenders", "procurement", "bid", "bids", "rfp", "rfq",
+    "solicitation", "notice", "notices", "opportunity", "opportunities",
+    "contract", "contracts", "purchase", "tender-detail", "bid-detail",
+]
+
+DETAIL_URL_TERMS = [
+    "/tender/", "/tenders/", "/procurement/", "/opportunity/", "/opportunities/",
+    "/notice/", "/notices/", "/bid/", "/bids/", "/solicitation/",
+    "tender-detail", "bid-detail", "/detail", "/document/", "/docs/", "/download/",
+    "rfp", "rfq",
+]
+
+REF_CODE_RE = re.compile(r"\b[A-Z]{2,}[-/ ]?\d{2,}\b", flags=re.IGNORECASE)
+
+REF_TERMS = [
+    "ref", "reference", "ref.", "tender no", "rfp no", "rfq no",
+    "procurement ref", "bid no", "request no",
+]
+
+DATE_TERMS = [
+    "deadline", "closing date", "submission deadline", "due date",
+    "closing time", "submission date", "posted", "published",
+]
+
+GENERIC_TITLES = {
+    "tenders", "tender", "global tenders", "govt tenders", "government tenders",
+    "tenders country", "tender notices", "procurement notices", "opportunities",
+}
+
+
+@dataclass(frozen=True)
+class SourceInfo:
+    """A thread-safe snapshot of TenderSource fields used during scans."""
+
+    id: int
+    name: str
+    url: str
+    favorite: bool = False
+
+
+def _utcnow():
+    # Keep naive UTC to match DB columns while avoiding utcnow() deprecation.
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+def _source_country(source_name: str, url: str):
+    haystack = f"{source_name} {url}".lower()
+    for key, country in COUNTRY_MAP.items():
+        if key in haystack:
+            return country
+    return "Global"
+
+
+def _source_bias_bonus(source_name: str, url: str):
+    haystack = f"{source_name} {url}".lower()
+    for key, bonus in SOURCE_BIAS.items():
+        if key in haystack:
+            return bonus
+    return 0
+
+
+def _has_f2_keywords(text: str) -> bool:
+    if not text:
+        return False
+    t = text.lower()
+    return any(kw in t for kw in ALL_KEYWORDS)
+
+
+def _is_closed_award(text: str) -> bool:
+    if not text:
+        return False
+    t = text.lower()
+    return any(hint in t for hint in CLOSED_HINTS)
+
+
+def _clean_title(raw: str) -> str:
+    title = (raw or "").strip()
+    if not title:
+        return ""
+    # Remove metadata tails commonly concatenated on listing cards.
+    title = re.split(
+        r"\b(?:ref(?:erence)?(?:\s*no\.?)?|deadline|posted|country|office|process)\b",
+        title,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0].strip(" -:|")
+    title = re.sub(r"\s+", " ", title).strip()
+    return title
+
+
+def _is_generic_title(title: str) -> bool:
+    t = (title or "").lower().strip()
+    if not t:
+        return True
+    return any(pat in t for pat in GENERIC_TITLE_PATTERNS)
+
+
+def _has_f2_intent(text: str) -> bool:
+    t = (text or "").lower()
+    return any(term in t for term in F2_INTENT_TERMS)
+
+
+def _classify_lifecycle(text: str) -> str:
+    t = (text or "").lower()
+    for status, terms in LIFECYCLE_HINTS.items():
+        if any(term in t for term in terms):
+            return status
+    return "open"
+
+
+def _make_http_session() -> requests.Session:
+    """Create a resilient requests Session (connection pooling + small retries).
+
+    Note: A Session is NOT thread-safe; each thread should build its own.
+    """
+
+    session = requests.Session()
+    session.headers.update(DEFAULT_HEADERS)
+
+    # Retry on transient errors + rate limiting.
+    try:
+        retry = Retry(
+            total=2,
+            connect=1,
+            read=1,
+            backoff_factor=0.3,
+            status_forcelist=(429, 500, 502, 503, 504),
+            allowed_methods=frozenset(["GET", "HEAD"]),
+        )
+    except TypeError:
+        # urllib3 < 1.26 uses method_whitelist
+        retry = Retry(
+            total=2,
+            connect=1,
+            read=1,
+            backoff_factor=0.3,
+            status_forcelist=(429, 500, 502, 503, 504),
+            method_whitelist=frozenset(["GET", "HEAD"]),
+        )
+
+    adapter = HTTPAdapter(max_retries=retry, pool_connections=16, pool_maxsize=16)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+
+def _fetch_html(url: str, session: requests.Session) -> str:
+    """Fetch HTML with a TLS-verify fallback for misconfigured portals."""
+
+    try:
+        resp = session.get(url, timeout=HTTP_TIMEOUT, verify=True)
+    except requests.exceptions.SSLError:
+        logger.warning("SSL error for %s, retrying without verification", url)
+        resp = session.get(url, timeout=HTTP_TIMEOUT, verify=False)
+    # Do not raise_for_status: some portals return HTML error pages that still
+    # include links (useful for navigation to tenders).
+    return resp.text or ""
+
+
+_PDF_TEXT_CACHE: Dict[str, str] = {}
+_PDF_CACHE_LOCK = threading.Lock()
+
+
+def _pdf_text_from_url(url: str, session: Optional[requests.Session] = None) -> str:
+    """Best-effort PDF text extraction (bounded by size + pages).
+
+    Caches extracted text by URL for the duration of the process.
+    """
+
+    if not url:
+        return ""
+
+    with _PDF_CACHE_LOCK:
+        cached = _PDF_TEXT_CACHE.get(url)
+    if cached is not None:
+        return cached
+
+    s = session or _make_http_session()
+
+    # HEAD is cheap when supported; use it to reject huge PDFs.
+    try:
+        try:
+            head = s.head(url, timeout=HTTP_TIMEOUT, allow_redirects=True, verify=True)
+        except requests.exceptions.SSLError:
+            head = s.head(url, timeout=HTTP_TIMEOUT, allow_redirects=True, verify=False)
+        content_length = head.headers.get("Content-Length")
+        if content_length and int(content_length) > PDF_MAX_BYTES:
+            with _PDF_CACHE_LOCK:
+                _PDF_TEXT_CACHE[url] = ""
+            return ""
+    except Exception:
+        # HEAD frequently fails; continue with a bounded GET.
+        pass
+
+    try:
+        try:
+            r = s.get(url, timeout=HTTP_TIMEOUT, stream=True, verify=True)
+        except requests.exceptions.SSLError:
+            r = s.get(url, timeout=HTTP_TIMEOUT, stream=True, verify=False)
+
+        if not r.ok:
+            with _PDF_CACHE_LOCK:
+                _PDF_TEXT_CACHE[url] = ""
+            return ""
+
+        # Bounded read
+        buf = bytearray()
+        for chunk in r.iter_content(chunk_size=64 * 1024):
+            if not chunk:
+                continue
+            buf.extend(chunk)
+            if len(buf) > PDF_MAX_BYTES:
+                with _PDF_CACHE_LOCK:
+                    _PDF_TEXT_CACHE[url] = ""
+                return ""
+
+        try:
+            from pypdf import PdfReader
+        except Exception:
+            with _PDF_CACHE_LOCK:
+                _PDF_TEXT_CACHE[url] = ""
+            return ""
+
+        reader = PdfReader(BytesIO(bytes(buf)))
+        text_chunks: List[str] = []
+
+        # Extract a small number of pages for speed; many notices put the key
+        # info (title + deadline) on the first 1–2 pages.
+        for page in reader.pages[:PDF_MAX_PAGES]:
+            try:
+                page_text = page.extract_text() or ""
+            except Exception:
+                page_text = ""
+            if page_text:
+                text_chunks.append(page_text)
+
+        out = " ".join(text_chunks).strip()
+        with _PDF_CACHE_LOCK:
+            _PDF_TEXT_CACHE[url] = out
+        return out
+    except Exception:
+        with _PDF_CACHE_LOCK:
+            _PDF_TEXT_CACHE[url] = ""
+        return ""
+
+
+def cleanup_irrelevant_tenders():
+    """Remove tenders that are awards/results (closed)."""
+    one_month_ago = _utcnow() - timedelta(days=30)
+
+    # Small pre-filter in SQL to avoid scanning the entire table in Python.
+    # We still run the full _is_closed_award() check before deleting.
+    from sqlalchemy import or_
+
+    sql_hints = [
+        "award", "awarded", "winner", "successful bidder", "contract award", "award notice", "tender results"
+    ]
+    like_filters = []
+    for h in sql_hints:
+        like = f"%{h}%"
+        like_filters.append(TenderResult.title.ilike(like))
+        like_filters.append(TenderResult.description.ilike(like))
+
+    q = TenderResult.query.filter(TenderResult.created_at >= one_month_ago)
+    if like_filters:
+        q = q.filter(or_(*like_filters))
+
+    tenders = q.all()
+    removed = 0
+    for tender in tenders:
+        combined = f"{tender.title} {tender.description} {tender.link}".lower()
+        if _is_closed_award(combined):
+            db.session.delete(tender)
+            removed += 1
+    if removed:
+        db.session.commit()
+        print(f" Removed {removed} non-F2 or closed tenders")
+
+
+def scan_source(source: SourceInfo, existing_links: Optional[Iterable[str]] = None) -> List[Dict]:
+    """Scan a single source URL and return candidate tender rows.
+
+    Important: This function does **not** write to the database.
+    We keep it thread-safe + SQLite-friendly by doing all DB writes in the main thread.
+    """
+
+    import json as json_lib
+    import time
+
+    t0 = time.time()
+    session = _make_http_session()
+
+    try:
+        html = _fetch_html(source.url, session)
+    except Exception as e:
+        logger.warning("Failed to fetch %s: %s", source.name, str(e)[:120])
+        logger.info("%s took %.1fs (failed)", source.name, time.time() - t0)
+        return []
+
+    # Parser choice: lxml is faster + more forgiving, but fall back safely.
+    try:
+        soup = BeautifulSoup(html, "lxml")
+    except Exception:
+        soup = BeautifulSoup(html, "html.parser")
+
+    existing = existing_links if isinstance(existing_links, set) else set(existing_links or ())
+
+    allow_pdf = bool(source.favorite) or (source.name in PDF_SOURCE_ALLOW)
+    seen_links: set[str] = set()
+    seen_titles: set[str] = set()
+    out: List[Dict] = []
+
+    for idx, a in enumerate(soup.find_all("a", href=True)):
+        if idx >= MAX_ANCHORS_PER_SOURCE:
+            break
+        if len(out) >= MAX_NEW_TENDERS_PER_SOURCE:
+            break
+
+        try:
+            href = (a.get("href") or "").strip()
+            if not href or href.startswith("#") or href.lower().startswith("javascript"):
+                continue
+
+            link = urljoin(source.url, href).split("#")[0].strip()
+            if not link:
+                continue
+
+            link_lower = link.lower()
+            if any(bad in link_lower for bad in ["/login", "/signin", "/register", "facebook.com", "twitter.com", "linkedin.com"]):
+                continue
+            if link_lower.endswith((".jpg", ".jpeg", ".png", ".gif", ".svg", ".css", ".js")):
+                continue
+            if link in existing or link in seen_links:
+                continue
+
+            raw_title = a.get_text(" ", strip=True) or ""
+            aria_title = (a.get("title") or a.get("aria-label") or "").strip()
+            if not raw_title and aria_title:
+                raw_title = aria_title
+
+            title = _clean_title(raw_title)
+            if not title or len(title) < 8:
+                continue
+
+            lower_title = title.lower().strip()
+            if lower_title in GENERIC_TITLES or _is_generic_title(title):
+                continue
+            if any(pat in lower_title for pat in NAV_PATTERNS):
+                continue
+            if lower_title in seen_titles:
+                continue
+
+            # Basic length gate (avoid "View", "Details", "Click here" fragments)
+            title_key = re.sub(r"[^a-z0-9]+", " ", lower_title).strip()
+            if len(title_key) < 12:
+                continue
+
+            # Contextual text (limit to avoid pulling whole-page boilerplate)
+            parent_text = ""
+            try:
+                if a.parent:
+                    parent_text = a.parent.get_text(" ", strip=True) or ""
+            except Exception:
+                parent_text = ""
+            if len(parent_text) > 800:
+                parent_text = parent_text[:800]
+
+            description = ""
+            if aria_title and aria_title.lower() != raw_title.lower():
+                description = aria_title
+            if len(description) < 20 and parent_text and parent_text.lower() != raw_title.lower():
+                description = parent_text
+
+            # Strip nav-like boilerplate from descriptions
+            desc_lower = (description or "").lower()
+            if any(pat in desc_lower for pat in NAV_PATTERNS):
+                description = ""
+                desc_lower = ""
+
+            has_url_term = any(term in link_lower for term in URL_TERMS)
+            has_detail_url = any(term in link_lower for term in DETAIL_URL_TERMS)
+            is_pdf = (
+                link_lower.endswith(".pdf")
+                or ".pdf?" in link_lower
+                or ".pdf#" in link_lower
+                or "format=pdf" in link_lower
+                or "download=pdf" in link_lower
+            )
+
+            base_combined = f"{title} {description} {aria_title} {parent_text}".strip()
+            combined_for_deadline = base_combined
+            combined_lower = base_combined.lower()
+
+            # Signals for separating real tenders from nav/aggregator links
+            has_tender_term = any(term in lower_title for term in TENDER_TERMS) or any(term in combined_lower for term in TENDER_TERMS)
+            has_ref_hint = any(term in combined_lower for term in REF_TERMS) or any(ch.isdigit() for ch in lower_title)
+            has_date_hint = any(term in combined_lower for term in DATE_TERMS)
+            has_ref_code = bool(REF_CODE_RE.search(base_combined))
+
+            deadline = parse_deadline(combined_for_deadline)
+
+            pdf_text = ""
+            if allow_pdf and is_pdf:
+                pdf_text = _pdf_text_from_url(link, session=session)
+                if pdf_text:
+                    # Cap size to keep downstream scoring fast
+                    pdf_text = pdf_text[:5000]
+                    if not deadline:
+                        deadline = parse_deadline(f"{combined_for_deadline} {pdf_text}")
+
+            lifecycle_status = _classify_lifecycle(f"{base_combined} {link}")
+
+            # Extra short-title filter: require at least one strong signal
+            if len(title_key) < 18 and not (has_detail_url or deadline or has_ref_code or is_pdf):
+                continue
+
+            # Must have at least one strong tender signal
+            if not (has_tender_term or has_detail_url or has_ref_code or deadline):
+                continue
+            if not deadline and not has_ref_code and not has_detail_url and not (has_ref_hint and has_date_hint):
+                continue
+
+            if _is_closed_award(base_combined) or lifecycle_status == "awarded":
+                continue
+            if lifecycle_status in {"clarification", "cancelled"}:
+                continue
+            if deadline and not is_deadline_valid(deadline) and lifecycle_status == "open":
+                continue
+
+            # Score using richer context (aria/row text + small PDF snippet if present)
+            scoring_text = f"{description} {aria_title} {parent_text}".strip()
+            if pdf_text:
+                scoring_text = f"{scoring_text} {pdf_text}".strip()
+            score, matched, scoring_breakdown = score_text(title, scoring_text)
+
+            try:
+                breakdown = json_lib.loads(scoring_breakdown)
+            except Exception:
+                breakdown = {}
+
+            keywords_found = int(breakdown.get("keywords_found", 0) or 0)
+            domains_matched = breakdown.get("domains_matched", []) or []
+            likely_fit = breakdown.get("likely_fit_for_F2", "uncertain")
+            procurement_status = breakdown.get("procurement_status", "open")
+
+            if score <= 0 or keywords_found == 0:
+                continue
+            if likely_fit in {"excluded", "no-go"}:
+                continue
+            if procurement_status in {"locked", "conditional_nogo"} and not source.favorite:
+                continue
+            if likely_fit == "uncertain" and score < 45:
+                continue
+            if not deadline and likely_fit in {"uncertain", "discuss"} and score < 60:
+                continue
+            if not deadline and keywords_found < 3 and score < 65:
+                continue
+            if not _has_f2_intent(base_combined) and len(domains_matched) < 2 and score < MIN_RELEVANCE_SCORE:
+                continue
+
+            bonus = _source_bias_bonus(source.name, link)
+            if bonus:
+                score = min(100, score + bonus)
+                breakdown["source_bias"] = bonus
+                breakdown["final_score"] = score
+                scoring_breakdown = json_lib.dumps(breakdown)
+
+            category, _, confidence = categorize(title, scoring_text, source_name=source.name)
+
+            country = _source_country(source.name, link)
+            inferred_domains = json_lib.dumps(domains_matched)
+            priority_level = breakdown.get("priority", "LOW")
+            requires_qualification = bool(breakdown.get("requires_qualification", False))
+            qualification_reason = breakdown.get("qualification_reason", "")
+            platform_signals = json_lib.dumps(breakdown.get("microsoft_commitment_signals", []))
+
+            out.append(
+                {
+                    "title": title,
+                    "title_translated": title,
+                    "link": link,
+                    "description": description,
+                    "description_translated": description if description else "",
+                    "score": float(score),
+                    "keywords_matched": matched,
+                    "scoring_breakdown": scoring_breakdown,
+                    "category": category,
+                    "confidence": confidence,
+                    "deadline": deadline or "",
+                    "publication_date": "",
+                    "buyer": source.name,
+                    "country": country,
+                    "inferred_domains": inferred_domains,
+                    "priority_level": priority_level,
+                    "likely_fit_for_f2": likely_fit,
+                    "procurement_status": procurement_status,
+                    "requires_qualification": requires_qualification,
+                    "qualification_reason": qualification_reason,
+                    "platform_commitment_signals": platform_signals,
+                    "timing_status": lifecycle_status,
+                    "source_id": source.id,
+                }
+            )
+
+            seen_links.add(link)
+            seen_titles.add(lower_title)
+        except Exception as e:
+            logger.debug("Skipping link from %s due to parsing error: %s", source.name, str(e)[:120])
+            continue
+
+    logger.info("Source %s produced %d candidates in %.1fs", source.name, len(out), time.time() - t0)
+    return out
+
+
+def cleanup_old_tenders():
+    """Remove tenders older than 1 month"""
+    one_month_ago = _utcnow() - timedelta(days=30)
+    try:
+        # Single SQL DELETE (much faster than loading rows into Python)
+        count = (
+            TenderResult.query.filter(TenderResult.created_at < one_month_ago)
+            .delete(synchronize_session=False)
+        )
+        if count:
+            db.session.commit()
+            print(f"  Removed {count} tender(s) older than 1 month")
+    except Exception:
+        # Fallback to safe row-by-row delete if the backend doesn't support this well
+        db.session.rollback()
+        old_tenders = TenderResult.query.filter(TenderResult.created_at < one_month_ago).all()
+        if old_tenders:
+            count = len(old_tenders)
+            for tender in old_tenders:
+                db.session.delete(tender)
+            db.session.commit()
+            print(f"  Removed {count} tender(s) older than 1 month")
+
+
+def run_scan(flask_app=None, max_sources=15, scan_timeout_seconds=None):
+    """Scan sources for tenders and return newly added TenderResult objects.
+
+    Key properties:
+    - Parallel HTTP parsing for speed
+    - **Single-thread DB write** for SQLite safety (avoids "database is locked" + race duplicates)
+    - Batch insert + best-effort salvage on uniqueness collisions
+    """
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import time
+
+    start_time = time.time()
+
+    # Resolve Flask app (Streamlit / scheduler can pass it explicitly)
+    if flask_app is None:
+        flask_app = current_app._get_current_object()
+
+    # --- Phase 1: DB housekeeping + snapshot sources/links (app context) ---
+    with flask_app.app_context():
+        cleanup_old_tenders()
+        cleanup_irrelevant_tenders()
+
+        sources = TenderSource.query.filter_by(active=True).all()
+        sources = sorted(sources, key=lambda s: (not bool(s.favorite), (s.name or "").lower()))
+
+        if max_sources is not None:
+            try:
+                max_sources_int = int(max_sources)
+            except Exception:
+                max_sources_int = 15
+            if max_sources_int > 0:
+                sources = sources[:max_sources_int]
+
+        if not sources:
+            print("  No active sources found. Add sources and mark them as active to start scanning.")
+            return []
+
+        sources_info: List[SourceInfo] = [
+            SourceInfo(id=s.id, name=s.name or "", url=s.url or "", favorite=bool(s.favorite)) for s in sources
+        ]
+
+        # Snapshot existing links once (race-safe inserts will still enforce uniqueness).
+        existing_links: set[str] = {link for (link,) in db.session.query(TenderResult.link).all()}
+
+    # --- Phase 2: Parallel scan (no DB writes in threads) ---
+    workers = max(1, min(DEFAULT_SCAN_WORKERS, len(sources_info)))
+
+    if scan_timeout_seconds is None:
+        # Keep old behavior but base on number of sources; allow enough time for slow portals.
+        if max_sources is None:
+            scan_timeout_seconds = 120
+        else:
+            try:
+                scan_timeout_seconds = max(30, min(120, int(max_sources) * 5))
+            except Exception:
+                scan_timeout_seconds = 60
+
+    print(f"\n FAST PARALLEL scan: {len(sources_info)} sources with {workers} workers...")
+
+    candidate_rows: List[Dict] = []
+
+    executor = ThreadPoolExecutor(max_workers=workers)
+    try:
+        future_to_source = {
+            executor.submit(scan_source, src, existing_links): src for src in sources_info
+        }
+
+        completed = 0
+        try:
+            for future in as_completed(future_to_source, timeout=scan_timeout_seconds):
+                src = future_to_source[future]
+                completed += 1
+                try:
+                    rows = future.result() or []
+                    if rows:
+                        candidate_rows.extend(rows)
+                        print(f" [{completed}/{len(sources_info)}] {src.name}: {len(rows)} candidates")
+                    else:
+                        print(f" [{completed}/{len(sources_info)}] {src.name}: 0")
+                except Exception as e:
+                    print(f" [{completed}/{len(sources_info)}] {src.name}: {str(e)[:60]}")
+        except Exception:
+            # Timeout reached - return completed results immediately.
+            for fut in future_to_source:
+                if not fut.done():
+                    fut.cancel()
+            print(f" Scan timeout reached after {scan_timeout_seconds}s; committing partial results.")
+    finally:
+        # Critical: do not wait for hung workers after timeout.
+        executor.shutdown(wait=False, cancel_futures=True)
+
+    # --- Phase 3: Batch insert (app context) ---
+    fresh_tenders: List[TenderResult] = []
+    if not candidate_rows:
+        elapsed = time.time() - start_time
+        print(f" Scan complete in {elapsed:.1f}s! Found 0 new tenders.")
+        return []
+
+    # De-duplicate candidates by link and ignore links we already had.
+    # (This also avoids uniqueness collisions between sources.)
+    seen_links = set(existing_links)
+    deduped: List[Dict] = []
+    for row in candidate_rows:
+        link = (row or {}).get("link")
+        if not link or link in seen_links:
+            continue
+        seen_links.add(link)
+        deduped.append(row)
+
+    with flask_app.app_context():
+        new_objects: List[TenderResult] = []
+        for row in deduped:
+            try:
+                new_objects.append(
+                    TenderResult(
+                        title=row.get("title", ""),
+                        title_translated=row.get("title_translated", ""),
+                        link=row.get("link", ""),
+                        description=row.get("description", ""),
+                        description_translated=row.get("description_translated", ""),
+                        score=float(row.get("score", 0) or 0),
+                        keywords_matched=row.get("keywords_matched", ""),
+                        scoring_breakdown=row.get("scoring_breakdown", ""),
+                        category=row.get("category", ""),
+                        confidence=float(row.get("confidence", 0) or 0),
+                        deadline=row.get("deadline", ""),
+                        publication_date=row.get("publication_date", ""),
+                        buyer=row.get("buyer", ""),
+                        country=row.get("country", ""),
+                        inferred_domains=row.get("inferred_domains", "[]"),
+                        priority_level=row.get("priority_level", "LOW"),
+                        likely_fit_for_f2=row.get("likely_fit_for_f2", "uncertain"),
+                        procurement_status=row.get("procurement_status", "open"),
+                        requires_qualification=bool(row.get("requires_qualification", False)),
+                        qualification_reason=row.get("qualification_reason", ""),
+                        platform_commitment_signals=row.get("platform_commitment_signals", "[]"),
+                        timing_status=row.get("timing_status", "open"),
+                        source_id=row.get("source_id"),
+                    )
+                )
+            except Exception:
+                continue
+
+        if not new_objects:
+            elapsed = time.time() - start_time
+            print(f" Scan complete in {elapsed:.1f}s! Found 0 new tenders.")
+            return []
+
+        db.session.add_all(new_objects)
+
+        try:
+            db.session.commit()
+            fresh_tenders = new_objects
+        except IntegrityError:
+            # Rare: concurrent scan inserted some links. Salvage what we can.
+            db.session.rollback()
+            salvaged: List[TenderResult] = []
+            for obj in new_objects:
+                try:
+                    db.session.add(obj)
+                    db.session.commit()
+                    salvaged.append(obj)
+                except IntegrityError:
+                    db.session.rollback()
+                except Exception:
+                    db.session.rollback()
+            fresh_tenders = salvaged
+        except Exception:
+            db.session.rollback()
+            fresh_tenders = []
+
+    elapsed = time.time() - start_time
+    print(f" Scan complete in {elapsed:.1f}s! Found {len(fresh_tenders)} new tenders.")
+
+    # Send push notifications for new high-score tenders
+    if fresh_tenders:
+        try:
+            from app.push_notifications import PushNotificationService
+
+            push_service = PushNotificationService(flask_app)
+            push_service.notify_new_tenders(fresh_tenders)
+        except Exception as e:
+            print(f" Push notification failed: {e}")
+
+    return fresh_tenders
+
+
+
+
