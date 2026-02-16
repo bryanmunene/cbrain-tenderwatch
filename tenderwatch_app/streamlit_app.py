@@ -817,6 +817,33 @@ def _exclude_expired_tenders(tenders):
     return out
 
 
+def _exclude_stale_no_deadline_tenders(tenders):
+    """Hide low-signal no-deadline tenders that are typically stale notices."""
+    out = []
+    for tender in tenders:
+        deadline_val = _parse_deadline_value(getattr(tender, "deadline", ""))
+        if deadline_val is not None:
+            out.append(tender)
+            continue
+
+        score = float(getattr(tender, "score", 0) or 0)
+        likely = (getattr(tender, "likely_fit_for_f2", "") or "").strip().lower()
+        category = (getattr(tender, "category", "") or "").strip().lower()
+        lifecycle = (getattr(tender, "timing_status", "") or "").strip().lower()
+
+        # Common stale/noisy profile: no deadline + low score + uncertain/discuss + pipeline/general category.
+        looks_stale = (
+            score < 45
+            and likely in {"uncertain", "discuss", "conditional"}
+            and category in {"pipeline", "general", "uncategorized", "unclassified"}
+            and lifecycle in {"", "open", "pre_notice"}
+        )
+        if looks_stale:
+            continue
+        out.append(tender)
+    return out
+
+
 def _lifecycle_label(value: str) -> str:
     mapping = {
         "open": "Open",
@@ -1231,6 +1258,9 @@ def get_tenders(filters=None, days_window=30, created_after=None):
         include_expired = bool(filters.get("include_expired", False)) if filters else False
         if not include_expired:
             tenders = _exclude_expired_tenders(tenders)
+        include_no_deadline = bool(filters.get("include_no_deadline", False)) if filters else False
+        if not include_no_deadline:
+            tenders = _exclude_stale_no_deadline_tenders(tenders)
 
         if filters and filters.get("f2_only") and filters.get("strict_quality", True):
             strict_min_score = int(filters.get("strict_min_score", 35) or 35)
