@@ -1541,7 +1541,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    st.caption("2026 cBrain TenderWatch")
+    st.caption("2026 cBrain TenderWatch | build 2026-02-16b")
 
 # Main content based on selected page
 if page == "Dashboard":
