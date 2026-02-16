@@ -54,6 +54,9 @@ PDF_MAX_BYTES = 2_000_000  # 2 MB
 PDF_MAX_PAGES = 2
 MAX_ANCHORS_PER_SOURCE = 180
 MAX_NEW_TENDERS_PER_SOURCE = 12
+DETAIL_FETCH_MAX_PER_SOURCE = 16
+DETAIL_TEXT_MAX_CHARS = 8000
+DETAIL_PDF_LINK_LIMIT = 2
 
 # Default scan parallelism (safe for SQLite because we avoid DB writes in threads)
 DEFAULT_SCAN_WORKERS = 15
@@ -438,6 +441,107 @@ def _pdf_text_from_url(url: str, session: Optional[requests.Session] = None) -> 
         return ""
 
 
+def _extract_pdf_links(base_url: str, soup: BeautifulSoup) -> List[str]:
+    links: List[str] = []
+    seen: set[str] = set()
+    for a in soup.find_all("a", href=True):
+        href = (a.get("href") or "").strip()
+        if not href:
+            continue
+        full = urljoin(base_url, href).split("#")[0].strip()
+        if not full:
+            continue
+        low = full.lower()
+        is_pdf_link = (
+            low.endswith(".pdf")
+            or ".pdf?" in low
+            or ".pdf#" in low
+            or "format=pdf" in low
+            or "download=pdf" in low
+        )
+        if not is_pdf_link or full in seen:
+            continue
+        seen.add(full)
+        links.append(full)
+        if len(links) >= DETAIL_PDF_LINK_LIMIT:
+            break
+    return links
+
+
+def _detail_context(link: str, session: requests.Session) -> Dict[str, str]:
+    """Fetch detail page/PDF context to improve deadline extraction.
+
+    Returns dict with keys:
+      text: extracted detail text (possibly empty)
+      deadline: parsed deadline from detail/PDF text (possibly empty)
+      pdf_text: any extracted PDF text (possibly empty)
+    """
+    out = {"text": "", "deadline": "", "pdf_text": ""}
+    if not link:
+        return out
+
+    low = link.lower()
+    is_pdf = (
+        low.endswith(".pdf")
+        or ".pdf?" in low
+        or ".pdf#" in low
+        or "format=pdf" in low
+        or "download=pdf" in low
+    )
+
+    # Direct PDF detail URL.
+    if is_pdf:
+        pdf_text = (_pdf_text_from_url(link, session=session) or "")[:DETAIL_TEXT_MAX_CHARS]
+        out["pdf_text"] = pdf_text
+        out["text"] = pdf_text
+        out["deadline"] = parse_deadline(pdf_text) or ""
+        return out
+
+    # HTML detail page.
+    html = _fetch_html(link, session=session)
+    if not html:
+        return out
+
+    try:
+        soup = BeautifulSoup(html, "lxml")
+    except Exception:
+        soup = BeautifulSoup(html, "html.parser")
+
+    # Prefer semantically rich containers first.
+    text_blocks: List[str] = []
+    for selector in ("main", "article", "section"):
+        for node in soup.select(selector):
+            t = node.get_text(" ", strip=True)
+            if t and len(t) >= 80:
+                text_blocks.append(t)
+                if len(" ".join(text_blocks)) >= DETAIL_TEXT_MAX_CHARS:
+                    break
+        if len(" ".join(text_blocks)) >= DETAIL_TEXT_MAX_CHARS:
+            break
+
+    if not text_blocks:
+        body = soup.body.get_text(" ", strip=True) if soup.body else soup.get_text(" ", strip=True)
+        if body:
+            text_blocks = [body]
+
+    detail_text = " ".join(text_blocks)
+    detail_text = re.sub(r"\s+", " ", detail_text).strip()[:DETAIL_TEXT_MAX_CHARS]
+    out["text"] = detail_text
+    out["deadline"] = parse_deadline(detail_text) or ""
+
+    # If deadline still missing, inspect linked PDFs on detail page.
+    if not out["deadline"]:
+        for pdf_link in _extract_pdf_links(link, soup):
+            pdf_text = (_pdf_text_from_url(pdf_link, session=session) or "")[:DETAIL_TEXT_MAX_CHARS]
+            if pdf_text:
+                out["pdf_text"] = pdf_text
+                out["deadline"] = parse_deadline(pdf_text) or ""
+                if out["deadline"]:
+                    break
+
+    return out
+
+
 def cleanup_irrelevant_tenders():
     """Remove tenders that are awards/results (closed)."""
     one_month_ago = _utcnow() - timedelta(days=30)
@@ -511,6 +615,7 @@ def scan_source(
     seen_links: set[str] = set()
     seen_titles: set[str] = set()
     out: List[Dict] = []
+    detail_fetch_count = 0
 
     for idx, a in enumerate(soup.find_all("a", href=True)):
         if idx >= MAX_ANCHORS_PER_SOURCE:
@@ -608,6 +713,21 @@ def scan_source(
                     if not deadline:
                         deadline = parse_deadline(f"{combined_for_deadline} {pdf_text}")
 
+            # Read-through pass for hidden deadlines:
+            # if listing metadata lacks deadline, inspect detail page/PDF content.
+            detail_text = ""
+            if not deadline and detail_fetch_count < DETAIL_FETCH_MAX_PER_SOURCE and (has_detail_url or is_pdf):
+                detail_fetch_count += 1
+                detail = _detail_context(link, session=session)
+                detail_text = (detail.get("text") or "")[:DETAIL_TEXT_MAX_CHARS]
+                detail_pdf_text = (detail.get("pdf_text") or "")[:DETAIL_TEXT_MAX_CHARS]
+                if detail_pdf_text and not pdf_text:
+                    pdf_text = detail_pdf_text
+                if detail_text:
+                    combined_for_deadline = f"{combined_for_deadline} {detail_text}".strip()
+                if not deadline:
+                    deadline = (detail.get("deadline") or "").strip()
+
             lifecycle_status = _classify_lifecycle(f"{base_combined} {link}")
 
             # Extra short-title filter: require at least one strong signal
@@ -640,6 +760,8 @@ def scan_source(
 
             # Score using richer context (aria/row text + small PDF snippet if present)
             scoring_text = f"{description} {aria_title} {parent_text}".strip()
+            if detail_text:
+                scoring_text = f"{scoring_text} {detail_text}".strip()
             if pdf_text:
                 scoring_text = f"{scoring_text} {pdf_text}".strip()
             score, matched, scoring_breakdown = score_text(title, scoring_text)
