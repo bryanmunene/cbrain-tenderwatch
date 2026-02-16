@@ -806,6 +806,17 @@ def _apply_deadline_window(tenders, deadline_window):
     return filtered
 
 
+def _exclude_expired_tenders(tenders):
+    """Hide tenders with a parsed deadline in the past."""
+    today = _utcnow().date()
+    out = []
+    for tender in tenders:
+        d = _parse_deadline_value(getattr(tender, "deadline", ""))
+        if d is None or d >= today:
+            out.append(tender)
+    return out
+
+
 def _lifecycle_label(value: str) -> str:
     mapping = {
         "open": "Open",
@@ -1217,6 +1228,9 @@ def get_tenders(filters=None, days_window=30, created_after=None):
             query = query.order_by(TenderResult.deadline.asc())
 
         tenders = query.all()
+        include_expired = bool(filters.get("include_expired", False)) if filters else False
+        if not include_expired:
+            tenders = _exclude_expired_tenders(tenders)
 
         if filters and filters.get("f2_only") and filters.get("strict_quality", True):
             strict_min_score = int(filters.get("strict_min_score", 35) or 35)

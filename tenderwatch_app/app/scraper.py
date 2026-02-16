@@ -869,6 +869,13 @@ def _discover_rows(
             likely_fit = breakdown.get("likely_fit_for_F2", "uncertain")
             procurement_status = breakdown.get("procurement_status", "open")
             deadline = parse_deadline(f"{title} {description}") or ""
+            if deadline:
+                try:
+                    parsed_deadline = datetime.strptime(deadline, "%Y-%m-%d").date()
+                    if parsed_deadline < _utcnow().date():
+                        continue
+                except Exception:
+                    pass
             lifecycle_status = _classify_lifecycle(f"{title} {description} {link}")
 
             rows.append(
