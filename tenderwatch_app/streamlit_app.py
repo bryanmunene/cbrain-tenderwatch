@@ -1287,11 +1287,15 @@ def get_tenders_with_fallback(filters=None):
     if not filters:
         return get_tenders(), True, ""
 
-    if not filters.get('f2_only'):
-        base = get_tenders(filters)
-        if base:
-            return base, False, ""
+    base = get_tenders(filters)
+    if base:
+        return base, bool(filters.get("f2_only")), ""
 
+    allow_broad_fallback = bool(filters.get("allow_broad_fallback"))
+    if not allow_broad_fallback:
+        return [], bool(filters.get("f2_only")), "No tenders matched current filters. Enable 'Broaden if empty' to expand results."
+
+    if not filters.get('f2_only'):
         if filters.get("open_only"):
             relaxed = dict(filters)
             relaxed["open_only"] = False
@@ -1301,18 +1305,7 @@ def get_tenders_with_fallback(filters=None):
         anytime = get_tenders(filters, days_window=None)
         if anytime:
             return anytime, False, "No recent matches found. Displaying earlier results."
-        return base, False, ""
-
-    filtered = get_tenders(filters)
-    if filtered:
-        return filtered, True, ""
-
-    allow_broad_fallback = bool(filters.get("allow_broad_fallback"))
-    if not allow_broad_fallback:
-        anytime_strict = get_tenders(filters, days_window=None)
-        if anytime_strict:
-            return anytime_strict, True, "No recent strict matches. Displaying earlier strict matches."
-        return [], True, "No strict F2 matches found. Adjust filters or disable strict quality."
+        return [], False, "No tenders matched current filters."
 
     relaxed = dict(filters)
     relaxed['f2_only'] = False
