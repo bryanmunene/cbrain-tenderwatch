@@ -5,6 +5,7 @@ Simple, powerful tender scanning for cBrain F2 Platform
 
 import json
 import importlib
+import os
 import re
 import sys
 import time
@@ -865,6 +866,13 @@ NOISY_TITLE_HINTS = (
     "minutes",
     "pre-bid meeting",
 )
+
+# Optional: load API key from Streamlit secrets for persistent cloud deployments.
+try:
+    if "SERPAPI_API_KEY" in st.secrets and st.secrets["SERPAPI_API_KEY"]:
+        os.environ["SERPAPI_API_KEY"] = str(st.secrets["SERPAPI_API_KEY"])
+except Exception:
+    pass
 
 # Hide generic governance terms from per-result keyword chips.
 GENERIC_KEYWORD_BLOCKLIST = {
@@ -2416,8 +2424,14 @@ elif page == "Settings":
         col_d1, col_d2 = st.columns(2)
         with col_d1:
             st.markdown("**SerpAPI (recommended for global coverage)**")
-            if settings and getattr(settings, "bing_api_key", ""):
-                st.caption("SerpAPI key is currently saved.")
+            has_db_serp_key = bool(settings and getattr(settings, "bing_api_key", ""))
+            has_secret_serp_key = bool(os.getenv("SERPAPI_API_KEY", "").strip())
+            if has_db_serp_key and has_secret_serp_key:
+                st.caption("SerpAPI key is saved in DB and available via secrets/env.")
+            elif has_db_serp_key:
+                st.caption("SerpAPI key is currently saved in DB.")
+            elif has_secret_serp_key:
+                st.caption("SerpAPI key is loaded from Streamlit secrets/env.")
             serpapi_key_input = st.text_input(
                 "SerpAPI Key",
                 value="",
@@ -2469,6 +2483,33 @@ elif page == "Settings":
             value=int(settings.results_per_query) if settings and hasattr(settings, "results_per_query") and settings.results_per_query else 10,
             help="Number of search results to request per query.",
         )
+
+        if st.button("Save Discovery Settings", key="save_discovery_settings_button", width="stretch"):
+            discovery_queries_list = [q.strip() for q in (discovery_queries_text or "").splitlines() if q.strip()]
+            discovery_queries_json = json.dumps(discovery_queries_list) if discovery_queries_list else ""
+            if settings:
+                settings.auto_discovery_enabled = auto_discovery_enabled
+                if serpapi_key_input:
+                    settings.bing_api_key = serpapi_key_input.strip()
+                if google_api_key_input:
+                    settings.google_api_key = google_api_key_input.strip()
+                settings.google_cx = (google_cx_input or "").strip()
+                settings.discovery_queries = discovery_queries_json
+                settings.results_per_query = int(results_per_query)
+                db.session.commit()
+            else:
+                settings = AppSettings(
+                    auto_discovery_enabled=auto_discovery_enabled,
+                    bing_api_key=serpapi_key_input.strip() if serpapi_key_input else "",
+                    google_api_key=google_api_key_input.strip() if google_api_key_input else "",
+                    google_cx=(google_cx_input or "").strip(),
+                    discovery_queries=discovery_queries_json,
+                    results_per_query=int(results_per_query),
+                )
+                db.session.add(settings)
+                db.session.commit()
+            st.success("Discovery settings saved.")
+            st.rerun()
         st.markdown("---")
 
         st.subheader("Maintenance")
