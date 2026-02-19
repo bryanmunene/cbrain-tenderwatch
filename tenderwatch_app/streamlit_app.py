@@ -927,6 +927,11 @@ AFRICA_HINT_TERMS = {
     "africa", "african", "kenya", "uganda", "tanzania", "rwanda", "ghana",
     "nigeria", "south africa", "zambia", "ethiopia", "eswatini", "afdb",
 }
+AFRICA_CCTLD_TOKENS = {
+    ".ke", ".ug", ".tz", ".rw", ".za", ".gh", ".ng", ".zm", ".et", ".sz",
+    ".bw", ".mz", ".mw", ".na", ".sn", ".ci", ".cm", ".ma", ".tn", ".eg",
+    ".dz", ".ao", ".zw", ".mu",
+}
 
 
 def _norm_text(value: str) -> str:
@@ -941,15 +946,25 @@ def _matches_market_focus(tender, market_focus: str) -> bool:
     country = _norm_text(getattr(tender, "country", ""))
     buyer = _norm_text(getattr(tender, "buyer", ""))
     source = _norm_text(getattr(tender, "search_source", ""))
-    haystack = f"{country} {buyer} {source}"
+    link = _norm_text(getattr(tender, "link", ""))
+    title = _norm_text(getattr(tender, "title_translated", "") or getattr(tender, "title", ""))
+    haystack = f"{country} {buyer} {source} {title} {link}"
+    haystack_no_country = f"{buyer} {source} {title} {link}"
+    has_ke_domain = ".ke" in link
+    has_other_africa_domain = any(token in link for token in AFRICA_CCTLD_TOKENS if token != ".ke")
 
     if focus in {"kenya first", "kenya", "kenya_first"}:
-        return "kenya" in haystack
+        # Prefer URL signal over stale stored country values.
+        if has_other_africa_domain and not has_ke_domain:
+            return "kenya" in haystack_no_country
+        return has_ke_domain or ("kenya" in haystack_no_country) or (country == "kenya")
 
     if focus in {"africa first", "africa", "africa_first"}:
         if country in AFRICA_COUNTRIES:
             return True
-        return any(term in haystack for term in AFRICA_HINT_TERMS)
+        if any(term in haystack for term in AFRICA_HINT_TERMS):
+            return True
+        return any(token in link for token in AFRICA_CCTLD_TOKENS)
 
     return True
 

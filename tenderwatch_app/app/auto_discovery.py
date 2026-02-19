@@ -74,6 +74,7 @@ class NoKeyDiscoveryManager:
     def _crawl_source(self, url: str, max_per_source: int = 12) -> List[Dict]:
         out: List[Dict] = []
         seen = set()
+        source_tag = (urlparse(url).netloc or url).lower().strip()
         html = self._fetch(url)
         if not html:
             return out
@@ -100,7 +101,7 @@ class NoKeyDiscoveryManager:
                 "title": title or "Tender notice",
                 "link": link,
                 "snippet": title,
-                "source": "no_key_feed",
+                "source": source_tag or "no_key_feed",
             })
 
         # 2) Try common feed endpoints.
@@ -137,7 +138,7 @@ class NoKeyDiscoveryManager:
                         "title": title or "Tender notice",
                         "link": link,
                         "snippet": title,
-                        "source": "no_key_feed",
+                        "source": source_tag or "no_key_feed",
                     })
             except Exception:
                 continue

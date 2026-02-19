@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Dict, Iterable, List, Optional
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import requests
 import urllib3
@@ -250,7 +250,58 @@ def _utcnow():
     # Keep naive UTC to match DB columns while avoiding utcnow() deprecation.
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
+_COUNTRY_BY_CCTLD = {
+    ".ke": "Kenya",
+    ".ug": "Uganda",
+    ".tz": "Tanzania",
+    ".rw": "Rwanda",
+    ".za": "South Africa",
+    ".gh": "Ghana",
+    ".ng": "Nigeria",
+    ".zm": "Zambia",
+    ".et": "Ethiopia",
+    ".sz": "Eswatini",
+    ".bw": "Botswana",
+    ".mz": "Mozambique",
+    ".mw": "Malawi",
+    ".na": "Namibia",
+    ".sn": "Senegal",
+    ".ci": "Ivory Coast",
+    ".cm": "Cameroon",
+    ".ma": "Morocco",
+    ".tn": "Tunisia",
+    ".eg": "Egypt",
+    ".dz": "Algeria",
+    ".ao": "Angola",
+    ".zw": "Zimbabwe",
+    ".mu": "Mauritius",
+}
+
+
+def _country_from_url(url: str) -> str:
+    host = (urlparse(url).netloc or "").lower().strip()
+    if not host:
+        return ""
+    if host.startswith("www."):
+        host = host[4:]
+
+    for suffix, country in _COUNTRY_BY_CCTLD.items():
+        if host.endswith(suffix):
+            return country
+
+    if "afdb.org" in host or "trademarkafrica.com" in host:
+        return "Africa Regional"
+    return ""
+
+
 def _source_country(source_name: str, url: str):
+    # 1) Prefer domain-based country detection to avoid keyword collisions
+    # (example: "ppra" exists in Kenya and Tanzania contexts).
+    from_url = _country_from_url(url)
+    if from_url:
+        return from_url
+
+    # 2) Fallback to source/name keyword map.
     haystack = f"{source_name} {url}".lower()
     for key, country in COUNTRY_MAP.items():
         if key in haystack:
