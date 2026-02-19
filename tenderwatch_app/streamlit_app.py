@@ -1894,6 +1894,22 @@ if page == "Dashboard":
         else:
             st.info(f"Active sources: {stats['active_sources']}. Run a scan from `Scan & Results`.")
 
+    if "dashboard_market_focus" not in st.session_state:
+        st.session_state["dashboard_market_focus"] = "Africa First"
+    if st.session_state.get("dashboard_market_focus") not in MARKET_FOCUS_OPTIONS:
+        st.session_state["dashboard_market_focus"] = "Africa First"
+
+    focus_col, focus_note_col = st.columns([1.3, 3.7])
+    with focus_col:
+        dashboard_market_focus = st.selectbox(
+            "Market Focus",
+            MARKET_FOCUS_OPTIONS,
+            key="dashboard_market_focus",
+            help="Filter dashboard lists to Kenya, Africa, or global opportunities.",
+        )
+    with focus_note_col:
+        st.caption("Dashboard is now streamlined. Open the detailed panel below only when deeper analysis is needed.")
+
     c1, c2, c3, c4, c5 = st.columns(5)
 
     with c1:
@@ -1946,7 +1962,13 @@ if page == "Dashboard":
     urgent_col, fit_col = st.columns(2)
     with urgent_col:
         st.markdown("#### Upcoming Deadlines (Next 30 Days)")
-        upcoming_deadlines = get_upcoming_deadlines(limit=8, horizon_days=30)
+        upcoming_deadlines = get_upcoming_deadlines(limit=20, horizon_days=30)
+        if dashboard_market_focus != "Global Reach":
+            upcoming_deadlines = [
+                item for item in upcoming_deadlines
+                if _matches_market_focus(item[1], dashboard_market_focus)
+            ]
+        upcoming_deadlines = upcoming_deadlines[:8]
         if upcoming_deadlines:
             for _, tender, meta in upcoming_deadlines:
                 c1, c2, c3 = st.columns([6, 2, 2])
@@ -1967,6 +1989,7 @@ if page == "Dashboard":
             'min_score': 70,
             'open_only': True,
             'f2_only': True,
+            'market_focus': dashboard_market_focus,
         })[:8]
         if recent_high_fit:
             rows = []
@@ -1985,88 +2008,93 @@ if page == "Dashboard":
             st.caption("No high-fit open tenders currently. Run a fresh scan.")
 
     st.markdown("---")
-    st.subheader("Pipeline Overview")
+    with st.expander("Detailed Pipeline & Source Performance", expanded=False):
+        st.subheader("Pipeline Overview")
 
-    col_a, col_b = st.columns([2, 1])
-    with col_a:
-        recent = get_tenders({'sort_by': 'date'})[:12]
-        if recent:
-            table_rows = []
-            for tender in recent:
-                d_meta = _deadline_meta(tender.deadline)
-                table_rows.append({
-                    "Title": tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title,
-                    "Score": round(tender.score or 0, 1),
-                    "Category": tender.category or "Unclassified",
-                    "Country": tender.country or "Global",
-                    "Deadline": d_meta["label"],
-                    "Lifecycle": _lifecycle_label(tender.timing_status),
-                    "Added": tender.created_at.strftime('%Y-%m-%d') if tender.created_at else "",
-                })
-            st.dataframe(pd.DataFrame(table_rows), hide_index=True, width="stretch")
+        col_a, col_b = st.columns([2, 1])
+        with col_a:
+            recent = get_tenders({'sort_by': 'date', 'market_focus': dashboard_market_focus})[:12]
+            if recent:
+                table_rows = []
+                for tender in recent:
+                    d_meta = _deadline_meta(tender.deadline)
+                    table_rows.append({
+                        "Title": tender.title_translated if tender.title_translated and tender.title_translated != tender.title else tender.title,
+                        "Score": round(tender.score or 0, 1),
+                        "Category": tender.category or "Unclassified",
+                        "Country": tender.country or "Global",
+                        "Deadline": d_meta["label"],
+                        "Lifecycle": _lifecycle_label(tender.timing_status),
+                        "Added": tender.created_at.strftime('%Y-%m-%d') if tender.created_at else "",
+                    })
+                st.dataframe(pd.DataFrame(table_rows), hide_index=True, width="stretch")
+            else:
+                st.info("No recent tenders. Run a scan to populate your pipeline.")
+
+        with col_b:
+            st.markdown("#### Categories")
+            if recent:
+                cat_counts: Dict[str, int] = {}
+                for tender in recent:
+                    cat = tender.category or "Unclassified"
+                    cat_counts[cat] = int(cat_counts.get(cat, 0)) + 1
+                cat_df = pd.DataFrame(
+                    list(cat_counts.items()),
+                    columns=['Category', 'Count']
+                ).sort_values('Count', ascending=False)
+                st.dataframe(cat_df, hide_index=True, width="stretch")
+            else:
+                st.caption("No category distribution available yet.")
+
+        st.markdown("---")
+        st.subheader("Source Performance")
+        source_rows = get_source_performance(days=30, limit=10)
+        if source_rows:
+            weak_sources = [r for r in source_rows if _source_health(r) == "Weak"]
+            action_col1, action_col2 = st.columns([2, 5])
+            with action_col1:
+                if st.button("Disable weak sources", key="disable_weak_sources_btn", width="stretch"):
+                    disabled = 0
+                    for r in weak_sources:
+                        try:
+                            if toggle_source(r["source_id"]):
+                                disabled += 1
+                        except Exception:
+                            continue
+                    if disabled:
+                        st.success(f"Disabled {disabled} weak source(s).")
+                    else:
+                        st.info("No weak sources were disabled.")
+                    st.rerun()
+            with action_col2:
+                st.caption("Health is based on last 30 days: volume, high-fit hit rate, and average score.")
+
+            for row in source_rows:
+                health = _source_health(row)
+                c1, c2, c3, c4, c5, c6, c7 = st.columns([3.3, 0.9, 0.9, 0.9, 0.9, 0.9, 1.2])
+                with c1:
+                    st.markdown(f"**{row['source']}**")
+                    st.caption(f"Last seen: {row['last_seen']} | Health: {health}")
+                with c2:
+                    st.metric("Results", row["total"])
+                with c3:
+                    st.metric("High Fit", row["high_fit"])
+                with c4:
+                    st.metric("Hit Rate", f"{row['hit_rate']}%")
+                with c5:
+                    st.metric("Avg Score", f"{row['avg_score']}")
+                with c6:
+                    st.metric("Health", health)
+                with c7:
+                    if health == "Weak":
+                        if st.button("Disable", key=f"disable_src_{row['source_id']}", width="stretch"):
+                            if toggle_source(row["source_id"]):
+                                st.success(f"Disabled {row['source']}.")
+                                st.rerun()
+                    else:
+                        st.caption(" ")
         else:
-            st.info("No recent tenders. Run a scan to populate your pipeline.")
-
-    with col_b:
-        st.markdown("#### Categories")
-        if stats['categories']:
-            cat_df = pd.DataFrame(
-                list(stats['categories'].items()),
-                columns=['Category', 'Count']
-            ).sort_values('Count', ascending=False)
-            st.dataframe(cat_df, hide_index=True, width="stretch")
-        else:
-            st.caption("No category distribution available yet.")
-
-    st.markdown("---")
-    st.subheader("Source Performance")
-    source_rows = get_source_performance(days=30, limit=10)
-    if source_rows:
-        weak_sources = [r for r in source_rows if _source_health(r) == "Weak"]
-        action_col1, action_col2 = st.columns([2, 5])
-        with action_col1:
-            if st.button("Disable weak sources", key="disable_weak_sources_btn", width="stretch"):
-                disabled = 0
-                for r in weak_sources:
-                    try:
-                        if toggle_source(r["source_id"]):
-                            disabled += 1
-                    except Exception:
-                        continue
-                if disabled:
-                    st.success(f"Disabled {disabled} weak source(s).")
-                else:
-                    st.info("No weak sources were disabled.")
-                st.rerun()
-        with action_col2:
-            st.caption("Health is based on last 30 days: volume, high-fit hit rate, and average score.")
-
-        for row in source_rows:
-            health = _source_health(row)
-            c1, c2, c3, c4, c5, c6, c7 = st.columns([3.3, 0.9, 0.9, 0.9, 0.9, 0.9, 1.2])
-            with c1:
-                st.markdown(f"**{row['source']}**")
-                st.caption(f"Last seen: {row['last_seen']} | Health: {health}")
-            with c2:
-                st.metric("Results", row["total"])
-            with c3:
-                st.metric("High Fit", row["high_fit"])
-            with c4:
-                st.metric("Hit Rate", f"{row['hit_rate']}%")
-            with c5:
-                st.metric("Avg Score", f"{row['avg_score']}")
-            with c6:
-                st.metric("Health", health)
-            with c7:
-                if health == "Weak":
-                    if st.button("Disable", key=f"disable_src_{row['source_id']}", width="stretch"):
-                        if toggle_source(row["source_id"]):
-                            st.success(f"Disabled {row['source']}.")
-                            st.rerun()
-                else:
-                    st.caption(" ")
-    else:
-        st.caption("No source activity yet in the last 30 days.")
+            st.caption("No source activity yet in the last 30 days.")
 
 elif page == "Scan & Results":
     st.title("Tender Radar")
