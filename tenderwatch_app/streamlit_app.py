@@ -489,6 +489,60 @@ st.markdown(f"""
         border-color: {'#2d5965' if st.session_state.theme == 'dark' else '#bcddec'};
     }}
 
+    .scan-hero {{
+        border: 1px solid var(--border-color);
+        border-radius: 14px;
+        padding: 0.95rem 1rem;
+        margin-bottom: 0.8rem;
+        background:
+            radial-gradient(400px 120px at 8% -30%, rgba(61,139,253,0.22), transparent 70%),
+            radial-gradient(300px 140px at 92% -40%, rgba(56,189,248,0.16), transparent 72%),
+            linear-gradient(120deg, rgba(16,32,55,0.92) 0%, rgba(13,25,45,0.92) 100%);
+    }}
+
+    .scan-hero-title {{
+        margin: 0;
+        color: #ecf3ff;
+        font-size: 1.08rem;
+        font-weight: 680;
+        letter-spacing: 0.01em;
+    }}
+
+    .scan-hero-sub {{
+        margin-top: 0.32rem;
+        color: #b9c9e1;
+        font-size: 0.86rem;
+        line-height: 1.4;
+    }}
+
+    .section-kicker {{
+        color: var(--text-secondary);
+        font-size: 0.76rem;
+        font-weight: 640;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 0.25rem;
+    }}
+
+    .st-key-preset_kenya button,
+    .st-key-preset_africa button,
+    .st-key-preset_global button {{
+        border: 1px solid rgba(148, 163, 184, 0.35) !important;
+        background: rgba(29, 78, 216, 0.18) !important;
+    }}
+
+    .st-key-preset_kenya button:hover,
+    .st-key-preset_africa button:hover,
+    .st-key-preset_global button:hover {{
+        background: rgba(59, 130, 246, 0.28) !important;
+    }}
+
+    .quick-preset-note {{
+        color: var(--text-secondary);
+        font-size: 0.78rem;
+        margin-top: 0.25rem;
+    }}
+
     .result-card {{
         border: 1px solid var(--border-color);
         border-radius: 14px;
@@ -856,6 +910,50 @@ def _lifecycle_label(value: str) -> str:
     return mapping.get((value or "").strip().lower(), "Open")
 
 
+MARKET_FOCUS_OPTIONS = ["Kenya First", "Africa First", "Global Reach"]
+AFRICA_COUNTRIES = {
+    "algeria", "angola", "benin", "botswana", "burkina faso", "burundi", "cabo verde",
+    "cameroon", "central african republic", "chad", "comoros", "congo",
+    "democratic republic of the congo", "djibouti", "egypt", "equatorial guinea",
+    "eritrea", "eswatini", "ethiopia", "gabon", "gambia", "ghana", "guinea",
+    "guinea-bissau", "ivory coast", "cote d ivoire", "kenya", "lesotho", "liberia",
+    "libya", "madagascar", "malawi", "mali", "mauritania", "mauritius", "morocco",
+    "mozambique", "namibia", "niger", "nigeria", "rwanda", "sao tome and principe",
+    "senegal", "seychelles", "sierra leone", "somalia", "south africa",
+    "south sudan", "sudan", "tanzania", "togo", "tunisia", "uganda", "zambia",
+    "zimbabwe",
+}
+AFRICA_HINT_TERMS = {
+    "africa", "african", "kenya", "uganda", "tanzania", "rwanda", "ghana",
+    "nigeria", "south africa", "zambia", "ethiopia", "eswatini", "afdb",
+}
+
+
+def _norm_text(value: str) -> str:
+    return (value or "").strip().lower()
+
+
+def _matches_market_focus(tender, market_focus: str) -> bool:
+    focus = _norm_text(market_focus)
+    if not focus or focus in {"all", "global reach", "global", "worldwide"}:
+        return True
+
+    country = _norm_text(getattr(tender, "country", ""))
+    buyer = _norm_text(getattr(tender, "buyer", ""))
+    source = _norm_text(getattr(tender, "search_source", ""))
+    haystack = f"{country} {buyer} {source}"
+
+    if focus in {"kenya first", "kenya", "kenya_first"}:
+        return "kenya" in haystack
+
+    if focus in {"africa first", "africa", "africa_first"}:
+        if country in AFRICA_COUNTRIES:
+            return True
+        return any(term in haystack for term in AFRICA_HINT_TERMS)
+
+    return True
+
+
 STRICT_F2_STATUSES = {"true", "strategic", "discuss", "conditional"}
 NOISY_TITLE_HINTS = (
     "clarification",
@@ -894,13 +992,24 @@ GENERIC_KEYWORD_BLOCKLIST = {
     "unavailable",
     "keyword unavailable",
     "keyword: unavailable",
+    # Generic broad-capture terms (too weak on their own)
+    "ict",
+    "digital",
+    "digitization",
+    "digitalization",
+    "platform",
+    "software",
+    "automation",
+    "application",
+    "information system",
+    "enterprise system",
 }
 
 
 def _keyword_count(matched: str) -> int:
     if not matched:
         return 0
-    return len([k for k in (p.strip() for p in matched.split(",")) if k])
+    return len(_keyword_list(matched, fallback_text="", limit=50))
 
 
 def _keyword_list(matched: str, fallback_text: str = "", limit: int = 8):
@@ -1043,54 +1152,62 @@ def _passes_strict_quality(tender, min_score: int = 35) -> bool:
 def init_db(perform_translation=False):
     """Initialize database with app context"""
     with app.app_context():
-        # Validated baseline (live-audited: reachable + parseable tender links).
+        # Curated baseline focused on Kenya/Africa first, then global.
         # tuple format: (name, url, favorite, active_by_default)
         default_sources_data = [
+            # Kenya (primary market)
+            ("Kenya PPIP", "https://tenders.go.ke/website/tenders/all", True, True),
+            ("ICT Authority", "https://icta.go.ke/tenders/", True, True),
+            ("KEMSA Tenders", "https://www.kemsa.co.ke/tenders/", True, True),
+            ("KRA Tenders", "https://www.kra.go.ke/en/tenders", True, True),
+            ("KAA Procurement", "https://www.kaa.go.ke/business-opportunities/procurement/", True, True),
+            ("KETRACO Tenders", "https://www.ketraco.co.ke/procurement/tenders/open-tenders", True, True),
+            ("KPA Tenders", "https://kpa.co.ke/procurement/", True, True),
+            ("Kenya Railways", "https://krc.co.ke/tenders/", True, True),
+            ("NTSA Tenders", "https://ntsa.go.ke/tenders/", False, True),
+            ("CAK Tenders", "https://cak.go.ke/tenders", False, True),
+            ("KEBS Tenders", "https://www.kebs.org/index.php?option=com_content&view=article&id=190", False, True),
+            ("CBK Tenders", "https://www.centralbank.go.ke/tenders/", False, True),
+            ("NEMA Tenders", "https://www.nema.go.ke/index.php/tenders", False, True),
+
+            # Africa focus (including cBrain presence regions)
+            ("South Africa eTender", "https://www.etenders.gov.za/", True, True),
+            ("Uganda PPDA", "https://www.ppda.go.ug/", True, True),
+            ("Tanzania PPRA", "https://www.ppra.go.tz/", True, True),
+            ("Nigeria BPP", "https://www.bpp.gov.ng/", True, True),
+            ("Nigeria BPP P-COMS", "https://pcoms.bpp.gov.ng/", False, True),
+            ("Ghana PPA", "https://ppa.gov.gh/", True, True),
+            ("GHANEPS", "https://www.ghaneps.gov.gh/", True, True),
+            ("Zambia ZPPA", "https://www.zppa.org.zm/", False, True),
+            ("Rwanda RPPA", "https://www.rppa.gov.rw/", False, False),
+            ("TradeMark Africa Procurement", "https://trademarkafrica.com/procurement/", True, True),
+            ("AfDB Procurement", "https://www.afdb.org/en/projects-and-operations/procurement", True, True),
+            ("Eswatini SPPRA", "https://www.sppra.co.sz", False, True),
+
+            # Global official sources (including cBrain footprint markets)
             ("UNDP Procurement Notices", "https://procurement-notices.undp.org/", True, True),
             ("UN Global Marketplace", "https://www.ungm.org/Public/Notice", True, True),
             ("UNOPS Opportunities", "https://www.unops.org/business-opportunities", True, True),
             ("World Bank Procurement", "https://projects.worldbank.org/en/projects-operations/procurement", True, True),
-            ("TED Europa Tenders", "https://ted.europa.eu/en/search/result", True, True),
-            ("UK Find a Tender", "https://www.find-tender.service.gov.uk/Search", True, True),
+            ("DevBusiness (World Bank)", "https://devbusiness.un.org/", True, True),
             ("WFP Procurement", "https://www.wfp.org/procurement", False, True),
             ("WHO Procurement", "https://www.who.int/about/accountability/procurement", False, True),
             ("FAO Procurement", "https://www.fao.org/unfao/procurement/", False, True),
             ("ILO Procurement", "https://www.ilo.org/procurement/", False, True),
-            ("Uganda PPDA", "https://www.ppda.go.ug/", True, True),
-            ("Tanzania PPRA", "https://www.ppra.go.tz/", True, True),
-            ("Nigeria BPP", "https://www.bpp.gov.ng/", True, True),
-            ("South Africa eTender", "https://www.etenders.gov.za/", True, True),
-            ("New Zealand GETS", "https://www.gets.govt.nz/ExternalIndex.htm", False, True),
-            ("Philippines PhilGEPS", "https://www.philgeps.gov.ph/", False, True),
-            ("ICT Authority", "https://icta.go.ke/tenders/", True, True),
-            ("Kenya Public Procurement Portal", "https://tenders.go.ke/", True, True),
-            ("Kenya PPIP", "https://tenders.go.ke/website/tenders/all", True, True),
-            ("EU Funding & Tenders", "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-search", False, True),
-            ("DFFE Tenders (South Africa)", "https://www.dffe.gov.za/tenders", True, True),
-            ("TradeMark Africa Procurement", "https://trademarkafrica.com/procurement/", True, True),
-            ("Eswatini SPPRA", "https://www.sppra.co.sz", True, True),
-            ("Tender Yetu Platform", "https://www.tenderyetu.com/", False, False),
-            ("Singapore GeBIZ", "https://www.gebiz.gov.sg/", True, True),
-            ("KEMSA Tenders", "https://www.kemsa.co.ke/tenders/", True, True),
-            ("NSSF Tenders", "https://www.nssf.or.ke/tenders", True, True),
-            ("MyGov Kenya", "https://www.mygov.go.ke/?s=tender", True, True),
-            # Broader global/official catalog (disabled by default; enable in Sources tab as needed).
-            ("ADB Procurement", "https://www.adb.org/business/procurement", False, False),
-            ("AfDB Procurement", "https://www.afdb.org/en/projects-and-operations/procurement", False, False),
-            ("EBRD Procurement", "https://www.ebrd.com/work-with-us/procurement.html", False, False),
-            ("IsDB Procurement", "https://www.isdb.org/procurement", False, False),
-            ("DevBusiness (World Bank)", "https://devbusiness.un.org/", False, False),
-            ("Canada Buyandsell", "https://canadabuys.canada.ca/en/tender-opportunities", False, False),
-            ("Germany BUND", "https://www.service.bund.de/Content/EN/Ausschreibungen/Suche/Formular.html", False, False),
-            ("Netherlands TenderNed", "https://www.tenderned.nl/aankondigingen/overzicht", False, False),
-            ("Australia AusTender", "https://www.tenders.gov.au/", False, False),
+            ("TED Europa Tenders", "https://ted.europa.eu/en/search/result", True, True),
+            ("UK Find a Tender", "https://www.find-tender.service.gov.uk/Search", True, True),
+            ("Denmark Udbud", "https://udbud.dk/", False, True),
+            ("Germany BUND", "https://www.service.bund.de/Content/DE/Ausschreibungen/Suche/Formular.html", False, False),
             ("France BOAMP", "https://www.boamp.fr/", False, False),
-            ("Rwanda RPPA", "https://www.rppa.gov.rw/", False, False),
-            ("Kenya eTender", "https://supplier.treasury.go.ke/", False, False),
-            ("KRA Tenders", "https://www.kra.go.ke/en/tenders", False, False),
-            ("KAA Procurement", "https://www.kaa.go.ke/business-opportunities/procurement/", False, False),
-            ("KETRACO Tenders", "https://www.ketraco.co.ke/tenders", False, False),
-            ("KPA Tenders", "https://kpa.co.ke/procurement/", False, False),
+            ("SAM.gov (US Federal)", "https://sam.gov/search/?index=opp&page=1&sort=-modifiedDate", False, False),
+            ("Australia AusTender", "https://www.tenders.gov.au/", False, False),
+            ("India CPPP", "https://eprocure.gov.in/eprocure/app", False, False),
+            ("Singapore GeBIZ", "https://www.gebiz.gov.sg/", False, False),
+            ("EU Funding & Tenders", "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-search", False, False),
+            ("Commonwealth Secretariat Procurement", "https://thecommonwealth.org/procurement", False, True),
+            ("IDB Procurement Projects", "https://www.iadb.org/en/how-we-can-work-together/procurement/procurement-projects", False, True),
+            ("AIIB Project Procurement", "https://www.aiib.org/en/opportunities/business/project-procurement/index.html", False, True),
+            ("EIB Procurement Calls", "https://www.eib.org/en/about/procurement/all/index.htm", False, True),
         ]
         low_signal_sources = {
             "DgMarket",
@@ -1099,6 +1216,51 @@ def init_db(perform_translation=False):
             "Tendersinfo Kenya",
             "BidDetail",
             "Tender Yetu Platform",
+            "MyGov Kenya",
+            "DevEx Funding",
+            "ReliefWeb Jobs",
+            "TenderNews",
+            "TendersOnTime",
+        }
+        low_signal_domains = (
+            "dgmarket",
+            "globaltenders",
+            "tendersinfo",
+            "tenderyetu",
+            "opentender",
+            "devex.com/funding",
+            "reliefweb.int/jobs",
+            "tendernews",
+            "tendersontime",
+        )
+        hard_block_sources = {
+            "MyGov Kenya",
+            "Tender Yetu Platform",
+            "DgMarket",
+            "Global Tenders",
+            "Tenders Info",
+            "Tendersinfo Kenya",
+            "BidDetail",
+        }
+        hard_block_domains = (
+            "tenderyetu",
+            "mygov.go.ke/?s=tender",
+            "dgmarket",
+            "globaltenders",
+            "tendersinfo",
+            "biddetail",
+            "opentender",
+        )
+        url_replacements = {
+            "https://www.ppda.or.ug/": "https://www.ppda.go.ug/",
+            "https://tenders.go.ke/": "https://tenders.go.ke/website/tenders/all",
+            "https://www.kaa.go.ke/corporate/procurement/": "https://www.kaa.go.ke/business-opportunities/procurement/",
+            "https://www.kpa.co.ke/Tenders/Pages/default.aspx": "https://kpa.co.ke/procurement/",
+            "https://www.ntsa.go.ke/tenders/": "https://ntsa.go.ke/tenders/",
+            "https://ppaghana.org/tenders.asp": "https://ppa.gov.gh/",
+            "https://www.ketraco.co.ke/tenders": "https://www.ketraco.co.ke/procurement/tenders/open-tenders",
+            "https://www.kengen.co.ke/index.php/procurement.html": "https://www.kengen.co.ke/",
+            "https://www.service.bund.de/Content/EN/Ausschreibungen/Suche/Formular.html": "https://www.service.bund.de/Content/DE/Ausschreibungen/Suche/Formular.html",
         }
         
         # Add missing sources (check by URL to avoid duplicates)
@@ -1124,15 +1286,50 @@ def init_db(perform_translation=False):
             db.session.commit()
             print(f" Added {added_count} new tender sources")
 
+        # Normalize known outdated source URLs.
+        updated_urls = 0
+        for source in TenderSource.query.all():
+            src_url = _canonicalize_url(source.url)
+            for old_url, new_url in url_replacements.items():
+                if src_url == _canonicalize_url(old_url):
+                    source.url = new_url
+                    updated_urls += 1
+                    break
+        if updated_urls > 0:
+            db.session.commit()
+            print(f" Updated {updated_urls} source URL(s) to current official endpoints")
+
         # Keep noisy aggregators available, but disabled by default.
         disabled_count = 0
         for source in TenderSource.query.all():
-            if source.name in low_signal_sources and source.active and not source.favorite:
+            name_low = (source.name or "").strip()
+            url_low = (source.url or "").lower()
+            is_low_signal = (
+                name_low in low_signal_sources
+                or any(dom in url_low for dom in low_signal_domains)
+            )
+            if is_low_signal and source.active and not source.favorite:
                 source.active = False
                 disabled_count += 1
         if disabled_count > 0:
             db.session.commit()
             print(f"Disabled {disabled_count} low-signal sources by default")
+
+        # Strictly disable known non-official/aggregator endpoints even if favorited previously.
+        blocked_count = 0
+        for source in TenderSource.query.all():
+            name_low = (source.name or "").strip()
+            url_low = (source.url or "").lower()
+            is_blocked = (
+                name_low in hard_block_sources
+                or any(dom in url_low for dom in hard_block_domains)
+            )
+            if is_blocked and source.active:
+                source.active = False
+                blocked_count += 1
+        if blocked_count > 0:
+            db.session.commit()
+            print(f"Strict-disabled {blocked_count} blocked source(s)")
         
         # Optional translation pass (throttled by caller).
         if perform_translation:
@@ -1263,6 +1460,12 @@ def get_tenders(filters=None, days_window=30, created_after=None):
             query = query.order_by(TenderResult.deadline.asc())
 
         tenders = query.all()
+
+        if filters:
+            market_focus = filters.get("market_focus")
+            if market_focus and market_focus != "All":
+                tenders = [t for t in tenders if _matches_market_focus(t, market_focus)]
+
         include_expired = bool(filters.get("include_expired", False)) if filters else False
         if not include_expired:
             tenders = _exclude_expired_tenders(tenders)
@@ -1270,9 +1473,15 @@ def get_tenders(filters=None, days_window=30, created_after=None):
         if not include_no_deadline:
             tenders = _exclude_stale_no_deadline_tenders(tenders)
 
-        if filters and filters.get("f2_only") and filters.get("strict_quality", True):
-            strict_min_score = int(filters.get("strict_min_score", 35) or 35)
-            tenders = [t for t in tenders if _passes_strict_quality(t, min_score=strict_min_score)]
+        if filters and filters.get("strict_quality", True):
+            # Always hide explicitly excluded/no-go opportunities in strict view.
+            tenders = [
+                t for t in tenders
+                if (getattr(t, "likely_fit_for_f2", "") or "").strip().lower() not in {"excluded", "no-go"}
+            ]
+            if filters.get("f2_only"):
+                strict_min_score = int(filters.get("strict_min_score", 40) or 40)
+                tenders = [t for t in tenders if _passes_strict_quality(t, min_score=strict_min_score)]
 
         # ML blending for score-sorted lists.
         if sort_by == "score":
@@ -1559,6 +1768,49 @@ def run_tender_scan(scan_depth="fast", discovery_mode="f2_ranked"):
     print(f"[DEBUG] run_tender_scan: Found {len(new_tenders)} new tenders in {elapsed:.1f}s.")
     return new_tenders
 
+
+def _apply_scan_preset(preset: str) -> None:
+    preset_key = (preset or "").strip().lower()
+    presets = {
+        "kenya_sprint": {
+            "scan_market_focus": "Kenya First",
+            "scan_sort_by": "score",
+            "scan_min_score": 40,
+            "scan_f2_only": True,
+            "scan_open_only": True,
+            "scan_deadline_window": "Next 30 days",
+            "scan_strict_quality": True,
+            "scan_allow_broad_fallback": False,
+        },
+        "africa_pipeline": {
+            "scan_market_focus": "Africa First",
+            "scan_sort_by": "score",
+            "scan_min_score": 40,
+            "scan_f2_only": True,
+            "scan_open_only": True,
+            "scan_deadline_window": "All",
+            "scan_strict_quality": True,
+            "scan_allow_broad_fallback": False,
+        },
+        "global_scout": {
+            "scan_market_focus": "Global Reach",
+            "scan_sort_by": "date",
+            "scan_min_score": 0,
+            "scan_f2_only": True,
+            "scan_open_only": False,
+            "scan_deadline_window": "All",
+            "scan_strict_quality": False,
+            "scan_allow_broad_fallback": True,
+        },
+    }
+    values = presets.get(preset_key)
+    if not values:
+        return
+    for k, v in values.items():
+        st.session_state[k] = v
+    if st.session_state.get("results_mode") == "fresh":
+        st.session_state["results_mode"] = "historical"
+
 # Initialize database once per user session
 bootstrap_once()
 
@@ -1566,7 +1818,13 @@ bootstrap_once()
 with st.sidebar:
     st.title("TenderWatch")
     st.markdown("**cBrain F2 TenderWatch**")
+    st.caption("Kenya and Africa first. Global expansion ready.")
     st.markdown("---")
+
+    def _queue_sidebar_nav(target_page: str) -> None:
+        """Queue sidebar navigation for next rerun to avoid mutating radio state post-render."""
+        if target_page in NAV_PAGES:
+            st.session_state["_pending_sidebar_page"] = target_page
 
     requested_nav_raw = _qp_value("nav", "").strip().lower()
     requested_nav = NAV_QUERY_MAP.get(requested_nav_raw)
@@ -1576,6 +1834,9 @@ with st.sidebar:
     if requested_nav and st.session_state.get("_last_nav_request_key") != nav_request_key:
         st.session_state["sidebar_page"] = requested_nav
         st.session_state["_last_nav_request_key"] = nav_request_key
+    pending_nav = st.session_state.pop("_pending_sidebar_page", None)
+    if pending_nav in NAV_PAGES:
+        st.session_state["sidebar_page"] = pending_nav
 
     page = st.radio(
         "Navigation",
@@ -1586,7 +1847,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    st.caption("2026 cBrain TenderWatch | build 2026-02-16b")
+    st.caption("2026 cBrain TenderWatch | build 2026-02-17c")
 
 # Main content based on selected page
 if page == "Dashboard":
@@ -1615,7 +1876,7 @@ if page == "Dashboard":
     with c1:
         label = f"TOTAL OPPORTUNITIES\n{stats['total']}\n{stats.get('delta_total') or ''}"
         if st.button(label, key="kpi_total", width="stretch"):
-            st.session_state["sidebar_page"] = "Scan & Results"
+            _queue_sidebar_nav("Scan & Results")
             st.session_state["results_mode"] = "historical"
             st.session_state["scan_sort_by"] = "date"
             st.session_state["scan_min_score"] = 0
@@ -1626,7 +1887,7 @@ if page == "Dashboard":
     with c2:
         label = f"HIGH FIT (>=70)\n{stats['high_score']}\n{stats.get('delta_high_score') or ''}"
         if st.button(label, key="kpi_high_fit", width="stretch"):
-            st.session_state["sidebar_page"] = "Scan & Results"
+            _queue_sidebar_nav("Scan & Results")
             st.session_state["results_mode"] = "historical"
             st.session_state["scan_sort_by"] = "score"
             st.session_state["scan_min_score"] = 70
@@ -1637,7 +1898,7 @@ if page == "Dashboard":
     with c3:
         label = f"DEADLINES IN 7 DAYS\n{stats.get('upcoming_7d', 0)}\n"
         if st.button(label, key="kpi_deadline_7d", width="stretch"):
-            st.session_state["sidebar_page"] = "Scan & Results"
+            _queue_sidebar_nav("Scan & Results")
             st.session_state["results_mode"] = "historical"
             st.session_state["scan_sort_by"] = "deadline"
             st.session_state["scan_deadline_window"] = "Next 7 days"
@@ -1647,13 +1908,13 @@ if page == "Dashboard":
     with c4:
         label = f"SAVED\n{stats['saved']}\n{stats.get('delta_saved') or ''}"
         if st.button(label, key="kpi_saved", width="stretch"):
-            st.session_state["sidebar_page"] = "Saved"
+            _queue_sidebar_nav("Saved")
             st.rerun()
 
     with c5:
         label = f"FAVORITES\n{stats['favorites']}\n{stats.get('delta_favorites') or ''}"
         if st.button(label, key="kpi_favorites", width="stretch"):
-            st.session_state["sidebar_page"] = "Favorites"
+            _queue_sidebar_nav("Favorites")
             st.rerun()
 
     st.markdown("---")
@@ -1785,7 +2046,7 @@ if page == "Dashboard":
         st.caption("No source activity yet in the last 30 days.")
 
 elif page == "Scan & Results":
-    st.title("Scan & Results")
+    st.title("Tender Radar")
     if "results_mode" not in st.session_state:
         st.session_state["results_mode"] = "fresh"  # fresh | session_scan | historical
     if "scan_anchor_utc" not in st.session_state:
@@ -1928,25 +2189,59 @@ elif page == "Scan & Results":
                 st.session_state['selected_tender'] = None
     else:
         # Normal scan & results view
-        col1, col2 = st.columns([3, 1])
-    
-        with col1:
-            st.markdown("Scan and review opportunities.")
-     
-        with col2:
+        st.markdown(
+            """
+            <div class="scan-hero">
+                <div class="scan-hero-title">Tender Command Center</div>
+                <div class="scan-hero-sub">
+                    Run scans, pick market focus, and review only opportunities relevant to cBrain F2.
+                    Kenya and Africa are prioritized, with global expansion one click away.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        preset1, preset2, preset3 = st.columns(3)
+        with preset1:
+            if st.button("Kenya Sprint", key="preset_kenya", width="stretch"):
+                _apply_scan_preset("kenya_sprint")
+                st.rerun()
+        with preset2:
+            if st.button("Africa Pipeline", key="preset_africa", width="stretch"):
+                _apply_scan_preset("africa_pipeline")
+                st.rerun()
+        with preset3:
+            if st.button("Global Scout", key="preset_global", width="stretch"):
+                _apply_scan_preset("global_scout")
+                st.rerun()
+        st.markdown(
+            "<div class='quick-preset-note'>Presets update filters instantly so your team can switch context without reconfiguring the page.</div>",
+            unsafe_allow_html=True,
+        )
+
+        ctl1, ctl2, ctl3, ctl4 = st.columns([1.2, 1.4, 1.1, 1.1])
+        with ctl1:
+            st.markdown("<div class='section-kicker'>Scan Depth</div>", unsafe_allow_html=True)
             scan_depth = st.selectbox(
                 "Scan Depth",
                 ["fast", "balanced", "full"],
                 index=0,
-                help="Fast: top priority sources only. Balanced: broader coverage. Full: all active sources + translation."
+                label_visibility="collapsed",
+                help="Fast: priority sources. Balanced: broader coverage. Full: all active sources + translation.",
             )
+        with ctl2:
+            st.markdown("<div class='section-kicker'>Discovery</div>", unsafe_allow_html=True)
             discovery_mode_label = st.selectbox(
                 "Discovery Mode",
                 ["F2-ranked", "Manual-like"],
-                index=1,
-                help="F2-ranked: stricter qualification. Manual-like: broader keyword discovery like portal searches."
+                index=0,
+                label_visibility="collapsed",
+                help="F2-ranked is stricter and cleaner. Manual-like is broader for scouting.",
             )
             discovery_mode = "manual_like" if discovery_mode_label == "Manual-like" else "f2_ranked"
+        with ctl3:
+            st.markdown("<div class='section-kicker'>Action</div>", unsafe_allow_html=True)
             if st.button("Run Scan", key="top_scan_button", type="primary", width="stretch"):
                 scan_anchor = _utcnow()
                 started = time.time()
@@ -1965,21 +2260,22 @@ elif page == "Scan & Results":
                     st.session_state["scan_anchor_utc"] = scan_anchor
                     st.success(f"Scan completed. Found {len(new_tenders)} new tenders.")
                 else:
-                    # Avoid blank page after a zero-new scan; show latest known results.
                     st.session_state["results_mode"] = "historical"
                     st.session_state["scan_anchor_utc"] = None
                     st.info("Scan completed with no new tenders. Showing latest available results.")
                 st.rerun()
-            if st.button("Load Historical Results", key="load_historical_button", width="stretch"):
+        with ctl4:
+            st.markdown("<div class='section-kicker'>View</div>", unsafe_allow_html=True)
+            if st.button("Historical", key="load_historical_button", width="stretch"):
                 st.session_state["results_mode"] = "historical"
                 st.session_state["scan_anchor_utc"] = None
                 st.rerun()
             if st.session_state.get("results_mode") != "fresh":
-                if st.button("Start Fresh View", key="start_fresh_results_button", width="stretch"):
+                if st.button("Fresh", key="start_fresh_results_button", width="stretch"):
                     st.session_state["results_mode"] = "fresh"
                     st.session_state["scan_anchor_utc"] = None
                     st.rerun()
-    
+
         st.markdown("---")
 
         results_mode = st.session_state.get("results_mode", "fresh")
@@ -2021,111 +2317,130 @@ elif page == "Scan & Results":
                     help="Download all tenders as CSV"
                 )
     
-        # Row 1: Score, Category, Sort, Search
-        col1, col2, col3, col4 = st.columns(4)
+        all_tenders = get_tenders()
+        categories = ["All"] + sorted(list(set([t.category for t in all_tenders if t.category]))) if all_tenders else ["All"]
+        countries = ["All"] + sorted(list(set([t.country for t in all_tenders if t.country and t.country != "Unknown"]))) if all_tenders else ["All"]
 
-        with col1:
-            all_tenders = get_tenders()
-            categories = ["All"] + sorted(list(set([t.category for t in all_tenders if t.category]))) if all_tenders else ["All"]
-            qp_category = _qp_value("category", "All")
-            if qp_category not in categories:
-                qp_category = "All"
-            if st.session_state.get("scan_category") != qp_category:
-                st.session_state["scan_category"] = qp_category
-            category = st.selectbox("Category", categories, key="scan_category")
+        if "scan_market_focus" not in st.session_state:
+            st.session_state["scan_market_focus"] = _qp_value("focus", "Africa First")
+        if st.session_state.get("scan_market_focus") not in MARKET_FOCUS_OPTIONS:
+            st.session_state["scan_market_focus"] = "Africa First"
 
-        with col2:
-            sort_options = ["score", "date", "deadline"]
-            qp_sort = _qp_value("sort", "score")
-            if qp_sort not in sort_options:
-                qp_sort = "score"
-            if st.session_state.get("scan_sort_by") != qp_sort:
-                st.session_state["scan_sort_by"] = qp_sort
-            sort_by = st.selectbox("Sort By", sort_options, key="scan_sort_by")
+        qp_search = _qp_value("search", "")
+        if st.session_state.get("scan_search") is None:
+            st.session_state["scan_search"] = qp_search
 
-        with col3:
-            qp_search = _qp_value("search", "")
-            if st.session_state.get("scan_search") != qp_search:
-                st.session_state["scan_search"] = qp_search
-            search = st.text_input("Search", placeholder="Search titles...", help="Search in tender titles", key="scan_search")
+        sort_options = ["score", "date", "deadline"]
+        qp_sort = _qp_value("sort", "score")
+        if qp_sort not in sort_options:
+            qp_sort = "score"
+        if st.session_state.get("scan_sort_by") not in sort_options:
+            st.session_state["scan_sort_by"] = qp_sort
 
-        with col4:
-            min_score_options = [0, 40, 70, 85]
-            qp_min_score = _qp_int("min_score", 0)
-            if qp_min_score not in min_score_options:
-                qp_min_score = 0
-            if st.session_state.get("scan_min_score") != qp_min_score:
-                st.session_state["scan_min_score"] = qp_min_score
-            min_score = st.selectbox("Min Score", min_score_options, key="scan_min_score")
-        
-        # Row 2: Priority, Procurement, Lifecycle, Country, F2 Fit, Toggles
-        col5, col6, col7, col8, col9, col10, col11, col12 = st.columns(8)
-        
-        with col5:
-            priority_options = ["All", "HIGH", "MEDIUM", "LOW", "STRATEGIC", "CONDITIONAL", "LOCKED"]
-            priority_filter = st.selectbox("Priority", priority_options, help="Filter by F2 priority level")
-        
-        with col6:
-            status_options = ["All", "open", "locked", "locked_but_open", "conditional_nogo", "conditional_strategic", "conditional_discuss"]
-            status_filter = st.selectbox("Procurement Status", status_options, help="Filter by platform lock-in status")
-        
-        with col7:
-            lifecycle_options = ["All", "open", "pre_notice", "clarification", "awarded", "cancelled"]
-            lifecycle_filter = st.selectbox("Lifecycle", lifecycle_options, help="Tender lifecycle status")
+        min_score_options = [0, 40, 70, 85]
+        qp_min_score = _qp_int("min_score", 40)
+        if qp_min_score not in min_score_options:
+            qp_min_score = 40
+        if st.session_state.get("scan_min_score") not in min_score_options:
+            st.session_state["scan_min_score"] = qp_min_score
 
-        with col8:
-            countries = ["All"] + sorted(list(set([t.country for t in all_tenders if t.country and t.country != "Unknown"]))) if all_tenders else ["All"]
-            country_filter = st.selectbox("Country", countries, help="Filter by country")
-
-        with col9:
-            f2_fit_options = ["All", "true", "strategic", "discuss", "uncertain", "conditional", "no-go"]
-            f2_fit_filter = st.selectbox("F2 Fit", f2_fit_options, help="Filter by F2 fit likelihood")
-
-        with col10:
-            qp_f2_only = _qp_bool("f2_only", False)
-            if st.session_state.get("scan_f2_only") != qp_f2_only:
-                st.session_state["scan_f2_only"] = qp_f2_only
-            f2_only = st.checkbox("F2-only", key="scan_f2_only", help="Show only F2-relevant tenders.")
-
-        with col11:
-            qp_open_only = _qp_bool("open_only", False)
-            if st.session_state.get("scan_open_only") != qp_open_only:
-                st.session_state["scan_open_only"] = qp_open_only
-            open_only = st.checkbox("Open-only", key="scan_open_only", help="Hide locked or no-go opportunities.")
-
-        with col12:
-            deadline_window_options = ["All", "Next 7 days", "Next 14 days", "Next 30 days", "No deadline"]
-            qp_deadline_window = _qp_value("deadline_window", "All")
-            if qp_deadline_window not in deadline_window_options:
-                qp_deadline_window = "All"
-            if st.session_state.get("scan_deadline_window") != qp_deadline_window:
-                st.session_state["scan_deadline_window"] = qp_deadline_window
-            deadline_window = st.selectbox(
-                "Deadline Window",
-                deadline_window_options,
-                key="scan_deadline_window",
-                help="Filter tenders by submission deadline window."
-            )
+        deadline_window_options = ["All", "Next 7 days", "Next 14 days", "Next 30 days", "No deadline"]
+        if st.session_state.get("scan_deadline_window") not in deadline_window_options:
+            st.session_state["scan_deadline_window"] = _qp_value("deadline_window", "All")
+            if st.session_state["scan_deadline_window"] not in deadline_window_options:
+                st.session_state["scan_deadline_window"] = "All"
 
         active_discovery_mode = st.session_state.get("last_scan_info", {}).get("discovery_mode", "f2_ranked")
         manual_like_view = active_discovery_mode == "manual_like"
 
-        col13, col14 = st.columns(2)
-        with col13:
+        if "scan_f2_only" not in st.session_state:
+            st.session_state["scan_f2_only"] = _qp_bool("f2_only", True)
+        if "scan_open_only" not in st.session_state:
+            st.session_state["scan_open_only"] = _qp_bool("open_only", True)
+        if "scan_strict_quality" not in st.session_state:
+            st.session_state["scan_strict_quality"] = not manual_like_view
+        if "scan_allow_broad_fallback" not in st.session_state:
+            st.session_state["scan_allow_broad_fallback"] = False
+        if st.session_state.get("scan_category") not in categories:
+            st.session_state["scan_category"] = "All"
+
+        # Essential controls
+        ec1, ec2, ec3, ec4, ec5 = st.columns(5)
+        with ec1:
+            market_focus = st.selectbox(
+                "Market Focus",
+                MARKET_FOCUS_OPTIONS,
+                key="scan_market_focus",
+                help="Prioritize Kenya, Africa-wide opportunities, or open global coverage.",
+            )
+        with ec2:
+            search = st.text_input(
+                "Search",
+                placeholder="Search titles or descriptions...",
+                key="scan_search",
+            )
+        with ec3:
+            sort_by = st.selectbox("Sort By", sort_options, key="scan_sort_by")
+        with ec4:
+            min_score = st.selectbox("Min Score", min_score_options, key="scan_min_score")
+        with ec5:
+            deadline_window = st.selectbox(
+                "Deadline Window",
+                deadline_window_options,
+                key="scan_deadline_window",
+            )
+
+        tc1, tc2, tc3, tc4 = st.columns(4)
+        with tc1:
+            f2_only = st.checkbox("F2-only", key="scan_f2_only", help="Show F2-relevant tenders only.")
+        with tc2:
+            open_only = st.checkbox("Open-only", key="scan_open_only", help="Hide locked/no-go opportunities.")
+        with tc3:
             strict_quality = st.checkbox(
                 "Strict quality",
-                value=(not manual_like_view),
-                help="Hide weak or noisy opportunities by default."
+                key="scan_strict_quality",
+                help="Hide weak or noisy opportunities.",
             )
-        with col14:
+        with tc4:
             allow_broad_fallback = st.checkbox(
                 "Broaden if empty",
-                value=False,
-                help="If strict filters return none, expand to broader matches."
+                key="scan_allow_broad_fallback",
+                help="If strict filters return none, expand to broader matches.",
             )
+
+        # Advanced controls (kept available but out of the way)
+        with st.expander("Advanced filters", expanded=False):
+            ac1, ac2, ac3 = st.columns(3)
+            with ac1:
+                category = st.selectbox("Category", categories, key="scan_category")
+            with ac2:
+                priority_options = ["All", "HIGH", "MEDIUM", "LOW", "STRATEGIC", "CONDITIONAL", "LOCKED"]
+                priority_filter = st.selectbox("Priority", priority_options, key="scan_priority_filter")
+            with ac3:
+                status_options = ["All", "open", "locked", "locked_but_open", "conditional_nogo", "conditional_strategic", "conditional_discuss"]
+                status_filter = st.selectbox("Procurement Status", status_options, key="scan_status_filter")
+
+            ac4, ac5, ac6 = st.columns(3)
+            with ac4:
+                lifecycle_options = ["All", "open", "pre_notice", "clarification", "awarded", "cancelled"]
+                lifecycle_filter = st.selectbox("Lifecycle", lifecycle_options, key="scan_lifecycle_filter")
+            with ac5:
+                country_filter = st.selectbox("Country", countries, key="scan_country_filter")
+            with ac6:
+                f2_fit_options = ["All", "true", "strategic", "discuss", "uncertain", "conditional", "no-go"]
+                f2_fit_filter = st.selectbox("F2 Fit", f2_fit_options, key="scan_f2_fit_filter")
+
+        # defaults when advanced filters have not been touched yet
+        category = st.session_state.get("scan_category", "All")
+        priority_filter = st.session_state.get("scan_priority_filter", "All")
+        status_filter = st.session_state.get("scan_status_filter", "All")
+        lifecycle_filter = st.session_state.get("scan_lifecycle_filter", "All")
+        country_filter = st.session_state.get("scan_country_filter", "All")
+        f2_fit_filter = st.session_state.get("scan_f2_fit_filter", "All")
 
         # Get filtered tenders
         filters = {
+            'market_focus': market_focus,
             'category': category,
             'sort_by': sort_by,
             'search': search,
@@ -2138,7 +2453,7 @@ elif page == "Scan & Results":
             'f2_only': f2_only,
             'open_only': open_only,
             'strict_quality': strict_quality,
-            'strict_min_score': 35,
+            'strict_min_score': 40,
             'allow_broad_fallback': allow_broad_fallback,
             'require_keywords': strict_quality,
             'created_after': st.session_state.get("scan_anchor_utc") if results_mode == "session_scan" else None,
@@ -2164,8 +2479,33 @@ elif page == "Scan & Results":
             st.caption(f"Hidden {keyword_filtered_out} results with unavailable keywords.")
         if manual_like_view:
             st.caption("Manual-like mode active: broader discovery results are shown.")
-        st.markdown(f"**{len(tenders)} tenders found**")
+        st.markdown(
+            f"**{len(tenders)} tenders found** | "
+            f"Focus: `{market_focus}` | "
+            f"Mode: `{'Strict' if strict_quality else 'Balanced'}`"
+        )
         st.markdown("---")
+
+        if tenders:
+            high_fit_count = sum(1 for t in tenders if float(getattr(t, "score", 0) or 0) >= 70)
+            urgent_deadline_count = 0
+            for t in tenders:
+                dl = _deadline_meta(getattr(t, "deadline", "")).get("days_left")
+                if dl is not None and 0 <= int(dl) <= 7:
+                    urgent_deadline_count += 1
+            open_count = sum(
+                1
+                for t in tenders
+                if (getattr(t, "procurement_status", "") or "").strip().lower() not in {"locked", "conditional_nogo"}
+            )
+            k1, k2, k3 = st.columns(3)
+            with k1:
+                st.metric("High Fit (70+)", high_fit_count)
+            with k2:
+                st.metric("Urgent Deadlines (7d)", urgent_deadline_count)
+            with k3:
+                st.metric("Open Opportunities", open_count)
+            st.markdown("---")
     
         # Display tenders (card-only)
         if tenders:
@@ -2619,83 +2959,6 @@ elif page == "Settings":
         
         st.markdown("---")
         
-        # Email Notification Settings
-        st.subheader("Email Notifications")
-        
-        email_enabled = st.checkbox("Enable Email Notifications", 
-                                   value=settings.notify_email if settings and hasattr(settings, 'notify_email') else False,
-                                   help="Send email alerts for high-score tenders")
-        
-        if email_enabled:
-            st.info("Email notifications will be sent for new tenders above the configured score threshold.")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                email_recipients = st.text_area("Recipients (comma-separated)", 
-                                               value=settings.email_recipients if settings and hasattr(settings, 'email_recipients') else "",
-                                               placeholder="email1@example.com, email2@example.com",
-                                               help="Enter email addresses separated by commas")
-                
-                smtp_server = st.text_input("SMTP Server",
-                                           value=settings.smtp_server if settings and hasattr(settings, 'smtp_server') else "smtp.gmail.com",
-                                           placeholder="smtp.gmail.com")
-            
-            with col2:
-                smtp_port = st.number_input("SMTP Port",
-                                           value=settings.smtp_port if settings and hasattr(settings, 'smtp_port') else 587,
-                                           min_value=1, max_value=65535)
-                
-                smtp_username = st.text_input("SMTP Username",
-                                             value=settings.smtp_username if settings and hasattr(settings, 'smtp_username') else "",
-                                             placeholder="your.email@gmail.com")
-                
-                smtp_password = st.text_input("SMTP Password", 
-                                             type="password",
-                                             value="",
-                                             placeholder="App Password (not regular password)",
-                                             help="For Gmail, use an App Password from your Google Account settings")
-            
-            # Test email button
-            if st.button("Send Test Email", key="test_email_btn"):
-                if smtp_username and smtp_password and email_recipients:
-                    try:
-                        from app.notifications import send_email_notification
-                        
-                        # Create a mock tender for testing
-                        class MockTender:
-                            def __init__(self):
-                                self.title = "TEST: Sample Tender Title"
-                                self.title_translated = "TEST: Sample Tender Title"
-                                self.score = 85.0
-                                self.category = "Case & Complaint Management"
-                                self.buyer = "Test Organization"
-                                self.country = "Kenya"
-                                self.deadline = "2025-12-31"
-                                self.link = "https://example.com/tender/123"
-                        
-                        # Create mock settings with current values
-                        class MockSettings:
-                            pass
-                        
-                        mock_settings = MockSettings()
-                        mock_settings.email_recipients = email_recipients
-                        mock_settings.smtp_server = smtp_server
-                        mock_settings.smtp_port = smtp_port
-                        mock_settings.smtp_username = smtp_username
-                        mock_settings.smtp_password = smtp_password
-                        
-                        # Send test email
-                        success = send_email_notification(mock_settings, [MockTender()])
-                        if success:
-                            st.success("Test email sent successfully.")
-                        else:
-                            st.error("Failed to send test email. Verify SMTP settings.")
-                    except Exception as e:
-                        st.error(f"Error: {str(e)}")
-                else:
-                    st.warning("Please provide SMTP settings and recipients first.")
-        
         st.markdown("---")
         
         # Save button
@@ -2717,14 +2980,11 @@ elif page == "Settings":
 
                     settings.notifications_enabled = notification_enabled
                     settings.min_score_to_notify = float(min_score)
-                    settings.notify_email = email_enabled if 'email_enabled' in dir() else False
-                    if email_enabled:
-                        settings.email_recipients = email_recipients
-                        settings.smtp_server = smtp_server
-                        settings.smtp_port = smtp_port
-                        settings.smtp_username = smtp_username
-                        if smtp_password:
-                            settings.smtp_password = smtp_password
+                    # Email notifications removed from Streamlit app settings.
+                    settings.notify_email = False
+                    settings.email_recipients = ""
+                    settings.smtp_username = ""
+                    settings.smtp_password = ""
                     db.session.commit()
                     st.success("Settings saved.")
                 else:
@@ -2737,15 +2997,8 @@ elif page == "Settings":
                         results_per_query=int(results_per_query),
                         notifications_enabled=notification_enabled,
                         min_score_to_notify=float(min_score),
-                        notify_email=email_enabled if 'email_enabled' in dir() else False
+                        notify_email=False
                     )
-                    if email_enabled:
-                        new_settings.email_recipients = email_recipients
-                        new_settings.smtp_server = smtp_server
-                        new_settings.smtp_port = smtp_port
-                        new_settings.smtp_username = smtp_username
-                        if smtp_password:
-                            new_settings.smtp_password = smtp_password
                     db.session.add(new_settings)
                     db.session.commit()
                     st.success("Settings saved.")

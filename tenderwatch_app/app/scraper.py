@@ -19,7 +19,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 
-from app.deadlines import parse_deadline, is_deadline_valid
+from app.deadlines import parse_deadline, is_deadline_valid, extract_dates
 from app.source_bias import SOURCE_BIAS
 from app.categorizer import categorize
 from sqlalchemy.exc import IntegrityError
@@ -57,6 +57,7 @@ MAX_NEW_TENDERS_PER_SOURCE = 12
 DETAIL_FETCH_MAX_PER_SOURCE = 16
 DETAIL_TEXT_MAX_CHARS = 8000
 DETAIL_PDF_LINK_LIMIT = 2
+STALE_NOTICE_MAX_AGE_DAYS = int(os.getenv("STALE_NOTICE_MAX_AGE_DAYS", "120"))
 
 # Default scan parallelism (safe for SQLite because we avoid DB writes in threads)
 DEFAULT_SCAN_WORKERS = 15
@@ -106,6 +107,20 @@ LIFECYCLE_HINTS = {
     ],
 }
 
+EXPIRED_NOTICE_HINTS = [
+    "deadline passed",
+    "closing date passed",
+    "submission closed",
+    "bids are closed",
+    "bid closed",
+    "tender closed",
+    "closed tender",
+    "no longer accepting",
+    "expired tender",
+    "opportunity closed",
+    "this tender is closed",
+]
+
 GENERIC_TITLE_PATTERNS = [
     "global tenders",
     "govt tenders",
@@ -135,6 +150,17 @@ BROAD_DISCOVERY_TERMS = [
     "software", "application", "system implementation", "automation",
     "platform", "portal", "data management", "enterprise system",
 ]
+# Very broad terms that can appear on unrelated public works notices.
+# We only accept broad fallback when at least one stronger term is present,
+# or when multiple broad indicators co-occur.
+WEAK_BROAD_DISCOVERY_TERMS = {
+    "digital",
+    "digitization",
+    "digitalization",
+    "ict",
+    "software",
+    "platform",
+}
 
 
 def _has_keyword_hint(text: str) -> bool:
@@ -297,12 +323,53 @@ def _broad_discovery_hits(text: str) -> List[str]:
     return out
 
 
+def _broad_hits_pass_quality(hits: List[str]) -> bool:
+    if not hits:
+        return False
+    strong_hits = [h for h in hits if h not in WEAK_BROAD_DISCOVERY_TERMS]
+    if strong_hits:
+        return True
+    weak_unique = list(dict.fromkeys(h for h in hits if h in WEAK_BROAD_DISCOVERY_TERMS))
+    return len(weak_unique) >= 3
+
+
 def _classify_lifecycle(text: str) -> str:
     t = (text or "").lower()
     for status, terms in LIFECYCLE_HINTS.items():
         if any(term in t for term in terms):
             return status
     return "open"
+
+
+def _looks_expired_or_stale(text: str, deadline: str, lifecycle_status: str) -> bool:
+    """Hard filter for stale/closed notices that slip past keyword checks."""
+    today = _utcnow().date()
+    t = (text or "").lower()
+
+    if lifecycle_status in {"awarded", "cancelled"}:
+        return True
+
+    if any(h in t for h in EXPIRED_NOTICE_HINTS):
+        return True
+
+    if deadline:
+        try:
+            parsed_deadline = datetime.strptime(deadline, "%Y-%m-%d").date()
+            if parsed_deadline < today:
+                return True
+        except Exception:
+            pass
+
+    # When deadline is missing, reject notices that only reference old dates.
+    if not deadline:
+        dates = extract_dates(t)
+        if dates:
+            latest_seen = max(dates)
+            age_days = (today - latest_seen).days
+            if age_days > STALE_NOTICE_MAX_AGE_DAYS:
+                return True
+
+    return False
 
 
 def _make_http_session() -> requests.Session:
@@ -543,31 +610,15 @@ def _detail_context(link: str, session: requests.Session) -> Dict[str, str]:
 
 
 def cleanup_irrelevant_tenders():
-    """Remove tenders that are awards/results (closed)."""
+    """Remove tenders that are awards/results, expired, or stale."""
     one_month_ago = _utcnow() - timedelta(days=30)
-
-    # Small pre-filter in SQL to avoid scanning the entire table in Python.
-    # We still run the full _is_closed_award() check before deleting.
-    from sqlalchemy import or_
-
-    sql_hints = [
-        "award", "awarded", "winner", "successful bidder", "contract award", "award notice", "tender results"
-    ]
-    like_filters = []
-    for h in sql_hints:
-        like = f"%{h}%"
-        like_filters.append(TenderResult.title.ilike(like))
-        like_filters.append(TenderResult.description.ilike(like))
-
-    q = TenderResult.query.filter(TenderResult.created_at >= one_month_ago)
-    if like_filters:
-        q = q.filter(or_(*like_filters))
-
-    tenders = q.all()
+    tenders = TenderResult.query.filter(TenderResult.created_at >= one_month_ago).all()
     removed = 0
     for tender in tenders:
         combined = f"{tender.title} {tender.description} {tender.link}".lower()
-        if _is_closed_award(combined):
+        lifecycle = (tender.timing_status or "open").strip().lower()
+        deadline = (tender.deadline or "").strip()
+        if _is_closed_award(combined) or _looks_expired_or_stale(combined, deadline, lifecycle):
             db.session.delete(tender)
             removed += 1
     if removed:
@@ -745,18 +796,13 @@ def scan_source(
                 if not (manual_like and (has_tender_term or keyword_hint)):
                     continue
 
-            if _is_closed_award(base_combined) or lifecycle_status == "awarded":
+            full_context = f"{base_combined} {detail_text} {pdf_text} {link}".strip()
+            if _is_closed_award(full_context) or lifecycle_status == "awarded":
                 continue
             if lifecycle_status in {"clarification", "cancelled"}:
                 continue
-            # Keep near-deadline opportunities; only drop genuinely expired notices.
-            if deadline and lifecycle_status == "open":
-                try:
-                    parsed_deadline = datetime.strptime(deadline, "%Y-%m-%d").date()
-                    if parsed_deadline < _utcnow().date():
-                        continue
-                except Exception:
-                    pass
+            if _looks_expired_or_stale(full_context, deadline, lifecycle_status):
+                continue
 
             # Score using richer context (aria/row text + small PDF snippet if present)
             scoring_text = f"{description} {aria_title} {parent_text}".strip()
@@ -777,10 +823,14 @@ def scan_source(
             procurement_status = breakdown.get("procurement_status", "open")
 
             if score <= 0 or keywords_found == 0:
+                # Do not resurrect tenders explicitly excluded by keyword scoring.
+                # Example: construction/civil works notices with incidental "ict" text.
+                if bool(breakdown.get("excluded", False)) or (breakdown.get("irrelevant_signals") or []):
+                    continue
                 # Controlled fallback: keep digital/ICT-adjacent leads from favorite sources.
                 broad_hits = _broad_discovery_hits(base_combined)
                 allow_broad_capture = (bool(source.favorite) or manual_like) and (has_tender_term or has_ref_code or has_detail_url)
-                if allow_broad_capture and broad_hits:
+                if allow_broad_capture and _broad_hits_pass_quality(broad_hits):
                     score = max(float(score or 0), 24.0 if manual_like else 28.0)
                     keywords_found = len(broad_hits)
                     matched = ", ".join([f"broad:{h}" for h in broad_hits[:4]])
@@ -990,7 +1040,8 @@ def _discover_rows(
             domains_matched = breakdown.get("domains_matched", []) or []
             likely_fit = breakdown.get("likely_fit_for_F2", "uncertain")
             procurement_status = breakdown.get("procurement_status", "open")
-            deadline = parse_deadline(f"{title} {description}") or ""
+            context = f"{title} {description} {link}".strip()
+            deadline = parse_deadline(context) or ""
             if deadline:
                 try:
                     parsed_deadline = datetime.strptime(deadline, "%Y-%m-%d").date()
@@ -998,7 +1049,9 @@ def _discover_rows(
                         continue
                 except Exception:
                     pass
-            lifecycle_status = _classify_lifecycle(f"{title} {description} {link}")
+            lifecycle_status = _classify_lifecycle(context)
+            if _looks_expired_or_stale(context, deadline, lifecycle_status):
+                continue
 
             rows.append(
                 {
