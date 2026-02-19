@@ -13,14 +13,14 @@ class ScanProfile:
     min_days_to_deadline: int
 
 
-GLOBAL_PROFILE = ScanProfile("GLOBAL", max_days_since_publication=90, min_days_to_deadline=7)
-AFRICA_STRICT_PROFILE = ScanProfile("AFRICA_STRICT", max_days_since_publication=30, min_days_to_deadline=0)
+GLOBAL_PROFILE = ScanProfile("GLOBAL", max_days_since_publication=120, min_days_to_deadline=0)
+AFRICA_STRICT_PROFILE = ScanProfile("AFRICA_STRICT", max_days_since_publication=45, min_days_to_deadline=0)
 
 
 NORMALIZATION: Dict[str, Any] = {
     "lowercase": True,
     "collapse_whitespace": True,
-    "max_text_chars": 250_000,
+    "max_text_chars": 300_000,
 }
 
 _PATTERN_CACHE: Dict[str, re.Pattern] = {}
@@ -74,6 +74,7 @@ def _collect_hits(text: str, phrases: List[str], max_hits: Optional[int] = None)
             hits.append(p)
             if max_hits is not None and len(hits) >= max_hits:
                 break
+
     seen = set()
     out: List[str] = []
     for h in hits:
@@ -83,40 +84,80 @@ def _collect_hits(text: str, phrases: List[str], max_hits: Optional[int] = None)
     return out
 
 
-# Keep keyword set intentionally small and obvious.
+# Simple and broad F2-oriented keyword map.
 KEYWORD_DOMAINS: Dict[str, List[str]] = {
     "EDMS": [
+        "document management",
         "document management system",
+        "records management",
         "records management system",
-        "document and records management system",
-        "electronic document management system",
+        "electronic records",
+        "file registry",
+        "archive management",
         "edms",
         "edrms",
     ],
     "Workflow": [
+        "workflow",
         "workflow automation",
-        "workflow management system",
+        "workflow management",
         "business process management",
         "process automation",
+        "approval workflow",
+        "bpm",
     ],
     "Case": [
-        "case management system",
-        "case tracking system",
-        "complaint management system",
+        "case management",
+        "case tracking",
+        "complaint management",
+        "grievance management",
+        "service request management",
+        "ticket management",
     ],
     "Gov": [
-        "digital government platform",
-        "e government platform",
-        "government workflow system",
+        "digital government",
+        "e government",
+        "e governance",
+        "citizen portal",
+        "public service platform",
+        "government information system",
+    ],
+    "Records": [
+        "records digitization",
+        "records digitisation",
+        "records archive",
+        "records repository",
+    ],
+    "ECM": [
+        "enterprise content management",
+        "content management platform",
+        "ecm",
+    ],
+    "Forms": [
+        "forms automation",
+        "electronic forms",
+        "online forms",
+    ],
+    "ServiceDelivery": [
+        "service delivery platform",
+        "citizen services platform",
+        "one stop portal",
     ],
     "Pipeline": [
+        "request for proposal",
+        "request for quotation",
         "request for information",
-        "rfi",
         "expression of interest",
-        "eoi",
+        "invitation to tender",
+        "call for proposals",
         "procurement plan",
+        "rfp",
+        "rfq",
+        "rfi",
+        "eoi",
     ],
 }
+
 
 ALL_KEYWORDS: List[str] = sorted({kw for kws in KEYWORD_DOMAINS.values() for kw in kws})
 
@@ -127,15 +168,16 @@ for domain, keywords in KEYWORD_DOMAINS.items():
 
 
 MICROSOFT_HARD_LOCK_SIGNALS: List[str] = [
-    "must use power platform",
-    "built on power platform",
     "must use sharepoint",
+    "must use microsoft 365",
+    "must use power platform",
     "built on sharepoint",
 ]
 MICROSOFT_SOFT_LOCK_SIGNALS: List[str] = [
     "sharepoint environment",
     "microsoft 365",
     "office 365",
+    "power platform",
 ]
 MICROSOFT_COMMITMENT_SIGNALS: List[str] = sorted(
     set(MICROSOFT_HARD_LOCK_SIGNALS + MICROSOFT_SOFT_LOCK_SIGNALS)
@@ -143,10 +185,10 @@ MICROSOFT_COMMITMENT_SIGNALS: List[str] = sorted(
 PLATFORM_LOCKIN_SIGNALS: List[str] = MICROSOFT_COMMITMENT_SIGNALS.copy()
 
 OPENNESS_SIGNALS: List[str] = [
-    "platform agnostic",
-    "technology neutral",
-    "vendor neutral",
     "or equivalent",
+    "vendor neutral",
+    "technology neutral",
+    "platform agnostic",
 ]
 PLATFORM_OPENNESS_SIGNALS: List[str] = OPENNESS_SIGNALS.copy()
 OPEN_PROCUREMENT_SIGNALS: List[str] = [
@@ -156,26 +198,51 @@ OPEN_PROCUREMENT_SIGNALS: List[str] = [
 ]
 
 
-CONSTRUCTION_SIGNALS: List[str] = ["construction of", "civil works", "building works", "road works"]
-HARDWARE_SIGNALS: List[str] = ["hardware supply", "supply of laptops", "servers", "network infrastructure"]
-MEDICAL_SIGNALS: List[str] = ["electronic health record", "electronic medical record", "hospital information system"]
-NEGATIVE_SIGNALS: List[str] = ["website design only", "email security", "antivirus", "erp system"]
+CONSTRUCTION_SIGNALS: List[str] = [
+    "construction of",
+    "civil works",
+    "building works",
+    "road works",
+    "rehabilitation of buildings",
+]
+HARDWARE_SIGNALS: List[str] = [
+    "hardware supply",
+    "supply of laptops",
+    "supply and delivery of vehicles",
+    "network infrastructure",
+]
+MEDICAL_SIGNALS: List[str] = [
+    "electronic health record",
+    "electronic medical record",
+    "hospital information system",
+]
+NEGATIVE_SIGNALS: List[str] = [
+    "website design only",
+    "email security",
+    "antivirus",
+    "erp system",
+]
 IRRELEVANT_SIGNALS: List[str] = sorted(
     set(CONSTRUCTION_SIGNALS + HARDWARE_SIGNALS + MEDICAL_SIGNALS + NEGATIVE_SIGNALS)
 )
 
-GENERIC_STANDALONE_KEYWORDS: List[str] = ["system", "platform", "solution"]
+
+GENERIC_STANDALONE_KEYWORDS: List[str] = ["system", "platform", "solution", "portal"]
+
 PRIORITY_PHRASES: List[str] = [
-    "document management system",
-    "records management system",
+    "document management",
+    "records management",
     "workflow automation",
-    "case management system",
+    "case management",
 ]
+
 PRIORITY_COMBINATIONS = [
     (["EDMS", "Workflow"], 8, "HIGH"),
     (["EDMS", "Case"], 8, "HIGH"),
     (["Gov", "EDMS"], 5, "MEDIUM"),
+    (["Gov", "Workflow"], 5, "MEDIUM"),
 ]
+
 QUALIFICATION_QUESTIONS: List[str] = [
     "Is Microsoft platform mandatory or optional?",
     "Is buyer open to alternative platforms?",
@@ -183,17 +250,17 @@ QUALIFICATION_QUESTIONS: List[str] = [
 
 
 def _domain_hits(text: str) -> Tuple[List[str], List[str], List[str]]:
+    t = _normalize(text)
     matched_keywords: List[str] = []
     matched_domains: List[str] = []
     matched_phrases: List[str] = []
 
     for domain, phrases in KEYWORD_DOMAINS.items():
-        hits = _collect_hits(text, phrases)
+        hits = _collect_hits(t, phrases)
         if hits:
             matched_domains.append(domain)
             matched_phrases.extend(hits)
             matched_keywords.extend([f"{domain}:{h}" for h in hits])
-
     return matched_keywords, matched_domains, matched_phrases
 
 
@@ -283,20 +350,20 @@ def classify_tender(
     out["matched_domains"] = matched_domains
     out["matched_phrases"] = matched_phrases
 
-    if not matched_domains and any(_phrase_hit(text, s) for s in IRRELEVANT_SIGNALS):
+    core_domains = [d for d in matched_domains if d in {"EDMS", "Workflow", "Case", "Gov"}]
+    irrelevant_hits = _collect_hits(text, IRRELEVANT_SIGNALS)
+    if irrelevant_hits and not core_domains:
         out["status"] = "HARD_EXCLUDED"
         out["hard_no_go"] = True
         out["opportunity_type"] = "IRRELEVANT"
-        out["rationale"] = ["Irrelevant signals found with no core keyword matches."]
+        out["rationale"] = [f"Irrelevant signal: {irrelevant_hits[0]}."]
         return out
-
-    core_domains = [d for d in matched_domains if d in {"EDMS", "Workflow", "Case", "Gov"}]
-    core_score = min(1.0, len(core_domains) * 0.22 + min(len(matched_phrases), 8) * 0.04)
 
     hard_lock = _collect_hits(text, MICROSOFT_HARD_LOCK_SIGNALS, max_hits=2)
     soft_lock = _collect_hits(text, MICROSOFT_SOFT_LOCK_SIGNALS, max_hits=2)
     openness = _collect_hits(text, OPENNESS_SIGNALS, max_hits=2)
 
+    core_score = min(1.0, (len(core_domains) * 0.2) + (min(len(matched_phrases), 8) * 0.05))
     penalty = 0.0
     if hard_lock and not openness:
         penalty += 0.15
@@ -321,9 +388,13 @@ def classify_tender(
         out["fit_bucket"] = "WATCHLIST"
     else:
         out["fit_bucket"] = "IGNORE"
-    out["bucket"] = "IGNORE" if timing["excluded_by_timing"] else out["fit_bucket"]
 
-    out["priority"] = "HIGH" if out["bucket"] in ("HIGH", "GOOD") else "MEDIUM" if out["bucket"] == "WATCHLIST" else "LOW"
+    out["bucket"] = "IGNORE" if timing["excluded_by_timing"] else out["fit_bucket"]
+    out["priority"] = (
+        "HIGH" if out["bucket"] in {"HIGH", "GOOD"} else
+        "MEDIUM" if out["bucket"] == "WATCHLIST" else
+        "LOW"
+    )
     out["platform_locked"] = bool(hard_lock or soft_lock)
     out["requires_qualification"] = out["platform_locked"]
     if out["requires_qualification"]:
@@ -338,25 +409,32 @@ def classify_tender(
 
     if out["hard_no_go"]:
         out["likely_fit_for_f2"] = "NO"
-    elif out["bucket"] in ("HIGH", "GOOD"):
+    elif out["bucket"] in {"HIGH", "GOOD"}:
         out["likely_fit_for_f2"] = "YES"
     elif out["bucket"] == "WATCHLIST":
         out["likely_fit_for_f2"] = "CONDITIONAL"
+    else:
+        out["likely_fit_for_f2"] = "NO"
 
-    out["opportunity_type"] = "PIPELINE" if out["is_pipeline"] else "PLATFORM PROCUREMENT" if len(core_domains) >= 2 else "GENERAL"
+    out["opportunity_type"] = (
+        "PIPELINE" if out["is_pipeline"] else
+        "PLATFORM PROCUREMENT" if len(core_domains) >= 2 else
+        "GENERAL"
+    )
     out["rationale"] = [
-        f"Matched keywords: {', '.join(matched_phrases[:5])}." if matched_phrases else "No strong keyword matches.",
-        "Microsoft lock signal detected." if out["platform_locked"] else "No platform lock signal detected.",
+        f"Matched: {', '.join(matched_phrases[:5])}." if matched_phrases else "No strong keyword matches.",
+        "Platform lock signal found." if out["platform_locked"] else "No platform lock signal.",
     ]
     if timing["excluded_by_timing"] and timing["timing_reason"]:
-        out["rationale"].append("Excluded by timing: " + timing["timing_reason"])
+        out["rationale"].append("Timing filter: " + timing["timing_reason"])
 
     out["subscores"] = {
         "core_platform": round(core_score, 4),
-        "governance": 0.0,
-        "enterprise": round(0.05 if "Gov" in matched_domains else 0.0, 4),
-        "integration": 0.0,
-        "implementation": 0.0,
+        "governance": round(0.05 if "Gov" in matched_domains else 0.0, 4),
+        "enterprise": round(0.04 if "EDMS" in matched_domains else 0.0, 4),
+        "integration": round(0.03 if "Workflow" in matched_domains else 0.0, 4),
+        "implementation": round(0.03 if "Case" in matched_domains else 0.0, 4),
         "penalties": round(penalty, 4),
     }
     return out
+
