@@ -2387,52 +2387,76 @@ elif page == "Scan & Results":
         if st.session_state.get("scan_category") not in categories:
             st.session_state["scan_category"] = "All"
 
-        # Essential controls
-        ec1, ec2, ec3, ec4, ec5 = st.columns(5)
-        with ec1:
+        # Quick controls only: keep the main surface simple.
+        qc1, qc2, qc3, qc4 = st.columns([1.2, 1.6, 1.0, 1.1])
+        with qc1:
             market_focus = st.selectbox(
                 "Market Focus",
                 MARKET_FOCUS_OPTIONS,
                 key="scan_market_focus",
                 help="Prioritize Kenya, Africa-wide opportunities, or open global coverage.",
             )
-        with ec2:
+        with qc2:
             search = st.text_input(
                 "Search",
                 placeholder="Search titles or descriptions...",
                 key="scan_search",
             )
-        with ec3:
+        with qc3:
             sort_by = st.selectbox("Sort By", sort_options, key="scan_sort_by")
-        with ec4:
-            min_score = st.selectbox("Min Score", min_score_options, key="scan_min_score")
-        with ec5:
+        with qc4:
             deadline_window = st.selectbox(
                 "Deadline Window",
                 deadline_window_options,
                 key="scan_deadline_window",
             )
 
-        tc1, tc2, tc3, tc4 = st.columns(4)
-        with tc1:
-            f2_only = st.checkbox("F2-only", key="scan_f2_only", help="Show F2-relevant tenders only.")
-        with tc2:
-            open_only = st.checkbox("Open-only", key="scan_open_only", help="Hide locked/no-go opportunities.")
-        with tc3:
-            strict_quality = st.checkbox(
-                "Strict quality",
-                key="scan_strict_quality",
-                help="Hide weak or noisy opportunities.",
-            )
-        with tc4:
+        # Keep power filters available, but only in one optional section.
+        min_score = st.session_state.get("scan_min_score", 0)
+        f2_only = st.session_state.get("scan_f2_only", True)
+        open_only = st.session_state.get("scan_open_only", True)
+        strict_quality = st.session_state.get("scan_strict_quality", False)
+        allow_broad_fallback = st.session_state.get("scan_allow_broad_fallback", True)
+
+        with st.expander("More filters (optional)", expanded=False):
+            pf1, pf2, pf3, pf4 = st.columns(4)
+            with pf1:
+                min_score = st.selectbox("Min Score", min_score_options, key="scan_min_score")
+            with pf2:
+                f2_only = st.checkbox("F2-only", key="scan_f2_only", help="Show F2-relevant tenders only.")
+            with pf3:
+                open_only = st.checkbox("Open-only", key="scan_open_only", help="Hide locked/no-go opportunities.")
+            with pf4:
+                strict_quality = st.checkbox(
+                    "Strict quality",
+                    key="scan_strict_quality",
+                    help="Hide weak or noisy opportunities.",
+                )
+
             allow_broad_fallback = st.checkbox(
                 "Broaden if empty",
                 key="scan_allow_broad_fallback",
                 help="If strict filters return none, expand to broader matches.",
             )
 
-        # Advanced controls (kept available but out of the way)
-        with st.expander("Advanced filters", expanded=False):
+            reset_col1, reset_col2 = st.columns([1, 3])
+            with reset_col1:
+                if st.button("Reset", key="scan_filters_reset", help="Reset to simple defaults."):
+                    st.session_state["scan_min_score"] = 0
+                    st.session_state["scan_f2_only"] = True
+                    st.session_state["scan_open_only"] = True
+                    st.session_state["scan_strict_quality"] = False
+                    st.session_state["scan_allow_broad_fallback"] = True
+                    st.session_state["scan_category"] = "All"
+                    st.session_state["scan_priority_filter"] = "All"
+                    st.session_state["scan_status_filter"] = "All"
+                    st.session_state["scan_lifecycle_filter"] = "All"
+                    st.session_state["scan_country_filter"] = "All"
+                    st.session_state["scan_f2_fit_filter"] = "All"
+                    st.rerun()
+            with reset_col2:
+                st.caption("Use Market Focus + Search for everyday work. Open this section only when narrowing results.")
+
             ac1, ac2, ac3 = st.columns(3)
             with ac1:
                 category = st.selectbox("Category", categories, key="scan_category")
