@@ -123,15 +123,49 @@ st.markdown(f"""
 
     /* Theme Variables */
     :root {{
-        --bg-primary: {'#091424' if st.session_state.theme == 'dark' else '#f3f6fb'};
-        --bg-secondary: {'#0f1d32' if st.session_state.theme == 'dark' else '#e7edf5'};
-        --text-primary: {'#e7edf7' if st.session_state.theme == 'dark' else '#0d1b2a'};
-        --text-secondary: {'#9fb0c8' if st.session_state.theme == 'dark' else '#39485c'};
-        --border-color: {'#21354f' if st.session_state.theme == 'dark' else '#cfd8e5'};
-        --card-bg: {'#102037' if st.session_state.theme == 'dark' else '#ffffff'};
-        --accent: {'#3d8bfd' if st.session_state.theme == 'dark' else '#1f5fbf'};
-        --accent-strong: {'#2f78e6' if st.session_state.theme == 'dark' else '#184b97'};
-        --table-row: {'#0f223d' if st.session_state.theme == 'dark' else '#f8fbff'};
+        --bg-primary: {'#061626' if st.session_state.theme == 'dark' else '#f3f6fb'};
+        --bg-secondary: {'#0d2338' if st.session_state.theme == 'dark' else '#e7edf5'};
+        --text-primary: {'#ecf5ff' if st.session_state.theme == 'dark' else '#0d1b2a'};
+        --text-secondary: {'#a7bfd7' if st.session_state.theme == 'dark' else '#39485c'};
+        --border-color: {'#285072' if st.session_state.theme == 'dark' else '#cfd8e5'};
+        --card-bg: {'#0f2740' if st.session_state.theme == 'dark' else '#ffffff'};
+        --accent: {'#00a8d6' if st.session_state.theme == 'dark' else '#1f5fbf'};
+        --accent-strong: {'#0d8fb6' if st.session_state.theme == 'dark' else '#184b97'};
+        --table-row: {'#0f2a45' if st.session_state.theme == 'dark' else '#f8fbff'};
+        --glow-cyan: {'rgba(34, 211, 238, 0.32)' if st.session_state.theme == 'dark' else 'rgba(31,95,191,0.14)'};
+        --glow-amber: {'rgba(251, 191, 36, 0.18)' if st.session_state.theme == 'dark' else 'rgba(245,158,11,0.10)'};
+    }}
+
+    @keyframes bgDrift {{
+        0% {{
+            background-position: 0% 0%, 100% 0%, 50% 100%, 0% 0%;
+        }}
+        50% {{
+            background-position: 4% 6%, 96% -2%, 54% 92%, 0% 0%;
+        }}
+        100% {{
+            background-position: 8% 2%, 92% 4%, 48% 96%, 0% 0%;
+        }}
+    }}
+
+    @keyframes cardRise {{
+        from {{
+            opacity: 0;
+            transform: translateY(6px);
+        }}
+        to {{
+            opacity: 1;
+            transform: translateY(0);
+        }}
+    }}
+
+    @keyframes haloPulse {{
+        0%, 100% {{
+            box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.0);
+        }}
+        50% {{
+            box-shadow: 0 0 0 6px rgba(34, 211, 238, 0.08);
+        }}
     }}
 
     html, body, [class*="css"] {{
@@ -147,9 +181,12 @@ st.markdown(f"""
 
     .stApp {{
         background:
-            radial-gradient(1200px 500px at 10% -10%, {'rgba(61,139,253,0.14)' if st.session_state.theme == 'dark' else 'rgba(31,95,191,0.10)'}, transparent 60%),
-            radial-gradient(800px 400px at 90% -20%, {'rgba(88,166,255,0.10)' if st.session_state.theme == 'dark' else 'rgba(116,149,189,0.10)'}, transparent 58%),
-            var(--bg-primary);
+            radial-gradient(1200px 520px at 8% -12%, {'rgba(0, 168, 214, 0.26)' if st.session_state.theme == 'dark' else 'rgba(31,95,191,0.10)'}, transparent 62%),
+            radial-gradient(860px 420px at 92% -20%, {'rgba(37, 99, 235, 0.20)' if st.session_state.theme == 'dark' else 'rgba(116,149,189,0.10)'}, transparent 60%),
+            radial-gradient(520px 260px at 55% 110%, {'rgba(251, 191, 36, 0.10)' if st.session_state.theme == 'dark' else 'rgba(245,158,11,0.08)'}, transparent 66%),
+            linear-gradient(180deg, {'#061626' if st.session_state.theme == 'dark' else '#f3f6fb'} 0%, {'#081a2e' if st.session_state.theme == 'dark' else '#eef3fa'} 100%);
+        background-size: 120% 120%, 120% 120%, 120% 120%, 100% 100%;
+        animation: bgDrift 26s ease-in-out infinite alternate;
     }}
 
     .block-container {{
@@ -174,20 +211,20 @@ st.markdown(f"""
 
     /* Button styling */
     .stButton>button {{
-        background: var(--accent);
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
         color: white;
         border-radius: 10px;
         padding: 0.52rem 1.05rem;
         font-weight: 600;
-        border: none;
-        box-shadow: none;
-        transition: background-color 0.2s ease, transform 0.12s ease;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+        transition: background-color 0.2s ease, transform 0.12s ease, box-shadow 0.18s ease;
     }}
 
     .stButton>button:hover {{
         background: var(--accent-strong);
-        transform: translateY(-1px);
-        box-shadow: none;
+        transform: translateY(-2px);
+        box-shadow: 0 12px 22px rgba(0, 0, 0, 0.24);
     }}
 
     /* Headers */
@@ -322,13 +359,17 @@ st.markdown(f"""
 
     /* Banner */
     .hero-banner {{
-        background: {'linear-gradient(120deg,#0d203b 0%,#102846 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(120deg,#edf3fa 0%,#e6eef8 100%)'};
+        background:
+            radial-gradient(340px 120px at 12% -25%, rgba(56, 189, 248, 0.20), transparent 72%),
+            radial-gradient(300px 140px at 88% -38%, rgba(251, 191, 36, 0.14), transparent 74%),
+            {'linear-gradient(120deg,#0d2945 0%,#123456 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(120deg,#edf3fa 0%,#e6eef8 100%)'};
         border: 1px solid var(--border-color);
         border-radius: 12px;
         padding: 1rem 1.1rem;
         color: var(--text-primary);
-        box-shadow: none;
+        box-shadow: 0 12px 28px rgba(4, 10, 19, 0.28);
         margin-bottom: 1.25rem;
+        animation: cardRise 0.45s ease-out both;
     }}
     .hero-banner .title {{
         color: var(--text-primary);
@@ -396,16 +437,36 @@ st.markdown(f"""
     .st-key-kpi_saved button,
     .st-key-kpi_favorites button {{
         width: 100%;
-        min-height: 96px;
-        border-radius: 12px;
-        border: 1px solid var(--border-color);
-        padding: 0.75rem 0.9rem;
+        min-height: 108px;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 180, 210, 0.38);
+        padding: 0.82rem 0.95rem;
         text-align: left;
         white-space: pre-line;
-        line-height: 1.25;
+        line-height: 1.23;
         color: var(--text-primary) !important;
         font-weight: 600;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        letter-spacing: 0.01em;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        animation: cardRise 0.45s ease-out both;
+    }}
+
+    .st-key-kpi_total button::after,
+    .st-key-kpi_high_fit button::after,
+    .st-key-kpi_deadline_7d button::after,
+    .st-key-kpi_saved button::after,
+    .st-key-kpi_favorites button::after {{
+        content: "";
+        position: absolute;
+        top: -20%;
+        left: -135%;
+        width: 85%;
+        height: 150%;
+        transform: skewX(-22deg);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+        transition: left 0.8s ease;
     }}
 
     .st-key-kpi_total button:hover,
@@ -413,33 +474,43 @@ st.markdown(f"""
     .st-key-kpi_deadline_7d button:hover,
     .st-key-kpi_saved button:hover,
     .st-key-kpi_favorites button:hover {{
-        transform: translateY(-2px);
-        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28);
+        border-color: rgba(187, 221, 255, 0.58);
+        animation: haloPulse 1.8s ease-in-out infinite;
+    }}
+
+    .st-key-kpi_total button:hover::after,
+    .st-key-kpi_high_fit button:hover::after,
+    .st-key-kpi_deadline_7d button:hover::after,
+    .st-key-kpi_saved button:hover::after,
+    .st-key-kpi_favorites button:hover::after {{
+        left: 155%;
     }}
 
     .st-key-kpi_total button {{
-        background: linear-gradient(135deg, {'#102842' if st.session_state.theme == 'dark' else '#edf4ff'} 0%, {'#0f2239' if st.session_state.theme == 'dark' else '#e4eefc'} 100%);
-        border-color: {'#2f4a67' if st.session_state.theme == 'dark' else '#c6d7f3'};
+        background: linear-gradient(135deg, {'#113f58' if st.session_state.theme == 'dark' else '#edf4ff'} 0%, {'#0f3047' if st.session_state.theme == 'dark' else '#e4eefc'} 100%);
+        border-color: {'#3d7599' if st.session_state.theme == 'dark' else '#c6d7f3'};
     }}
 
     .st-key-kpi_high_fit button {{
-        background: linear-gradient(135deg, {'#102e28' if st.session_state.theme == 'dark' else '#edf9f2'} 0%, {'#0f2621' if st.session_state.theme == 'dark' else '#e4f3ea'} 100%);
-        border-color: {'#2b5a50' if st.session_state.theme == 'dark' else '#c2e3d1'};
+        background: linear-gradient(135deg, {'#0f4237' if st.session_state.theme == 'dark' else '#edf9f2'} 0%, {'#0b332a' if st.session_state.theme == 'dark' else '#e4f3ea'} 100%);
+        border-color: {'#2d7d6f' if st.session_state.theme == 'dark' else '#c2e3d1'};
     }}
 
     .st-key-kpi_deadline_7d button {{
-        background: linear-gradient(135deg, {'#332313' if st.session_state.theme == 'dark' else '#fff8ec'} 0%, {'#2b1e10' if st.session_state.theme == 'dark' else '#fbf0de'} 100%);
-        border-color: {'#5e4630' if st.session_state.theme == 'dark' else '#ecd2ac'};
+        background: linear-gradient(135deg, {'#4a2f14' if st.session_state.theme == 'dark' else '#fff8ec'} 0%, {'#3c2610' if st.session_state.theme == 'dark' else '#fbf0de'} 100%);
+        border-color: {'#8b673a' if st.session_state.theme == 'dark' else '#ecd2ac'};
     }}
 
     .st-key-kpi_saved button {{
-        background: linear-gradient(135deg, {'#2a1f39' if st.session_state.theme == 'dark' else '#f7f0ff'} 0%, {'#22192f' if st.session_state.theme == 'dark' else '#eee4fb'} 100%);
-        border-color: {'#4e3f66' if st.session_state.theme == 'dark' else '#d9c8f5'};
+        background: linear-gradient(135deg, {'#2f2750' if st.session_state.theme == 'dark' else '#f7f0ff'} 0%, {'#252043' if st.session_state.theme == 'dark' else '#eee4fb'} 100%);
+        border-color: {'#6d60a0' if st.session_state.theme == 'dark' else '#d9c8f5'};
     }}
 
     .st-key-kpi_favorites button {{
-        background: linear-gradient(135deg, {'#112d36' if st.session_state.theme == 'dark' else '#ecf9fd'} 0%, {'#0f252d' if st.session_state.theme == 'dark' else '#e0f1f8'} 100%);
-        border-color: {'#2d5965' if st.session_state.theme == 'dark' else '#bcddec'};
+        background: linear-gradient(135deg, {'#3b2348' if st.session_state.theme == 'dark' else '#ecf9fd'} 0%, {'#2e1d3b' if st.session_state.theme == 'dark' else '#e0f1f8'} 100%);
+        border-color: {'#83539a' if st.session_state.theme == 'dark' else '#bcddec'};
     }}
 
     .kpi-label {{
@@ -495,9 +566,11 @@ st.markdown(f"""
         padding: 0.95rem 1rem;
         margin-bottom: 0.8rem;
         background:
-            radial-gradient(400px 120px at 8% -30%, rgba(61,139,253,0.22), transparent 70%),
-            radial-gradient(300px 140px at 92% -40%, rgba(56,189,248,0.16), transparent 72%),
-            linear-gradient(120deg, rgba(16,32,55,0.92) 0%, rgba(13,25,45,0.92) 100%);
+            radial-gradient(420px 130px at 8% -32%, rgba(34,211,238,0.20), transparent 72%),
+            radial-gradient(320px 150px at 92% -38%, rgba(251,191,36,0.14), transparent 74%),
+            linear-gradient(120deg, rgba(14,38,60,0.93) 0%, rgba(11,28,50,0.93) 100%);
+        box-shadow: 0 10px 24px rgba(6, 14, 25, 0.24);
+        animation: cardRise 0.45s ease-out both;
     }}
 
     .scan-hero-title {{
@@ -548,9 +621,16 @@ st.markdown(f"""
         border-radius: 14px;
         padding: 0.95rem 1rem 0.85rem;
         margin-bottom: 0.8rem;
-        background: linear-gradient(140deg, rgba(16, 32, 55, 0.95) 0%, rgba(12, 24, 44, 0.95) 100%);
+        background: linear-gradient(140deg, rgba(14, 37, 60, 0.94) 0%, rgba(10, 24, 45, 0.94) 100%);
         position: relative;
         overflow: hidden;
+        animation: cardRise 0.38s ease-out both;
+        transition: transform 0.16s ease, box-shadow 0.16s ease;
+    }}
+
+    .result-card:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0 10px 22px rgba(3, 9, 19, 0.28);
     }}
 
     .result-card::before {{
@@ -1913,7 +1993,7 @@ if page == "Dashboard":
     c1, c2, c3, c4, c5 = st.columns(5)
 
     with c1:
-        label = f"TOTAL OPPORTUNITIES\n{stats['total']}\n{stats.get('delta_total') or ''}"
+        label = f"LIVE OPPORTUNITIES\n{stats['total']}\n{stats.get('delta_total') or ''}"
         if st.button(label, key="kpi_total", width="stretch"):
             _queue_sidebar_nav("Scan & Results")
             st.session_state["results_mode"] = "historical"
@@ -1924,7 +2004,7 @@ if page == "Dashboard":
             st.rerun()
 
     with c2:
-        label = f"HIGH FIT (>=70)\n{stats['high_score']}\n{stats.get('delta_high_score') or ''}"
+        label = f"HIGH FIT PIPELINE\n{stats['high_score']}\n{stats.get('delta_high_score') or ''}"
         if st.button(label, key="kpi_high_fit", width="stretch"):
             _queue_sidebar_nav("Scan & Results")
             st.session_state["results_mode"] = "historical"
@@ -1935,7 +2015,7 @@ if page == "Dashboard":
             st.rerun()
 
     with c3:
-        label = f"DEADLINES IN 7 DAYS\n{stats.get('upcoming_7d', 0)}\n"
+        label = f"DEADLINES IN 7 DAYS\n{stats.get('upcoming_7d', 0)}\nTime-sensitive"
         if st.button(label, key="kpi_deadline_7d", width="stretch"):
             _queue_sidebar_nav("Scan & Results")
             st.session_state["results_mode"] = "historical"
@@ -1945,7 +2025,7 @@ if page == "Dashboard":
             st.rerun()
 
     with c4:
-        label = f"SAVED\n{stats['saved']}\n{stats.get('delta_saved') or ''}"
+        label = f"SAVED QUEUE\n{stats['saved']}\n{stats.get('delta_saved') or ''}"
         if st.button(label, key="kpi_saved", width="stretch"):
             _queue_sidebar_nav("Saved")
             st.rerun()
