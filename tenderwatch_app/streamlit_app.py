@@ -123,17 +123,17 @@ st.markdown(f"""
 
     /* Theme Variables */
     :root {{
-        --bg-primary: {'#061626' if st.session_state.theme == 'dark' else '#f3f6fb'};
-        --bg-secondary: {'#0d2338' if st.session_state.theme == 'dark' else '#e7edf5'};
-        --text-primary: {'#ecf5ff' if st.session_state.theme == 'dark' else '#0d1b2a'};
-        --text-secondary: {'#a7bfd7' if st.session_state.theme == 'dark' else '#39485c'};
-        --border-color: {'#285072' if st.session_state.theme == 'dark' else '#cfd8e5'};
-        --card-bg: {'#0f2740' if st.session_state.theme == 'dark' else '#ffffff'};
-        --accent: {'#00a8d6' if st.session_state.theme == 'dark' else '#1f5fbf'};
-        --accent-strong: {'#0d8fb6' if st.session_state.theme == 'dark' else '#184b97'};
-        --table-row: {'#0f2a45' if st.session_state.theme == 'dark' else '#f8fbff'};
-        --glow-cyan: {'rgba(34, 211, 238, 0.32)' if st.session_state.theme == 'dark' else 'rgba(31,95,191,0.14)'};
-        --glow-amber: {'rgba(251, 191, 36, 0.18)' if st.session_state.theme == 'dark' else 'rgba(245,158,11,0.10)'};
+        --bg-primary: {'#0a1020' if st.session_state.theme == 'dark' else '#f3f6fb'};
+        --bg-secondary: {'#111a33' if st.session_state.theme == 'dark' else '#e7edf5'};
+        --text-primary: {'#f4f8ff' if st.session_state.theme == 'dark' else '#0d1b2a'};
+        --text-secondary: {'#a9b8d8' if st.session_state.theme == 'dark' else '#39485c'};
+        --border-color: {'#31456f' if st.session_state.theme == 'dark' else '#cfd8e5'};
+        --card-bg: {'#131f3d' if st.session_state.theme == 'dark' else '#ffffff'};
+        --accent: {'#ff6a3d' if st.session_state.theme == 'dark' else '#1f5fbf'};
+        --accent-strong: {'#ff8d52' if st.session_state.theme == 'dark' else '#184b97'};
+        --table-row: {'#16264a' if st.session_state.theme == 'dark' else '#f8fbff'};
+        --glow-cyan: {'rgba(56, 189, 248, 0.30)' if st.session_state.theme == 'dark' else 'rgba(31,95,191,0.14)'};
+        --glow-amber: {'rgba(251, 146, 60, 0.26)' if st.session_state.theme == 'dark' else 'rgba(245,158,11,0.10)'};
     }}
 
     @keyframes bgDrift {{
@@ -159,6 +159,38 @@ st.markdown(f"""
         }}
     }}
 
+    @keyframes kpiFloat {{
+        0%, 100% {{
+            transform: translateY(0);
+        }}
+        50% {{
+            transform: translateY(-2px);
+        }}
+    }}
+
+    @keyframes sweep {{
+        0% {{
+            transform: translateX(-120%) skewX(-20deg);
+            opacity: 0;
+        }}
+        35% {{
+            opacity: 0.26;
+        }}
+        100% {{
+            transform: translateX(220%) skewX(-20deg);
+            opacity: 0;
+        }}
+    }}
+
+    @keyframes gradientShift {{
+        0% {{
+            background-position: 0% 50%;
+        }}
+        100% {{
+            background-position: 100% 50%;
+        }}
+    }}
+
     @keyframes haloPulse {{
         0%, 100% {{
             box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.0);
@@ -181,12 +213,12 @@ st.markdown(f"""
 
     .stApp {{
         background:
-            radial-gradient(1200px 520px at 8% -12%, {'rgba(0, 168, 214, 0.26)' if st.session_state.theme == 'dark' else 'rgba(31,95,191,0.10)'}, transparent 62%),
-            radial-gradient(860px 420px at 92% -20%, {'rgba(37, 99, 235, 0.20)' if st.session_state.theme == 'dark' else 'rgba(116,149,189,0.10)'}, transparent 60%),
-            radial-gradient(520px 260px at 55% 110%, {'rgba(251, 191, 36, 0.10)' if st.session_state.theme == 'dark' else 'rgba(245,158,11,0.08)'}, transparent 66%),
-            linear-gradient(180deg, {'#061626' if st.session_state.theme == 'dark' else '#f3f6fb'} 0%, {'#081a2e' if st.session_state.theme == 'dark' else '#eef3fa'} 100%);
+            radial-gradient(1200px 520px at 10% -14%, {'rgba(56, 189, 248, 0.28)' if st.session_state.theme == 'dark' else 'rgba(31,95,191,0.10)'}, transparent 62%),
+            radial-gradient(900px 460px at 94% -18%, {'rgba(255, 138, 76, 0.20)' if st.session_state.theme == 'dark' else 'rgba(116,149,189,0.10)'}, transparent 60%),
+            radial-gradient(600px 300px at 48% 112%, {'rgba(251, 146, 60, 0.12)' if st.session_state.theme == 'dark' else 'rgba(245,158,11,0.08)'}, transparent 66%),
+            linear-gradient(180deg, {'#0a1020' if st.session_state.theme == 'dark' else '#f3f6fb'} 0%, {'#0f1830' if st.session_state.theme == 'dark' else '#eef3fa'} 100%);
         background-size: 120% 120%, 120% 120%, 120% 120%, 100% 100%;
-        animation: bgDrift 26s ease-in-out infinite alternate;
+        animation: bgDrift 22s ease-in-out infinite alternate;
     }}
 
     .block-container {{
@@ -216,15 +248,15 @@ st.markdown(f"""
         border-radius: 10px;
         padding: 0.52rem 1.05rem;
         font-weight: 600;
-        border: 1px solid rgba(255, 255, 255, 0.09);
-        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(255, 214, 194, 0.20);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.20);
         transition: background-color 0.2s ease, transform 0.12s ease, box-shadow 0.18s ease;
     }}
 
     .stButton>button:hover {{
         background: var(--accent-strong);
-        transform: translateY(-2px);
-        box-shadow: 0 12px 22px rgba(0, 0, 0, 0.24);
+        transform: translateY(-3px);
+        box-shadow: 0 14px 26px rgba(0, 0, 0, 0.28);
     }}
 
     /* Headers */
@@ -237,6 +269,7 @@ st.markdown(f"""
     h1 {{
         font-size: 1.6rem;
         margin-bottom: 0.25rem;
+        animation: cardRise 0.35s ease-out both;
     }}
 
     h2 {{
@@ -314,8 +347,11 @@ st.markdown(f"""
 
     /* Sidebar styling */
     [data-testid="stSidebar"] {{
-        background: {'#0b1a2f' if st.session_state.theme == 'dark' else '#12253f'};
-        border-right: 1px solid {'#223b5a' if st.session_state.theme == 'dark' else '#304b6d'};
+        background:
+            radial-gradient(460px 220px at 20% -20%, rgba(56, 189, 248, 0.16), transparent 70%),
+            radial-gradient(380px 180px at 100% -10%, rgba(251, 146, 60, 0.16), transparent 68%),
+            {'#111a33' if st.session_state.theme == 'dark' else '#12253f'};
+        border-right: 1px solid {'#31456f' if st.session_state.theme == 'dark' else '#304b6d'};
     }}
 
     [data-testid="stSidebar"] * {{
@@ -360,22 +396,27 @@ st.markdown(f"""
     /* Banner */
     .hero-banner {{
         background:
-            radial-gradient(340px 120px at 12% -25%, rgba(56, 189, 248, 0.20), transparent 72%),
-            radial-gradient(300px 140px at 88% -38%, rgba(251, 191, 36, 0.14), transparent 74%),
-            {'linear-gradient(120deg,#0d2945 0%,#123456 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(120deg,#edf3fa 0%,#e6eef8 100%)'};
+            radial-gradient(340px 120px at 12% -25%, rgba(56, 189, 248, 0.22), transparent 72%),
+            radial-gradient(300px 140px at 88% -38%, rgba(251, 146, 60, 0.22), transparent 74%),
+            {'linear-gradient(120deg,#17244a 0%,#27376a 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(120deg,#edf3fa 0%,#e6eef8 100%)'};
         border: 1px solid var(--border-color);
         border-radius: 12px;
         padding: 1rem 1.1rem;
         color: var(--text-primary);
-        box-shadow: 0 12px 28px rgba(4, 10, 19, 0.28);
+        box-shadow: 0 14px 30px rgba(4, 10, 19, 0.30);
         margin-bottom: 1.25rem;
         animation: cardRise 0.45s ease-out both;
     }}
     .hero-banner .title {{
-        color: var(--text-primary);
+        color: transparent;
+        background: linear-gradient(90deg, #f8fbff 0%, #8fe5ff 38%, #ffd4b8 72%, #f8fbff 100%);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        background-clip: text;
         font-size: 1.05rem;
         font-weight: 700;
         margin: 0;
+        animation: gradientShift 7s linear infinite alternate;
     }}
     .hero-banner .subtitle {{
         color: var(--text-secondary);
@@ -386,11 +427,12 @@ st.markdown(f"""
         display: inline-block;
         padding: 0.25rem 0.6rem;
         border-radius: 999px;
-        background: {'#1c3657' if st.session_state.theme == 'dark' else '#cdd9ea'};
-        color: {'#dce9fa' if st.session_state.theme == 'dark' else '#13263f'};
+        background: {'rgba(41, 60, 103, 0.72)' if st.session_state.theme == 'dark' else '#cdd9ea'};
+        color: {'#e6f0ff' if st.session_state.theme == 'dark' else '#13263f'};
         margin-right: 0.5rem;
         font-size: 0.8rem;
         font-weight: 600;
+        border: 1px solid rgba(147, 197, 253, 0.24);
     }}
 
     /* Dataframe styling */
@@ -439,7 +481,7 @@ st.markdown(f"""
         width: 100%;
         min-height: 108px;
         border-radius: 14px;
-        border: 1px solid rgba(148, 180, 210, 0.38);
+        border: 1px solid rgba(157, 182, 236, 0.34);
         padding: 0.82rem 0.95rem;
         text-align: left;
         white-space: pre-line;
@@ -450,7 +492,23 @@ st.markdown(f"""
         position: relative;
         overflow: hidden;
         transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-        animation: cardRise 0.45s ease-out both;
+        animation: cardRise 0.45s ease-out both, kpiFloat 6.2s ease-in-out infinite;
+    }}
+
+    .st-key-kpi_total button::before,
+    .st-key-kpi_high_fit button::before,
+    .st-key-kpi_deadline_7d button::before,
+    .st-key-kpi_saved button::before,
+    .st-key-kpi_favorites button::before {{
+        content: "";
+        position: absolute;
+        top: -26%;
+        left: -120%;
+        width: 72%;
+        height: 170%;
+        transform: skewX(-20deg);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+        animation: sweep 7.5s linear infinite;
     }}
 
     .st-key-kpi_total button::after,
@@ -489,28 +547,33 @@ st.markdown(f"""
     }}
 
     .st-key-kpi_total button {{
-        background: linear-gradient(135deg, {'#113f58' if st.session_state.theme == 'dark' else '#edf4ff'} 0%, {'#0f3047' if st.session_state.theme == 'dark' else '#e4eefc'} 100%);
-        border-color: {'#3d7599' if st.session_state.theme == 'dark' else '#c6d7f3'};
+        background: linear-gradient(135deg, {'#1b2f64' if st.session_state.theme == 'dark' else '#edf4ff'} 0%, {'#253d7c' if st.session_state.theme == 'dark' else '#e4eefc'} 100%);
+        border-color: {'#5f78b6' if st.session_state.theme == 'dark' else '#c6d7f3'};
+        animation-delay: 0s, 0.0s;
     }}
 
     .st-key-kpi_high_fit button {{
-        background: linear-gradient(135deg, {'#0f4237' if st.session_state.theme == 'dark' else '#edf9f2'} 0%, {'#0b332a' if st.session_state.theme == 'dark' else '#e4f3ea'} 100%);
-        border-color: {'#2d7d6f' if st.session_state.theme == 'dark' else '#c2e3d1'};
+        background: linear-gradient(135deg, {'#114d68' if st.session_state.theme == 'dark' else '#edf9f2'} 0%, {'#0e3d58' if st.session_state.theme == 'dark' else '#e4f3ea'} 100%);
+        border-color: {'#3a8cab' if st.session_state.theme == 'dark' else '#c2e3d1'};
+        animation-delay: 0.05s, 0.8s;
     }}
 
     .st-key-kpi_deadline_7d button {{
-        background: linear-gradient(135deg, {'#4a2f14' if st.session_state.theme == 'dark' else '#fff8ec'} 0%, {'#3c2610' if st.session_state.theme == 'dark' else '#fbf0de'} 100%);
-        border-color: {'#8b673a' if st.session_state.theme == 'dark' else '#ecd2ac'};
+        background: linear-gradient(135deg, {'#5a2e30' if st.session_state.theme == 'dark' else '#fff8ec'} 0%, {'#7a3f2f' if st.session_state.theme == 'dark' else '#fbf0de'} 100%);
+        border-color: {'#b86c5f' if st.session_state.theme == 'dark' else '#ecd2ac'};
+        animation-delay: 0.1s, 1.6s;
     }}
 
     .st-key-kpi_saved button {{
-        background: linear-gradient(135deg, {'#2f2750' if st.session_state.theme == 'dark' else '#f7f0ff'} 0%, {'#252043' if st.session_state.theme == 'dark' else '#eee4fb'} 100%);
-        border-color: {'#6d60a0' if st.session_state.theme == 'dark' else '#d9c8f5'};
+        background: linear-gradient(135deg, {'#18485e' if st.session_state.theme == 'dark' else '#f7f0ff'} 0%, {'#11536b' if st.session_state.theme == 'dark' else '#eee4fb'} 100%);
+        border-color: {'#4ca0bf' if st.session_state.theme == 'dark' else '#d9c8f5'};
+        animation-delay: 0.15s, 2.4s;
     }}
 
     .st-key-kpi_favorites button {{
-        background: linear-gradient(135deg, {'#3b2348' if st.session_state.theme == 'dark' else '#ecf9fd'} 0%, {'#2e1d3b' if st.session_state.theme == 'dark' else '#e0f1f8'} 100%);
-        border-color: {'#83539a' if st.session_state.theme == 'dark' else '#bcddec'};
+        background: linear-gradient(135deg, {'#3a2d63' if st.session_state.theme == 'dark' else '#ecf9fd'} 0%, {'#4a3475' if st.session_state.theme == 'dark' else '#e0f1f8'} 100%);
+        border-color: {'#7f69b7' if st.session_state.theme == 'dark' else '#bcddec'};
+        animation-delay: 0.2s, 3.2s;
     }}
 
     .kpi-label {{
@@ -565,12 +628,24 @@ st.markdown(f"""
         border-radius: 14px;
         padding: 0.95rem 1rem;
         margin-bottom: 0.8rem;
+        position: relative;
+        overflow: hidden;
         background:
-            radial-gradient(420px 130px at 8% -32%, rgba(34,211,238,0.20), transparent 72%),
-            radial-gradient(320px 150px at 92% -38%, rgba(251,191,36,0.14), transparent 74%),
-            linear-gradient(120deg, rgba(14,38,60,0.93) 0%, rgba(11,28,50,0.93) 100%);
+            radial-gradient(420px 130px at 8% -32%, rgba(56,189,248,0.22), transparent 72%),
+            radial-gradient(320px 150px at 92% -38%, rgba(251,146,60,0.18), transparent 74%),
+            linear-gradient(120deg, rgba(22,34,72,0.94) 0%, rgba(15,25,54,0.94) 100%);
         box-shadow: 0 10px 24px rgba(6, 14, 25, 0.24);
         animation: cardRise 0.45s ease-out both;
+    }}
+
+    .scan-hero::after {{
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.08) 50%, transparent 65%);
+        transform: translateX(-115%);
+        animation: sweep 8.5s ease-in-out infinite;
+        pointer-events: none;
     }}
 
     .scan-hero-title {{
@@ -621,7 +696,7 @@ st.markdown(f"""
         border-radius: 14px;
         padding: 0.95rem 1rem 0.85rem;
         margin-bottom: 0.8rem;
-        background: linear-gradient(140deg, rgba(14, 37, 60, 0.94) 0%, rgba(10, 24, 45, 0.94) 100%);
+        background: linear-gradient(140deg, rgba(20, 34, 69, 0.94) 0%, rgba(13, 24, 52, 0.94) 100%);
         position: relative;
         overflow: hidden;
         animation: cardRise 0.38s ease-out both;
@@ -639,6 +714,19 @@ st.markdown(f"""
         inset: 0 auto 0 0;
         width: 4px;
         background: #3d8bfd;
+    }}
+
+    .result-card::after {{
+        content: "";
+        position: absolute;
+        top: -60%;
+        left: -80%;
+        width: 48%;
+        height: 220%;
+        transform: rotate(14deg);
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent);
+        animation: sweep 10s linear infinite;
+        pointer-events: none;
     }}
 
     .result-card.high::before {{
@@ -833,6 +921,24 @@ st.markdown(f"""
     @media (max-width: 1200px) {{
         .kpi-grid {{
             grid-template-columns: repeat(2, minmax(0, 1fr));
+        }}
+    }}
+
+    @media (prefers-reduced-motion: reduce) {{
+        .stApp,
+        h1,
+        .hero-banner,
+        .scan-hero,
+        .scan-hero::after,
+        .result-card,
+        .result-card::after,
+        .st-key-kpi_total button,
+        .st-key-kpi_high_fit button,
+        .st-key-kpi_deadline_7d button,
+        .st-key-kpi_saved button,
+        .st-key-kpi_favorites button {{
+            animation: none !important;
+            transition: none !important;
         }}
     }}
 </style>
