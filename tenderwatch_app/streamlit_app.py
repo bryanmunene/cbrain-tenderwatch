@@ -969,6 +969,7 @@ def _matches_market_focus(tender, market_focus: str) -> bool:
     return True
 
 
+F2_FILTER_STATUSES = {"true", "strategic", "discuss", "conditional", "uncertain"}
 STRICT_F2_STATUSES = {"true", "strategic", "discuss", "conditional"}
 NOISY_TITLE_HINTS = (
     "clarification",
@@ -1119,7 +1120,7 @@ def _why_matched_summary(tender):
     }
 
 
-def _passes_strict_quality(tender, min_score: int = 35) -> bool:
+def _passes_strict_quality(tender, min_score: int = 20) -> bool:
     score = float(getattr(tender, "score", 0) or 0)
     if score < min_score:
         return False
@@ -1149,11 +1150,11 @@ def _passes_strict_quality(tender, min_score: int = 35) -> bool:
     kw_count = _keyword_count(getattr(tender, "keywords_matched", ""))
 
     # Avoid weak cards: thin metadata + low confidence + no deadline.
-    if not deadline_exists and len(description) < 80 and score < 60:
+    if not deadline_exists and len(description) < 80 and score < 45:
         return False
-    if kw_count < 2 and score < 55:
+    if kw_count < 2 and score < 40:
         return False
-    if not deadline_exists and kw_count < 3 and score < 65:
+    if not deadline_exists and kw_count < 3 and score < 50:
         return False
 
     return True
@@ -1447,7 +1448,7 @@ def get_tenders(filters=None, days_window=30, created_after=None):
                 query = query.filter(TenderResult.likely_fit_for_f2 == filters['f2_fit'])
             if filters.get('f2_only'):
                 f2_clause = (
-                    TenderResult.likely_fit_for_f2.in_(list(STRICT_F2_STATUSES))
+                    TenderResult.likely_fit_for_f2.in_(list(F2_FILTER_STATUSES))
                 )
                 query = query.filter(f2_clause)
                 query = query.filter(~TenderResult.procurement_status.in_(["locked", "conditional_nogo"]))
@@ -1489,7 +1490,7 @@ def get_tenders(filters=None, days_window=30, created_after=None):
                 if (getattr(t, "likely_fit_for_f2", "") or "").strip().lower() not in {"excluded", "no-go"}
             ]
             if filters.get("f2_only"):
-                strict_min_score = int(filters.get("strict_min_score", 40) or 40)
+                strict_min_score = int(filters.get("strict_min_score", 20) or 20)
                 tenders = [t for t in tenders if _passes_strict_quality(t, min_score=strict_min_score)]
 
         # ML blending for score-sorted lists.
@@ -1797,28 +1798,28 @@ def _apply_scan_preset(preset: str) -> None:
         "kenya_sprint": {
             "scan_market_focus": "Kenya First",
             "scan_sort_by": "score",
-            "scan_min_score": 40,
+            "scan_min_score": 0,
             "scan_f2_only": True,
             "scan_open_only": True,
             "scan_deadline_window": "Next 30 days",
-            "scan_strict_quality": True,
-            "scan_allow_broad_fallback": False,
+            "scan_strict_quality": False,
+            "scan_allow_broad_fallback": True,
         },
         "africa_pipeline": {
             "scan_market_focus": "Africa First",
             "scan_sort_by": "score",
-            "scan_min_score": 40,
+            "scan_min_score": 0,
             "scan_f2_only": True,
             "scan_open_only": True,
             "scan_deadline_window": "All",
-            "scan_strict_quality": True,
-            "scan_allow_broad_fallback": False,
+            "scan_strict_quality": False,
+            "scan_allow_broad_fallback": True,
         },
         "global_scout": {
             "scan_market_focus": "Global Reach",
             "scan_sort_by": "date",
             "scan_min_score": 0,
-            "scan_f2_only": True,
+            "scan_f2_only": False,
             "scan_open_only": False,
             "scan_deadline_window": "All",
             "scan_strict_quality": False,
@@ -2257,7 +2258,7 @@ elif page == "Scan & Results":
             discovery_mode_label = st.selectbox(
                 "Discovery Mode",
                 ["F2-ranked", "Manual-like"],
-                index=0,
+                index=1,
                 label_visibility="collapsed",
                 help="F2-ranked is stricter and cleaner. Manual-like is broader for scouting.",
             )
@@ -2359,10 +2360,10 @@ elif page == "Scan & Results":
         if st.session_state.get("scan_sort_by") not in sort_options:
             st.session_state["scan_sort_by"] = qp_sort
 
-        min_score_options = [0, 40, 70, 85]
-        qp_min_score = _qp_int("min_score", 40)
+        min_score_options = [0, 20, 40, 70, 85]
+        qp_min_score = _qp_int("min_score", 0)
         if qp_min_score not in min_score_options:
-            qp_min_score = 40
+            qp_min_score = 0
         if st.session_state.get("scan_min_score") not in min_score_options:
             st.session_state["scan_min_score"] = qp_min_score
 
@@ -2380,9 +2381,9 @@ elif page == "Scan & Results":
         if "scan_open_only" not in st.session_state:
             st.session_state["scan_open_only"] = _qp_bool("open_only", True)
         if "scan_strict_quality" not in st.session_state:
-            st.session_state["scan_strict_quality"] = False if manual_like_view else True
+            st.session_state["scan_strict_quality"] = _qp_bool("strict_quality", False)
         if "scan_allow_broad_fallback" not in st.session_state:
-            st.session_state["scan_allow_broad_fallback"] = True
+            st.session_state["scan_allow_broad_fallback"] = _qp_bool("allow_broad_fallback", True)
         if st.session_state.get("scan_category") not in categories:
             st.session_state["scan_category"] = "All"
 
@@ -2475,7 +2476,7 @@ elif page == "Scan & Results":
             'f2_only': f2_only,
             'open_only': open_only,
             'strict_quality': strict_quality,
-            'strict_min_score': 40,
+            'strict_min_score': 20,
             'allow_broad_fallback': allow_broad_fallback,
             'min_target_results': 8,
             'require_keywords': strict_quality,

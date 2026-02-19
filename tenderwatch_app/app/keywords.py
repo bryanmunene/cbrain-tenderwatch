@@ -115,6 +115,19 @@ KEYWORD_DOMAINS: Dict[str, List[str]] = {
         "ticket management",
     ],
     "Gov": [
+        "digital",
+        "digital transformation",
+        "digitalization",
+        "digitalisation",
+        "digitization",
+        "digitisation",
+        "digital system",
+        "digital systems",
+        "ict",
+        "ict system",
+        "ict systems",
+        "information system",
+        "information systems",
         "digital government",
         "e government",
         "e governance",
@@ -437,4 +450,3 @@ def classify_tender(
         "penalties": round(penalty, 4),
     }
     return out
-

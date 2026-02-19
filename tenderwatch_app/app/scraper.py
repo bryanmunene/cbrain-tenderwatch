@@ -137,16 +137,19 @@ F2_INTENT_TERMS = [
     "enterprise content management", "ecm", "workflow", "workflow automation",
     "business process management", "bpm", "case management", "complaint management",
     "grievance", "e-filing", "electronic filing", "registry management",
-    "digital transformation", "paperless", "digital government", "e-government",
+    "digital", "digital system", "digital systems",
+    "digital transformation", "digitalization", "digitalisation", "digitization", "digitisation",
+    "paperless", "digital government", "e-government", "ict", "information system",
     "citizen portal", "service delivery platform",
 ]
 
-MIN_RELEVANCE_SCORE = 16
+MIN_RELEVANCE_SCORE = 12
 
 # Broader discovery terms for high-signal favorite sources.
 # These are intentionally narrower than generic gov words to avoid noisy capture.
 BROAD_DISCOVERY_TERMS = [
-    "digital", "digitization", "digitalization", "ict", "information system",
+    "digital", "digitization", "digitisation", "digitalization", "digitalisation",
+    "digital system", "digital systems", "ict", "information system", "information systems",
     "software", "application", "system implementation", "automation",
     "platform", "portal", "data management", "enterprise system",
 ]
@@ -156,7 +159,9 @@ BROAD_DISCOVERY_TERMS = [
 WEAK_BROAD_DISCOVERY_TERMS = {
     "digital",
     "digitization",
+    "digitisation",
     "digitalization",
+    "digitalisation",
     "ict",
     "software",
     "platform",
@@ -880,9 +885,10 @@ def scan_source(
                     continue
                 # Controlled fallback: keep digital/ICT-adjacent leads from favorite sources.
                 broad_hits = _broad_discovery_hits(base_combined)
-                allow_broad_capture = (bool(source.favorite) or manual_like) and (has_tender_term or has_ref_code or has_detail_url)
-                if allow_broad_capture and _broad_hits_pass_quality(broad_hits):
-                    score = max(float(score or 0), 24.0 if manual_like else 28.0)
+                allow_broad_capture = has_tender_term or has_ref_code or has_detail_url
+                broad_quality_ok = _broad_hits_pass_quality(broad_hits) or (has_tender_term and len(broad_hits) >= 1)
+                if allow_broad_capture and broad_quality_ok:
+                    score = max(float(score or 0), 18.0 if manual_like else 16.0)
                     keywords_found = len(broad_hits)
                     matched = ", ".join([f"broad:{h}" for h in broad_hits[:4]])
                     breakdown["keywords_found"] = keywords_found
@@ -900,12 +906,12 @@ def scan_source(
             if procurement_status in {"locked", "conditional_nogo"} and (not source.favorite) and (not manual_like):
                 continue
             # Keep more exploratory matches in F2-ranked mode; final quality is handled in UI filters.
-            if likely_fit == "uncertain" and score < 28 and not manual_like:
+            if likely_fit == "uncertain" and score < 14 and not manual_like:
                 continue
             strict_no_deadline = (not bool(source.favorite)) and (not manual_like)
-            if strict_no_deadline and not deadline and likely_fit in {"uncertain", "discuss"} and score < 42:
+            if strict_no_deadline and not deadline and likely_fit in {"uncertain", "discuss"} and score < 24 and not has_tender_term:
                 continue
-            if strict_no_deadline and not deadline and keywords_found < 2 and score < 50:
+            if strict_no_deadline and not deadline and keywords_found < 2 and score < 30 and not has_tender_term:
                 continue
             if (not manual_like) and (not _has_f2_intent(base_combined)) and len(domains_matched) < 2 and score < MIN_RELEVANCE_SCORE:
                 continue
