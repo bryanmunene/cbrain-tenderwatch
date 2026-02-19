@@ -128,8 +128,7 @@ def notify_new_tenders(tenders):
             message = f"Found {len(notify_tenders)} new tender(s) with score >= {settings.min_score_to_notify:.0f}"
             send_desktop_notification(title, message)
 
-        if settings.notify_email:
-            send_email_notification(settings, notify_tenders)
+        # Email notifications were removed from the app.
 
     except Exception as e:
         logger.error(f"Error in notify_new_tenders: {e}")

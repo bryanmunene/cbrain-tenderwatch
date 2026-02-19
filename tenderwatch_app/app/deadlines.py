@@ -268,6 +268,19 @@ def parse_deadline(text: str) -> Optional[str]:
     return chosen.isoformat()
 
 
+def extract_dates(text: str) -> List[date]:
+    """Public helper: return all plausible dates found in text.
+
+    Useful for stale-notice filtering when no explicit deadline is extracted.
+    """
+    if not text:
+        return []
+    t = (text or "").strip().lower()
+    if not t:
+        return []
+    return _extract_dates(t)
+
+
 def check_timing_constraints(deadline_str: str, publication_date: datetime = None):
     """F2-Aligned Timing Constraints (HARD FILTERS).
 
