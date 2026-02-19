@@ -141,7 +141,7 @@ F2_INTENT_TERMS = [
     "citizen portal", "service delivery platform",
 ]
 
-MIN_RELEVANCE_SCORE = 22
+MIN_RELEVANCE_SCORE = 16
 
 # Broader discovery terms for high-signal favorite sources.
 # These are intentionally narrower than generic gov words to avoid noisy capture.
@@ -330,7 +330,7 @@ def _broad_hits_pass_quality(hits: List[str]) -> bool:
     if strong_hits:
         return True
     weak_unique = list(dict.fromkeys(h for h in hits if h in WEAK_BROAD_DISCOVERY_TERMS))
-    return len(weak_unique) >= 3
+    return len(weak_unique) >= 2
 
 
 def _classify_lifecycle(text: str) -> str:
@@ -848,12 +848,13 @@ def scan_source(
                 continue
             if procurement_status in {"locked", "conditional_nogo"} and (not source.favorite) and (not manual_like):
                 continue
-            if likely_fit == "uncertain" and score < 45 and not manual_like:
+            # Keep more exploratory matches in F2-ranked mode; final quality is handled in UI filters.
+            if likely_fit == "uncertain" and score < 28 and not manual_like:
                 continue
             strict_no_deadline = (not bool(source.favorite)) and (not manual_like)
-            if strict_no_deadline and not deadline and likely_fit in {"uncertain", "discuss"} and score < 60:
+            if strict_no_deadline and not deadline and likely_fit in {"uncertain", "discuss"} and score < 42:
                 continue
-            if strict_no_deadline and not deadline and keywords_found < 3 and score < 65:
+            if strict_no_deadline and not deadline and keywords_found < 2 and score < 50:
                 continue
             if (not manual_like) and (not _has_f2_intent(base_combined)) and len(domains_matched) < 2 and score < MIN_RELEVANCE_SCORE:
                 continue
@@ -979,8 +980,8 @@ def _discover_rows(
         serpapi_api_key = (getattr(settings, "bing_api_key", "") or "").strip() or (os.getenv("SERPAPI_API_KEY", "") or "").strip()
         bing_api_key = (os.getenv("BING_API_KEY", "") or "").strip()
 
-        # Require explicit enable and at least one API credential.
-        if not auto_enabled or not ((google_api_key and google_cx) or serpapi_api_key or bing_api_key):
+        # Require explicit enable. Credentials are optional (no-key crawling fallback is supported).
+        if not auto_enabled:
             return []
 
         raw_queries = (getattr(settings, "discovery_queries", "") or "").strip()
@@ -999,9 +1000,17 @@ def _discover_rows(
         results_per_query = int(getattr(settings, "results_per_query", 10) or 10)
         results_per_query = max(3, min(30, results_per_query))
 
+        # Google CSE is often partially configured and can slow discovery with repeated 4xx errors.
+        # Keep it opt-in; SerpAPI/Bing remain primary API paths.
+        google_cse_enabled = bool(
+            (google_api_key and google_cx)
+            and str(os.getenv("ENABLE_GOOGLE_CSE_DISCOVERY", "0")).strip() == "1"
+        )
+        has_api_credentials = bool(google_cse_enabled or serpapi_api_key or bing_api_key)
+
         init_discovery(
-            google_api_key=google_api_key or None,
-            google_cx=google_cx or None,
+            google_api_key=(google_api_key if google_cse_enabled else None) or None,
+            google_cx=(google_cx if google_cse_enabled else None) or None,
             serpapi_api_key=serpapi_api_key or None,
             bing_api_key=bing_api_key or None,
         )
@@ -1009,12 +1018,56 @@ def _discover_rows(
         if not engine:
             return []
 
-        discovered = engine.discover_tenders(queries=queries, results_per_query=results_per_query)
+        effective_queries = queries
+        effective_results_per_query = results_per_query
+        if not has_api_credentials:
+            # No-key crawler ignores query semantics; run a compact pass for speed.
+            effective_queries = [queries[0]] if queries else ["tender procurement"]
+            effective_results_per_query = min(results_per_query, 8)
+
+        discovered = engine.discover_tenders(
+            queries=effective_queries,
+            results_per_query=effective_results_per_query,
+        )
+        if not discovered and has_api_credentials:
+            # API mode may fail (quota/config issues). Fall back to no-key crawl mode.
+            init_discovery()
+            engine = get_discovery_engine()
+            if engine:
+                fallback_queries = [queries[0]] if queries else ["tender procurement"]
+                discovered = engine.discover_tenders(
+                    queries=fallback_queries,
+                    results_per_query=min(results_per_query, 8),
+                )
         if not discovered:
             return []
 
         rows: List[Dict] = []
         seen_local: set[str] = set()
+        discovery_keep_terms = (
+            "tender",
+            "rfp",
+            "rfq",
+            "procurement notice",
+            "request for proposal",
+            "request for quotation",
+            "expression of interest",
+            "eoi",
+        )
+        discovery_noise_terms = (
+            "report",
+            "reports",
+            "forms",
+            "charts",
+            "manual",
+            "guideline",
+            "guidelines",
+            "training",
+            "capacity building",
+            "audit",
+            "policy",
+            "procedure",
+        )
 
         for item in discovered:
             link = (item.get("link") or "").strip()
@@ -1025,6 +1078,19 @@ def _discover_rows(
             description = (item.get("description") or "").strip()
             if not title:
                 continue
+            title_low = title.lower().strip()
+            title_key = re.sub(r"[^a-z0-9]+", " ", title_low).strip()
+            if len(title_key) < 12:
+                continue
+            if title_low in GENERIC_TITLES:
+                continue
+            if any(pat in title_low for pat in GENERIC_TITLE_PATTERNS):
+                continue
+            if title_low in {"open tenders", "archived tenders", "procurement", "tender notice", "tender notices"}:
+                continue
+            title_or_link_has_tender_hint = any(term in title_low or term in link.lower() for term in discovery_keep_terms)
+            if (not title_or_link_has_tender_hint) and any(term in title_low for term in discovery_noise_terms):
+                continue
 
             score, matched, scoring_breakdown = score_text(title, description)
             try:
@@ -1034,7 +1100,27 @@ def _discover_rows(
 
             keywords_found = int(breakdown.get("keywords_found", 0) or 0)
             if score <= 0 or keywords_found == 0:
-                continue
+                text_low = f"{title} {description} {link}".lower()
+                broad_hits = _broad_discovery_hits(text_low)
+                has_tender_hint = any(term in text_low for term in discovery_keep_terms)
+
+                # Keep broad discovery opportunities with a low-but-nonzero score so they are reviewable.
+                if len(broad_hits) >= 1 or has_tender_hint:
+                    score = max(float(score or 0), 22.0 if has_tender_hint else 24.0)
+                    if broad_hits:
+                        matched = ", ".join([f"broad:{h}" for h in broad_hits[:4]])
+                        breakdown["matched_phrases"] = broad_hits[:8]
+                        breakdown["keywords_found"] = max(1, len(broad_hits))
+                    else:
+                        matched = "discovery:tender"
+                        breakdown["matched_phrases"] = ["tender discovery"]
+                        breakdown["keywords_found"] = 1
+                    breakdown["broad_capture"] = True
+                    if breakdown.get("likely_fit_for_F2", "uncertain") == "uncertain":
+                        breakdown["likely_fit_for_F2"] = "discuss"
+                    scoring_breakdown = json_lib.dumps(breakdown)
+                else:
+                    continue
 
             category, _, confidence = categorize(title, description, source_name="Auto Discovery")
             domains_matched = breakdown.get("domains_matched", []) or []

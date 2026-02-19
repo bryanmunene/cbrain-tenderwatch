@@ -994,15 +994,6 @@ GENERIC_KEYWORD_BLOCKLIST = {
     "keyword: unavailable",
     # Generic broad-capture terms (too weak on their own)
     "ict",
-    "digital",
-    "digitization",
-    "digitalization",
-    "platform",
-    "software",
-    "automation",
-    "application",
-    "information system",
-    "enterprise system",
 }
 
 
@@ -1064,7 +1055,10 @@ def _keyword_list(matched: str, fallback_text: str = "", limit: int = 8):
 
 
 def _has_display_keywords(tender) -> bool:
-    return bool(_keyword_list(getattr(tender, "keywords_matched", ""), fallback_text="", limit=1))
+    if _keyword_list(getattr(tender, "keywords_matched", ""), fallback_text="", limit=1):
+        return True
+    # Keep potentially relevant rows visible when DB keyword payload is thin.
+    return bool(_direct_match_keywords(tender, limit=1))
 
 
 def _tender_fallback_text(tender) -> str:
@@ -1505,10 +1499,23 @@ def get_tenders_with_fallback(filters=None):
         return get_tenders(), True, ""
 
     base = get_tenders(filters)
-    if base:
+    allow_broad_fallback = bool(filters.get("allow_broad_fallback"))
+    min_target_results = int(filters.get("min_target_results", 8) or 8)
+
+    if base and (not allow_broad_fallback or len(base) >= min_target_results):
         return base, bool(filters.get("f2_only")), ""
 
-    allow_broad_fallback = bool(filters.get("allow_broad_fallback"))
+    if base and allow_broad_fallback and len(base) < min_target_results:
+        relaxed = dict(filters)
+        relaxed["strict_quality"] = False
+        relaxed["min_score"] = min(float(filters.get("min_score", 0) or 0), 40.0)
+        widened = get_tenders(relaxed)
+        if len(widened) > len(base):
+            return widened, bool(relaxed.get("f2_only")), (
+                f"Only {len(base)} strict matches found. Showing broader set ({len(widened)})."
+            )
+        return base, bool(filters.get("f2_only")), ""
+
     if not allow_broad_fallback:
         return [], bool(filters.get("f2_only")), "No tenders matched current filters. Enable 'Broaden if empty' to expand results."
 
@@ -1740,9 +1747,9 @@ def run_tender_scan(scan_depth="fast", discovery_mode="f2_ranked"):
     """Run tender scan"""
     started = time.time()
     depth_map = {
-        "fast": {"max_sources": 15, "translate": False, "timeout_s": 45, "per_source_cap": 12},
-        "balanced": {"max_sources": 25, "translate": False, "timeout_s": 90, "per_source_cap": 12},
-        "full": {"max_sources": None, "translate": True, "timeout_s": 180, "per_source_cap": 12},
+        "fast": {"max_sources": 25, "translate": False, "timeout_s": 75, "per_source_cap": 20},
+        "balanced": {"max_sources": 35, "translate": False, "timeout_s": 150, "per_source_cap": 25},
+        "full": {"max_sources": None, "translate": True, "timeout_s": 240, "per_source_cap": 30},
     }
     depth_cfg = depth_map.get((scan_depth or "fast").lower(), depth_map["fast"])
     if (discovery_mode or "").lower() == "manual_like":
@@ -2226,7 +2233,7 @@ elif page == "Scan & Results":
             scan_depth = st.selectbox(
                 "Scan Depth",
                 ["fast", "balanced", "full"],
-                index=0,
+                index=1,
                 label_visibility="collapsed",
                 help="Fast: priority sources. Balanced: broader coverage. Full: all active sources + translation.",
             )
@@ -2358,9 +2365,9 @@ elif page == "Scan & Results":
         if "scan_open_only" not in st.session_state:
             st.session_state["scan_open_only"] = _qp_bool("open_only", True)
         if "scan_strict_quality" not in st.session_state:
-            st.session_state["scan_strict_quality"] = not manual_like_view
+            st.session_state["scan_strict_quality"] = False if manual_like_view else True
         if "scan_allow_broad_fallback" not in st.session_state:
-            st.session_state["scan_allow_broad_fallback"] = False
+            st.session_state["scan_allow_broad_fallback"] = True
         if st.session_state.get("scan_category") not in categories:
             st.session_state["scan_category"] = "All"
 
@@ -2455,6 +2462,7 @@ elif page == "Scan & Results":
             'strict_quality': strict_quality,
             'strict_min_score': 40,
             'allow_broad_fallback': allow_broad_fallback,
+            'min_target_results': 8,
             'require_keywords': strict_quality,
             'created_after': st.session_state.get("scan_anchor_utc") if results_mode == "session_scan" else None,
         }

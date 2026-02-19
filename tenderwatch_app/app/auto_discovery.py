@@ -19,22 +19,18 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logger = logging.getLogger(__name__)
 
 NO_KEY_SEED_URLS = [
+    # Kenya + Africa priority
     "https://tenders.go.ke/website/tenders/all",
+    "https://icta.go.ke/tenders/",
+    "https://www.kemsa.co.ke/tenders/",
     "https://www.etenders.gov.za/",
+    "https://www.ppda.go.ug/",
+    "https://www.ppra.go.tz/",
+    "https://trademarkafrica.com/procurement/",
+    # Global institutions
     "https://procurement-notices.undp.org/",
     "https://www.ungm.org/Public/Notice",
     "https://www.unops.org/business-opportunities",
-    "https://www.who.int/about/accountability/procurement",
-    "https://www.wfp.org/procurement",
-    "https://www.fao.org/unfao/procurement/",
-    "https://www.ilo.org/procurement/",
-    "https://www.ppda.go.ug/",
-    "https://www.ppra.go.tz/",
-    "https://www.bpp.gov.ng/",
-    "https://icta.go.ke/tenders/",
-    "https://www.kemsa.co.ke/tenders/",
-    "https://www.sppra.co.sz",
-    "https://trademarkafrica.com/procurement/",
 ]
 
 TENDER_HINTS = (
@@ -151,12 +147,12 @@ class NoKeyDiscoveryManager:
     @staticmethod
     def _fetch(url: str) -> str:
         try:
-            r = requests.get(url, timeout=8, verify=True)
+            r = requests.get(url, timeout=5, verify=True)
             r.raise_for_status()
             return r.text
         except Exception:
             try:
-                r = requests.get(url, timeout=8, verify=False)
+                r = requests.get(url, timeout=5, verify=False)
                 r.raise_for_status()
                 return r.text
             except Exception:
