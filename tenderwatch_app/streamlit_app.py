@@ -102,13 +102,13 @@ st.markdown("""
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32.png">
-<meta name="theme-color" content="#2563eb">
+<meta name="theme-color" content="#ff7a45">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TenderWatch">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="application-name" content="TenderWatch">
-<meta name="msapplication-TileColor" content="#2563eb">
+<meta name="msapplication-TileColor" content="#ff7a45">
 <meta name="msapplication-TileImage" content="/static/icons/icon-144.png">
 <script src="/static/pwa.js" defer></script>
 """, unsafe_allow_html=True)
@@ -123,16 +123,16 @@ st.markdown(f"""
 
     /* Theme Variables */
     :root {{
-        --bg-primary: {'#0a1020' if st.session_state.theme == 'dark' else '#f3f6fb'};
-        --bg-secondary: {'#111a33' if st.session_state.theme == 'dark' else '#e7edf5'};
-        --text-primary: {'#f4f8ff' if st.session_state.theme == 'dark' else '#0d1b2a'};
-        --text-secondary: {'#a9b8d8' if st.session_state.theme == 'dark' else '#39485c'};
-        --border-color: {'#31456f' if st.session_state.theme == 'dark' else '#cfd8e5'};
-        --card-bg: {'#131f3d' if st.session_state.theme == 'dark' else '#ffffff'};
-        --accent: {'#ff6a3d' if st.session_state.theme == 'dark' else '#1f5fbf'};
-        --accent-strong: {'#ff8d52' if st.session_state.theme == 'dark' else '#184b97'};
-        --table-row: {'#16264a' if st.session_state.theme == 'dark' else '#f8fbff'};
-        --glow-cyan: {'rgba(56, 189, 248, 0.30)' if st.session_state.theme == 'dark' else 'rgba(31,95,191,0.14)'};
+        --bg-primary: {'#140f1b' if st.session_state.theme == 'dark' else '#f8f3ef'};
+        --bg-secondary: {'#211528' if st.session_state.theme == 'dark' else '#eee3dc'};
+        --text-primary: {'#fff3e8' if st.session_state.theme == 'dark' else '#291a14'};
+        --text-secondary: {'#d6b6a8' if st.session_state.theme == 'dark' else '#6a4a3d'};
+        --border-color: {'#5f3d4f' if st.session_state.theme == 'dark' else '#d8c0b3'};
+        --card-bg: {'#24162c' if st.session_state.theme == 'dark' else '#fffdfb'};
+        --accent: {'#ff7a45' if st.session_state.theme == 'dark' else '#d9562a'};
+        --accent-strong: {'#ff9f5f' if st.session_state.theme == 'dark' else '#be4620'};
+        --table-row: {'#2a1a31' if st.session_state.theme == 'dark' else '#fff5ef'};
+        --glow-rose: {'rgba(244, 63, 94, 0.30)' if st.session_state.theme == 'dark' else 'rgba(215,86,42,0.14)'};
         --glow-amber: {'rgba(251, 146, 60, 0.26)' if st.session_state.theme == 'dark' else 'rgba(245,158,11,0.10)'};
     }}
 
@@ -191,12 +191,36 @@ st.markdown(f"""
         }}
     }}
 
-    @keyframes haloPulse {{
-        0%, 100% {{
-            box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.0);
+    @keyframes widgetDriftA {{
+        0% {{
+            transform: translate3d(0, 0, 0) rotate(0.5deg);
         }}
         50% {{
-            box-shadow: 0 0 0 6px rgba(34, 211, 238, 0.08);
+            transform: translate3d(0, -16px, 0) rotate(-1deg);
+        }}
+        100% {{
+            transform: translate3d(0, 0, 0) rotate(0.5deg);
+        }}
+    }}
+
+    @keyframes widgetDriftB {{
+        0% {{
+            transform: translate3d(0, 0, 0) rotate(-0.6deg);
+        }}
+        50% {{
+            transform: translate3d(0, 14px, 0) rotate(0.8deg);
+        }}
+        100% {{
+            transform: translate3d(0, 0, 0) rotate(-0.6deg);
+        }}
+    }}
+
+    @keyframes haloPulse {{
+        0%, 100% {{
+            box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.0);
+        }}
+        50% {{
+            box-shadow: 0 0 0 6px rgba(251, 146, 60, 0.10);
         }}
     }}
 
@@ -213,10 +237,10 @@ st.markdown(f"""
 
     .stApp {{
         background:
-            radial-gradient(1200px 520px at 10% -14%, {'rgba(56, 189, 248, 0.28)' if st.session_state.theme == 'dark' else 'rgba(31,95,191,0.10)'}, transparent 62%),
-            radial-gradient(900px 460px at 94% -18%, {'rgba(255, 138, 76, 0.20)' if st.session_state.theme == 'dark' else 'rgba(116,149,189,0.10)'}, transparent 60%),
+            radial-gradient(1200px 520px at 10% -14%, {'rgba(244, 63, 94, 0.26)' if st.session_state.theme == 'dark' else 'rgba(217,86,42,0.10)'}, transparent 62%),
+            radial-gradient(900px 460px at 94% -18%, {'rgba(255, 138, 76, 0.22)' if st.session_state.theme == 'dark' else 'rgba(245,146,60,0.10)'}, transparent 60%),
             radial-gradient(600px 300px at 48% 112%, {'rgba(251, 146, 60, 0.12)' if st.session_state.theme == 'dark' else 'rgba(245,158,11,0.08)'}, transparent 66%),
-            linear-gradient(180deg, {'#0a1020' if st.session_state.theme == 'dark' else '#f3f6fb'} 0%, {'#0f1830' if st.session_state.theme == 'dark' else '#eef3fa'} 100%);
+            linear-gradient(180deg, {'#140f1b' if st.session_state.theme == 'dark' else '#f8f3ef'} 0%, {'#1b1222' if st.session_state.theme == 'dark' else '#f2e7de'} 100%);
         background-size: 120% 120%, 120% 120%, 120% 120%, 100% 100%;
         animation: bgDrift 22s ease-in-out infinite alternate;
     }}
@@ -348,14 +372,14 @@ st.markdown(f"""
     /* Sidebar styling */
     [data-testid="stSidebar"] {{
         background:
-            radial-gradient(460px 220px at 20% -20%, rgba(56, 189, 248, 0.16), transparent 70%),
+            radial-gradient(460px 220px at 20% -20%, rgba(244, 63, 94, 0.18), transparent 70%),
             radial-gradient(380px 180px at 100% -10%, rgba(251, 146, 60, 0.16), transparent 68%),
-            {'#111a33' if st.session_state.theme == 'dark' else '#12253f'};
-        border-right: 1px solid {'#31456f' if st.session_state.theme == 'dark' else '#304b6d'};
+            {'#221528' if st.session_state.theme == 'dark' else '#36231d'};
+        border-right: 1px solid {'#5f3d4f' if st.session_state.theme == 'dark' else '#8c5a4b'};
     }}
 
     [data-testid="stSidebar"] * {{
-        color: #e2e8f0 !important;
+        color: #fff0e6 !important;
     }}
 
     /* Metric cards */
@@ -370,7 +394,7 @@ st.markdown(f"""
     
     [data-testid="stMetric"]:hover {{
         transform: none;
-        border-color: {'#38587d' if st.session_state.theme == 'dark' else '#9eb2cb'};
+        border-color: {'#8f5a49' if st.session_state.theme == 'dark' else '#b07b66'};
     }}
 
     /* Info/Success/Warning/Error boxes */
@@ -388,7 +412,7 @@ st.markdown(f"""
         border-radius: 12px;
         padding: 0.65rem 1.2rem;
         font-weight: 600;
-        background: {'#0e2038' if st.session_state.theme == 'dark' else '#e9eff7'};
+        background: {'#2a1b31' if st.session_state.theme == 'dark' else '#f6e8df'};
         border: 1px solid var(--border-color);
         color: var(--text-primary);
     }}
@@ -396,9 +420,9 @@ st.markdown(f"""
     /* Banner */
     .hero-banner {{
         background:
-            radial-gradient(340px 120px at 12% -25%, rgba(56, 189, 248, 0.22), transparent 72%),
+            radial-gradient(340px 120px at 12% -25%, rgba(244, 63, 94, 0.22), transparent 72%),
             radial-gradient(300px 140px at 88% -38%, rgba(251, 146, 60, 0.22), transparent 74%),
-            {'linear-gradient(120deg,#17244a 0%,#27376a 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(120deg,#edf3fa 0%,#e6eef8 100%)'};
+            {'linear-gradient(120deg,#3a1d2c 0%,#4c2339 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(120deg,#fdf0e9 0%,#f8e3d6 100%)'};
         border: 1px solid var(--border-color);
         border-radius: 12px;
         padding: 1rem 1.1rem;
@@ -409,7 +433,7 @@ st.markdown(f"""
     }}
     .hero-banner .title {{
         color: transparent;
-        background: linear-gradient(90deg, #f8fbff 0%, #8fe5ff 38%, #ffd4b8 72%, #f8fbff 100%);
+        background: linear-gradient(90deg, #fff4e9 0%, #ffb07d 38%, #ff88b4 72%, #fff4e9 100%);
         background-size: 200% auto;
         -webkit-background-clip: text;
         background-clip: text;
@@ -427,12 +451,12 @@ st.markdown(f"""
         display: inline-block;
         padding: 0.25rem 0.6rem;
         border-radius: 999px;
-        background: {'rgba(41, 60, 103, 0.72)' if st.session_state.theme == 'dark' else '#cdd9ea'};
-        color: {'#e6f0ff' if st.session_state.theme == 'dark' else '#13263f'};
+        background: {'rgba(92, 42, 68, 0.72)' if st.session_state.theme == 'dark' else '#efcdbd'};
+        color: {'#ffeede' if st.session_state.theme == 'dark' else '#4a2417'};
         margin-right: 0.5rem;
         font-size: 0.8rem;
         font-weight: 600;
-        border: 1px solid rgba(147, 197, 253, 0.24);
+        border: 1px solid rgba(255, 170, 128, 0.28);
     }}
 
     /* Dataframe styling */
@@ -481,7 +505,7 @@ st.markdown(f"""
         width: 100%;
         min-height: 108px;
         border-radius: 14px;
-        border: 1px solid rgba(157, 182, 236, 0.34);
+        border: 1px solid rgba(236, 154, 127, 0.34);
         padding: 0.82rem 0.95rem;
         text-align: left;
         white-space: pre-line;
@@ -534,7 +558,7 @@ st.markdown(f"""
     .st-key-kpi_favorites button:hover {{
         transform: translateY(-3px);
         box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28);
-        border-color: rgba(187, 221, 255, 0.58);
+        border-color: rgba(255, 178, 136, 0.62);
         animation: haloPulse 1.8s ease-in-out infinite;
     }}
 
@@ -547,14 +571,14 @@ st.markdown(f"""
     }}
 
     .st-key-kpi_total button {{
-        background: linear-gradient(135deg, {'#1b2f64' if st.session_state.theme == 'dark' else '#edf4ff'} 0%, {'#253d7c' if st.session_state.theme == 'dark' else '#e4eefc'} 100%);
-        border-color: {'#5f78b6' if st.session_state.theme == 'dark' else '#c6d7f3'};
+        background: linear-gradient(135deg, {'#4a2233' if st.session_state.theme == 'dark' else '#fff2ea'} 0%, {'#633041' if st.session_state.theme == 'dark' else '#ffe4d5'} 100%);
+        border-color: {'#a66781' if st.session_state.theme == 'dark' else '#efbda4'};
         animation-delay: 0s, 0.0s;
     }}
 
     .st-key-kpi_high_fit button {{
-        background: linear-gradient(135deg, {'#114d68' if st.session_state.theme == 'dark' else '#edf9f2'} 0%, {'#0e3d58' if st.session_state.theme == 'dark' else '#e4f3ea'} 100%);
-        border-color: {'#3a8cab' if st.session_state.theme == 'dark' else '#c2e3d1'};
+        background: linear-gradient(135deg, {'#3f3a1f' if st.session_state.theme == 'dark' else '#fff7e7'} 0%, {'#594f23' if st.session_state.theme == 'dark' else '#ffeec9'} 100%);
+        border-color: {'#9f8f44' if st.session_state.theme == 'dark' else '#e2ca85'};
         animation-delay: 0.05s, 0.8s;
     }}
 
@@ -565,14 +589,14 @@ st.markdown(f"""
     }}
 
     .st-key-kpi_saved button {{
-        background: linear-gradient(135deg, {'#18485e' if st.session_state.theme == 'dark' else '#f7f0ff'} 0%, {'#11536b' if st.session_state.theme == 'dark' else '#eee4fb'} 100%);
-        border-color: {'#4ca0bf' if st.session_state.theme == 'dark' else '#d9c8f5'};
+        background: linear-gradient(135deg, {'#2f4b28' if st.session_state.theme == 'dark' else '#eefae9'} 0%, {'#3d632f' if st.session_state.theme == 'dark' else '#dff1d2'} 100%);
+        border-color: {'#7fb36a' if st.session_state.theme == 'dark' else '#b8d9a3'};
         animation-delay: 0.15s, 2.4s;
     }}
 
     .st-key-kpi_favorites button {{
-        background: linear-gradient(135deg, {'#3a2d63' if st.session_state.theme == 'dark' else '#ecf9fd'} 0%, {'#4a3475' if st.session_state.theme == 'dark' else '#e0f1f8'} 100%);
-        border-color: {'#7f69b7' if st.session_state.theme == 'dark' else '#bcddec'};
+        background: linear-gradient(135deg, {'#5a1f3f' if st.session_state.theme == 'dark' else '#ffedf5'} 0%, {'#722c51' if st.session_state.theme == 'dark' else '#ffddeb'} 100%);
+        border-color: {'#be5f8b' if st.session_state.theme == 'dark' else '#f0a9c8'};
         animation-delay: 0.2s, 3.2s;
     }}
 
@@ -599,8 +623,8 @@ st.markdown(f"""
     }}
 
     .tone-navy {{
-        background: linear-gradient(135deg, {'#102842' if st.session_state.theme == 'dark' else '#edf4ff'} 0%, {'#0f2239' if st.session_state.theme == 'dark' else '#e4eefc'} 100%);
-        border-color: {'#2f4a67' if st.session_state.theme == 'dark' else '#c6d7f3'};
+        background: linear-gradient(135deg, {'#4a2233' if st.session_state.theme == 'dark' else '#fff2ea'} 0%, {'#633041' if st.session_state.theme == 'dark' else '#ffe4d5'} 100%);
+        border-color: {'#a66781' if st.session_state.theme == 'dark' else '#efbda4'};
     }}
 
     .tone-green {{
@@ -619,8 +643,8 @@ st.markdown(f"""
     }}
 
     .tone-cyan {{
-        background: linear-gradient(135deg, {'#112d36' if st.session_state.theme == 'dark' else '#ecf9fd'} 0%, {'#0f252d' if st.session_state.theme == 'dark' else '#e0f1f8'} 100%);
-        border-color: {'#2d5965' if st.session_state.theme == 'dark' else '#bcddec'};
+        background: linear-gradient(135deg, {'#2f4b28' if st.session_state.theme == 'dark' else '#eefae9'} 0%, {'#3d632f' if st.session_state.theme == 'dark' else '#dff1d2'} 100%);
+        border-color: {'#7fb36a' if st.session_state.theme == 'dark' else '#b8d9a3'};
     }}
 
     .scan-hero {{
@@ -631,9 +655,9 @@ st.markdown(f"""
         position: relative;
         overflow: hidden;
         background:
-            radial-gradient(420px 130px at 8% -32%, rgba(56,189,248,0.22), transparent 72%),
+            radial-gradient(420px 130px at 8% -32%, rgba(244,63,94,0.22), transparent 72%),
             radial-gradient(320px 150px at 92% -38%, rgba(251,146,60,0.18), transparent 74%),
-            linear-gradient(120deg, rgba(22,34,72,0.94) 0%, rgba(15,25,54,0.94) 100%);
+            linear-gradient(120deg, rgba(56,25,43,0.94) 0%, rgba(38,18,31,0.94) 100%);
         box-shadow: 0 10px 24px rgba(6, 14, 25, 0.24);
         animation: cardRise 0.45s ease-out both;
     }}
@@ -650,7 +674,7 @@ st.markdown(f"""
 
     .scan-hero-title {{
         margin: 0;
-        color: #ecf3ff;
+        color: #fff0e6;
         font-size: 1.08rem;
         font-weight: 680;
         letter-spacing: 0.01em;
@@ -658,7 +682,7 @@ st.markdown(f"""
 
     .scan-hero-sub {{
         margin-top: 0.32rem;
-        color: #b9c9e1;
+        color: #f0c8b0;
         font-size: 0.86rem;
         line-height: 1.4;
     }}
@@ -676,13 +700,13 @@ st.markdown(f"""
     .st-key-preset_africa button,
     .st-key-preset_global button {{
         border: 1px solid rgba(148, 163, 184, 0.35) !important;
-        background: rgba(29, 78, 216, 0.18) !important;
+        background: rgba(255, 122, 69, 0.20) !important;
     }}
 
     .st-key-preset_kenya button:hover,
     .st-key-preset_africa button:hover,
     .st-key-preset_global button:hover {{
-        background: rgba(59, 130, 246, 0.28) !important;
+        background: rgba(255, 154, 96, 0.34) !important;
     }}
 
     .quick-preset-note {{
@@ -691,12 +715,83 @@ st.markdown(f"""
         margin-top: 0.25rem;
     }}
 
+    .floating-widget-layer {{
+        position: fixed;
+        right: 1.05rem;
+        top: 21%;
+        width: 178px;
+        height: 320px;
+        pointer-events: none;
+        z-index: 2;
+    }}
+
+    .floating-widget {{
+        position: absolute;
+        width: 152px;
+        border-radius: 14px;
+        padding: 0.58rem 0.68rem;
+        border: 1px solid rgba(255, 170, 128, 0.38);
+        background:
+            radial-gradient(160px 80px at 12% -20%, rgba(251, 146, 60, 0.28), transparent 70%),
+            linear-gradient(140deg, rgba(59, 30, 46, 0.84) 0%, rgba(41, 21, 33, 0.84) 100%);
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        overflow: hidden;
+    }}
+
+    .floating-widget::before {{
+        content: "";
+        position: absolute;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        right: -8px;
+        top: -10px;
+        background: radial-gradient(circle at 30% 30%, rgba(255, 198, 163, 0.95), rgba(255, 122, 69, 0.18));
+    }}
+
+    .floating-widget strong {{
+        display: block;
+        color: #ffeede;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }}
+
+    .floating-widget span {{
+        display: block;
+        margin-top: 0.15rem;
+        color: #ffcdb1;
+        font-size: 0.72rem;
+        line-height: 1.35;
+    }}
+
+    .fw-a {{
+        top: 0;
+        right: 6px;
+        animation: widgetDriftA 8.8s ease-in-out infinite;
+    }}
+
+    .fw-b {{
+        top: 110px;
+        right: 24px;
+        animation: widgetDriftB 10.2s ease-in-out infinite;
+    }}
+
+    .fw-c {{
+        top: 222px;
+        right: -2px;
+        animation: widgetDriftA 11.4s ease-in-out infinite;
+    }}
+
     .result-card {{
         border: 1px solid var(--border-color);
         border-radius: 14px;
         padding: 0.95rem 1rem 0.85rem;
         margin-bottom: 0.8rem;
-        background: linear-gradient(140deg, rgba(20, 34, 69, 0.94) 0%, rgba(13, 24, 52, 0.94) 100%);
+        background: linear-gradient(140deg, rgba(50, 24, 44, 0.94) 0%, rgba(33, 17, 29, 0.94) 100%);
         position: relative;
         overflow: hidden;
         animation: cardRise 0.38s ease-out both;
@@ -713,7 +808,7 @@ st.markdown(f"""
         position: absolute;
         inset: 0 auto 0 0;
         width: 4px;
-        background: #3d8bfd;
+        background: #ff7a45;
     }}
 
     .result-card::after {{
@@ -738,7 +833,7 @@ st.markdown(f"""
     }}
 
     .result-card.low::before {{
-        background: #64748b;
+        background: #8b6f64;
     }}
 
     .result-header {{
@@ -750,7 +845,7 @@ st.markdown(f"""
 
     .result-title {{
         margin: 0;
-        color: #e7edf7;
+        color: #fff1e7;
         font-size: 1.03rem;
         line-height: 1.35;
         font-weight: 650;
@@ -771,8 +866,8 @@ st.markdown(f"""
         font-weight: 700;
         letter-spacing: 0.01em;
         border: 1px solid rgba(255,255,255,0.15);
-        color: #e2e8f0;
-        background: rgba(30, 58, 138, 0.75);
+        color: #ffeede;
+        background: rgba(130, 61, 42, 0.72);
     }}
 
     .badge-score.high {{
@@ -788,9 +883,9 @@ st.markdown(f"""
     }}
 
     .badge-score.low {{
-        background: rgba(100, 116, 139, 0.28);
-        border-color: rgba(148, 163, 184, 0.45);
-        color: #e2e8f0;
+        background: rgba(139, 111, 100, 0.30);
+        border-color: rgba(187, 149, 132, 0.45);
+        color: #ffeede;
     }}
 
     .meta-chips {{
@@ -806,13 +901,13 @@ st.markdown(f"""
         font-size: 0.72rem;
         font-weight: 560;
         border: 1px solid rgba(148, 163, 184, 0.32);
-        color: #dbe6f6;
-        background: rgba(30, 58, 95, 0.45);
+        color: #ffe9dd;
+        background: rgba(110, 52, 64, 0.42);
     }}
 
     .meta-chip.deadline {{
-        border-color: rgba(61, 139, 253, 0.45);
-        background: rgba(29, 78, 216, 0.22);
+        border-color: rgba(251, 146, 60, 0.55);
+        background: rgba(194, 65, 12, 0.24);
     }}
 
     .meta-chip.deadline.urgent {{
@@ -832,7 +927,7 @@ st.markdown(f"""
 
     .result-summary {{
         margin-top: 0.55rem;
-        color: #c9d7ea;
+        color: #f0cdbb;
         font-size: 0.84rem;
         line-height: 1.45;
         max-width: 100%;
@@ -849,11 +944,11 @@ st.markdown(f"""
         padding: 0.55rem 0.65rem;
         border: 1px solid rgba(148, 163, 184, 0.30);
         border-radius: 10px;
-        background: rgba(15, 35, 62, 0.55);
+        background: rgba(69, 33, 50, 0.55);
     }}
 
     .keyword-card-title {{
-        color: #a7b8d4;
+        color: #e8b8a4;
         font-size: 0.72rem;
         font-weight: 650;
         letter-spacing: 0.02em;
@@ -873,17 +968,17 @@ st.markdown(f"""
         font-size: 0.71rem;
         font-weight: 560;
         border: 1px solid rgba(103, 128, 165, 0.5);
-        color: #d9e7fb;
-        background: rgba(30, 58, 95, 0.52);
+        color: #ffe8dc;
+        background: rgba(92, 43, 56, 0.52);
     }}
 
     .keyword-empty {{
         font-size: 0.76rem;
-        color: #93a6c3;
+        color: #d5ab96;
     }}
 
     .result-muted {{
-        color: #94a3b8;
+        color: #c39d8d;
         font-size: 0.74rem;
         font-weight: 520;
         letter-spacing: 0.01em;
@@ -896,8 +991,8 @@ st.markdown(f"""
         font-size: 0.7rem;
         font-weight: 700;
         border: 1px solid rgba(148, 163, 184, 0.38);
-        color: #e2e8f0;
-        background: rgba(51, 65, 85, 0.45);
+        color: #ffeede;
+        background: rgba(76, 40, 55, 0.45);
     }}
 
     .deadline-pill.urgent {{
@@ -907,9 +1002,9 @@ st.markdown(f"""
     }}
 
     .deadline-pill.upcoming {{
-        border-color: rgba(59, 130, 246, 0.52);
-        background: rgba(30, 64, 175, 0.26);
-        color: #dbeafe;
+        border-color: rgba(245, 158, 11, 0.58);
+        background: rgba(180, 83, 9, 0.28);
+        color: #ffedd5;
     }}
 
     .deadline-pill.overdue {{
@@ -922,6 +1017,9 @@ st.markdown(f"""
         .kpi-grid {{
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }}
+        .floating-widget-layer {{
+            display: none;
+        }}
     }}
 
     @media (prefers-reduced-motion: reduce) {{
@@ -932,6 +1030,7 @@ st.markdown(f"""
         .scan-hero::after,
         .result-card,
         .result-card::after,
+        .floating-widget,
         .st-key-kpi_total button,
         .st-key-kpi_high_fit button,
         .st-key-kpi_deadline_7d button,
@@ -943,6 +1042,26 @@ st.markdown(f"""
     }}
 </style>
 """, unsafe_allow_html=True)
+
+st.markdown(
+    """
+    <div class="floating-widget-layer" aria-hidden="true">
+        <div class="floating-widget fw-a">
+            <strong>Live Radar</strong>
+            <span>Kenya + Africa focus</span>
+        </div>
+        <div class="floating-widget fw-b">
+            <strong>Fast Triage</strong>
+            <span>Deadlines and fit first</span>
+        </div>
+        <div class="floating-widget fw-c">
+            <strong>F2 Pulse</strong>
+            <span>Always scanning globally</span>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # Initialize Flask app context for database.
 # Avoid long-lived global cache mismatches between Flask app and SQLAlchemy instance
@@ -3192,7 +3311,7 @@ elif page == "Settings":
         st.markdown("""
         <div style='text-align: center; margin: 1rem 0;'>
             <button onclick="window.TenderWatchPWA && window.TenderWatchPWA.setupNotifications()" 
-                    style='background: #1d4ed8; 
+                    style='background: #d9562a; 
                            color: white; 
                            border: none; 
                            padding: 12px 32px; 
@@ -3200,7 +3319,7 @@ elif page == "Settings":
                            font-size: 1rem; 
                            font-weight: 600; 
                            cursor: pointer;
-                           box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);'>
+                           box-shadow: 0 4px 12px rgba(217, 86, 42, 0.38);'>
                  Set Up Daily Notifications
             </button>
         </div>
