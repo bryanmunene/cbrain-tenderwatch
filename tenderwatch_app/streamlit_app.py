@@ -102,13 +102,13 @@ st.markdown("""
 <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32.png">
-<meta name="theme-color" content="#ff7a45">
+<meta name="theme-color" content="#38bdf8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="TenderWatch">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="application-name" content="TenderWatch">
-<meta name="msapplication-TileColor" content="#ff7a45">
+<meta name="msapplication-TileColor" content="#38bdf8">
 <meta name="msapplication-TileImage" content="/static/icons/icon-144.png">
 <script src="/static/pwa.js" defer></script>
 """, unsafe_allow_html=True)
@@ -123,29 +123,17 @@ st.markdown(f"""
 
     /* Theme Variables */
     :root {{
-        --bg-primary: {'#140f1b' if st.session_state.theme == 'dark' else '#f8f3ef'};
-        --bg-secondary: {'#211528' if st.session_state.theme == 'dark' else '#eee3dc'};
-        --text-primary: {'#fff3e8' if st.session_state.theme == 'dark' else '#291a14'};
-        --text-secondary: {'#d6b6a8' if st.session_state.theme == 'dark' else '#6a4a3d'};
-        --border-color: {'#5f3d4f' if st.session_state.theme == 'dark' else '#d8c0b3'};
-        --card-bg: {'#24162c' if st.session_state.theme == 'dark' else '#fffdfb'};
-        --accent: {'#ff7a45' if st.session_state.theme == 'dark' else '#d9562a'};
-        --accent-strong: {'#ff9f5f' if st.session_state.theme == 'dark' else '#be4620'};
-        --table-row: {'#2a1a31' if st.session_state.theme == 'dark' else '#fff5ef'};
-        --glow-rose: {'rgba(244, 63, 94, 0.30)' if st.session_state.theme == 'dark' else 'rgba(215,86,42,0.14)'};
-        --glow-amber: {'rgba(251, 146, 60, 0.26)' if st.session_state.theme == 'dark' else 'rgba(245,158,11,0.10)'};
-    }}
-
-    @keyframes bgDrift {{
-        0% {{
-            background-position: 0% 0%, 100% 0%, 50% 100%, 0% 0%;
-        }}
-        50% {{
-            background-position: 4% 6%, 96% -2%, 54% 92%, 0% 0%;
-        }}
-        100% {{
-            background-position: 8% 2%, 92% 4%, 48% 96%, 0% 0%;
-        }}
+        --bg-primary: {'#061a2f' if st.session_state.theme == 'dark' else '#f3faff'};
+        --bg-secondary: {'#0d2742' if st.session_state.theme == 'dark' else '#deefff'};
+        --text-primary: {'#eaf7ff' if st.session_state.theme == 'dark' else '#0b2035'};
+        --text-secondary: {'#a7c8df' if st.session_state.theme == 'dark' else '#3a5872'};
+        --border-color: {'#2f5d80' if st.session_state.theme == 'dark' else '#bfd9ef'};
+        --card-bg: {'#0d2338' if st.session_state.theme == 'dark' else '#ffffff'};
+        --accent: {'#38bdf8' if st.session_state.theme == 'dark' else '#0284c7'};
+        --accent-strong: {'#0ea5e9' if st.session_state.theme == 'dark' else '#0369a1'};
+        --table-row: {'#12304a' if st.session_state.theme == 'dark' else '#edf7ff'};
+        --glow-rose: {'rgba(56, 189, 248, 0.30)' if st.session_state.theme == 'dark' else 'rgba(2,132,199,0.14)'};
+        --glow-amber: {'rgba(125, 211, 252, 0.26)' if st.session_state.theme == 'dark' else 'rgba(56,189,248,0.10)'};
     }}
 
     @keyframes cardRise {{
@@ -156,15 +144,6 @@ st.markdown(f"""
         to {{
             opacity: 1;
             transform: translateY(0);
-        }}
-    }}
-
-    @keyframes kpiFloat {{
-        0%, 100% {{
-            transform: translateY(0);
-        }}
-        50% {{
-            transform: translateY(-2px);
         }}
     }}
 
@@ -191,36 +170,12 @@ st.markdown(f"""
         }}
     }}
 
-    @keyframes widgetDriftA {{
-        0% {{
-            transform: translate3d(0, 0, 0) rotate(0.5deg);
-        }}
-        50% {{
-            transform: translate3d(0, -16px, 0) rotate(-1deg);
-        }}
-        100% {{
-            transform: translate3d(0, 0, 0) rotate(0.5deg);
-        }}
-    }}
-
-    @keyframes widgetDriftB {{
-        0% {{
-            transform: translate3d(0, 0, 0) rotate(-0.6deg);
-        }}
-        50% {{
-            transform: translate3d(0, 14px, 0) rotate(0.8deg);
-        }}
-        100% {{
-            transform: translate3d(0, 0, 0) rotate(-0.6deg);
-        }}
-    }}
-
     @keyframes haloPulse {{
         0%, 100% {{
-            box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.0);
+            box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.0);
         }}
         50% {{
-            box-shadow: 0 0 0 6px rgba(251, 146, 60, 0.10);
+            box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.14);
         }}
     }}
 
@@ -237,12 +192,11 @@ st.markdown(f"""
 
     .stApp {{
         background:
-            radial-gradient(1200px 520px at 10% -14%, {'rgba(244, 63, 94, 0.26)' if st.session_state.theme == 'dark' else 'rgba(217,86,42,0.10)'}, transparent 62%),
-            radial-gradient(900px 460px at 94% -18%, {'rgba(255, 138, 76, 0.22)' if st.session_state.theme == 'dark' else 'rgba(245,146,60,0.10)'}, transparent 60%),
-            radial-gradient(600px 300px at 48% 112%, {'rgba(251, 146, 60, 0.12)' if st.session_state.theme == 'dark' else 'rgba(245,158,11,0.08)'}, transparent 66%),
-            linear-gradient(180deg, {'#140f1b' if st.session_state.theme == 'dark' else '#f8f3ef'} 0%, {'#1b1222' if st.session_state.theme == 'dark' else '#f2e7de'} 100%);
+            radial-gradient(1200px 520px at 10% -14%, {'rgba(56, 189, 248, 0.24)' if st.session_state.theme == 'dark' else 'rgba(2,132,199,0.10)'}, transparent 62%),
+            radial-gradient(900px 460px at 94% -18%, {'rgba(14, 165, 233, 0.20)' if st.session_state.theme == 'dark' else 'rgba(56,189,248,0.10)'}, transparent 60%),
+            radial-gradient(600px 300px at 48% 112%, {'rgba(125, 211, 252, 0.14)' if st.session_state.theme == 'dark' else 'rgba(14,165,233,0.08)'}, transparent 66%),
+            linear-gradient(180deg, {'#061a2f' if st.session_state.theme == 'dark' else '#f3faff'} 0%, {'#0b2239' if st.session_state.theme == 'dark' else '#eaf5ff'} 100%);
         background-size: 120% 120%, 120% 120%, 120% 120%, 100% 100%;
-        animation: bgDrift 22s ease-in-out infinite alternate;
     }}
 
     .block-container {{
@@ -372,14 +326,14 @@ st.markdown(f"""
     /* Sidebar styling */
     [data-testid="stSidebar"] {{
         background:
-            radial-gradient(460px 220px at 20% -20%, rgba(244, 63, 94, 0.18), transparent 70%),
-            radial-gradient(380px 180px at 100% -10%, rgba(251, 146, 60, 0.16), transparent 68%),
-            {'#221528' if st.session_state.theme == 'dark' else '#36231d'};
-        border-right: 1px solid {'#5f3d4f' if st.session_state.theme == 'dark' else '#8c5a4b'};
+            radial-gradient(460px 220px at 20% -20%, rgba(56, 189, 248, 0.18), transparent 70%),
+            radial-gradient(380px 180px at 100% -10%, rgba(125, 211, 252, 0.16), transparent 68%),
+            {'#0a2035' if st.session_state.theme == 'dark' else '#d9edff'};
+        border-right: 1px solid {'#2f5d80' if st.session_state.theme == 'dark' else '#8bb7d9'};
     }}
 
     [data-testid="stSidebar"] * {{
-        color: #fff0e6 !important;
+        color: #eaf7ff !important;
     }}
 
     /* Metric cards */
@@ -394,7 +348,7 @@ st.markdown(f"""
     
     [data-testid="stMetric"]:hover {{
         transform: none;
-        border-color: {'#8f5a49' if st.session_state.theme == 'dark' else '#b07b66'};
+        border-color: {'#3f80aa' if st.session_state.theme == 'dark' else '#78acd1'};
     }}
 
     /* Info/Success/Warning/Error boxes */
@@ -420,9 +374,9 @@ st.markdown(f"""
     /* Banner */
     .hero-banner {{
         background:
-            radial-gradient(340px 120px at 12% -25%, rgba(244, 63, 94, 0.22), transparent 72%),
-            radial-gradient(300px 140px at 88% -38%, rgba(251, 146, 60, 0.22), transparent 74%),
-            {'linear-gradient(120deg,#3a1d2c 0%,#4c2339 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(120deg,#fdf0e9 0%,#f8e3d6 100%)'};
+            radial-gradient(340px 120px at 12% -25%, rgba(56, 189, 248, 0.22), transparent 72%),
+            radial-gradient(300px 140px at 88% -38%, rgba(125, 211, 252, 0.22), transparent 74%),
+            {'linear-gradient(120deg,#0f2b45 0%,#163a5d 100%)' if st.session_state.theme == 'dark' else 'linear-gradient(120deg,#eaf5ff 0%,#d9ecff 100%)'};
         border: 1px solid var(--border-color);
         border-radius: 12px;
         padding: 1rem 1.1rem;
@@ -433,7 +387,7 @@ st.markdown(f"""
     }}
     .hero-banner .title {{
         color: transparent;
-        background: linear-gradient(90deg, #fff4e9 0%, #ffb07d 38%, #ff88b4 72%, #fff4e9 100%);
+        background: linear-gradient(90deg, #eaf7ff 0%, #7dd3fc 38%, #38bdf8 72%, #eaf7ff 100%);
         background-size: 200% auto;
         -webkit-background-clip: text;
         background-clip: text;
@@ -451,12 +405,12 @@ st.markdown(f"""
         display: inline-block;
         padding: 0.25rem 0.6rem;
         border-radius: 999px;
-        background: {'rgba(92, 42, 68, 0.72)' if st.session_state.theme == 'dark' else '#efcdbd'};
-        color: {'#ffeede' if st.session_state.theme == 'dark' else '#4a2417'};
+        background: {'rgba(37, 79, 112, 0.72)' if st.session_state.theme == 'dark' else '#dcefff'};
+        color: {'#eaf7ff' if st.session_state.theme == 'dark' else '#12314b'};
         margin-right: 0.5rem;
         font-size: 0.8rem;
         font-weight: 600;
-        border: 1px solid rgba(255, 170, 128, 0.28);
+        border: 1px solid rgba(125, 211, 252, 0.30);
     }}
 
     /* Dataframe styling */
@@ -505,7 +459,7 @@ st.markdown(f"""
         width: 100%;
         min-height: 108px;
         border-radius: 14px;
-        border: 1px solid rgba(236, 154, 127, 0.34);
+        border: 1px solid rgba(125, 211, 252, 0.34);
         padding: 0.82rem 0.95rem;
         text-align: left;
         white-space: pre-line;
@@ -516,7 +470,7 @@ st.markdown(f"""
         position: relative;
         overflow: hidden;
         transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-        animation: cardRise 0.45s ease-out both, kpiFloat 6.2s ease-in-out infinite;
+        animation: cardRise 0.45s ease-out both;
     }}
 
     .st-key-kpi_total button::before,
@@ -558,7 +512,7 @@ st.markdown(f"""
     .st-key-kpi_favorites button:hover {{
         transform: translateY(-3px);
         box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28);
-        border-color: rgba(255, 178, 136, 0.62);
+        border-color: rgba(125, 211, 252, 0.62);
         animation: haloPulse 1.8s ease-in-out infinite;
     }}
 
@@ -571,33 +525,33 @@ st.markdown(f"""
     }}
 
     .st-key-kpi_total button {{
-        background: linear-gradient(135deg, {'#4a2233' if st.session_state.theme == 'dark' else '#fff2ea'} 0%, {'#633041' if st.session_state.theme == 'dark' else '#ffe4d5'} 100%);
-        border-color: {'#a66781' if st.session_state.theme == 'dark' else '#efbda4'};
-        animation-delay: 0s, 0.0s;
+        background: linear-gradient(135deg, {'#123b5d' if st.session_state.theme == 'dark' else '#eaf5ff'} 0%, {'#1d5e90' if st.session_state.theme == 'dark' else '#d6ecff'} 100%);
+        border-color: {'#3b81b0' if st.session_state.theme == 'dark' else '#9bc6e8'};
+        animation-delay: 0s;
     }}
 
     .st-key-kpi_high_fit button {{
-        background: linear-gradient(135deg, {'#3f3a1f' if st.session_state.theme == 'dark' else '#fff7e7'} 0%, {'#594f23' if st.session_state.theme == 'dark' else '#ffeec9'} 100%);
-        border-color: {'#9f8f44' if st.session_state.theme == 'dark' else '#e2ca85'};
-        animation-delay: 0.05s, 0.8s;
+        background: linear-gradient(135deg, {'#103e4f' if st.session_state.theme == 'dark' else '#e8f9ff'} 0%, {'#17607a' if st.session_state.theme == 'dark' else '#d3f0ff'} 100%);
+        border-color: {'#2f7f9f' if st.session_state.theme == 'dark' else '#97cfe9'};
+        animation-delay: 0.05s;
     }}
 
     .st-key-kpi_deadline_7d button {{
-        background: linear-gradient(135deg, {'#5a2e30' if st.session_state.theme == 'dark' else '#fff8ec'} 0%, {'#7a3f2f' if st.session_state.theme == 'dark' else '#fbf0de'} 100%);
-        border-color: {'#b86c5f' if st.session_state.theme == 'dark' else '#ecd2ac'};
-        animation-delay: 0.1s, 1.6s;
+        background: linear-gradient(135deg, {'#183652' if st.session_state.theme == 'dark' else '#edf7ff'} 0%, {'#25557c' if st.session_state.theme == 'dark' else '#d8ecff'} 100%);
+        border-color: {'#4578a4' if st.session_state.theme == 'dark' else '#a5cae8'};
+        animation-delay: 0.1s;
     }}
 
     .st-key-kpi_saved button {{
-        background: linear-gradient(135deg, {'#2f4b28' if st.session_state.theme == 'dark' else '#eefae9'} 0%, {'#3d632f' if st.session_state.theme == 'dark' else '#dff1d2'} 100%);
-        border-color: {'#7fb36a' if st.session_state.theme == 'dark' else '#b8d9a3'};
-        animation-delay: 0.15s, 2.4s;
+        background: linear-gradient(135deg, {'#113f47' if st.session_state.theme == 'dark' else '#e9fbff'} 0%, {'#1a5f68' if st.session_state.theme == 'dark' else '#d8f3ff'} 100%);
+        border-color: {'#418995' if st.session_state.theme == 'dark' else '#a4d7e5'};
+        animation-delay: 0.15s;
     }}
 
     .st-key-kpi_favorites button {{
-        background: linear-gradient(135deg, {'#5a1f3f' if st.session_state.theme == 'dark' else '#ffedf5'} 0%, {'#722c51' if st.session_state.theme == 'dark' else '#ffddeb'} 100%);
-        border-color: {'#be5f8b' if st.session_state.theme == 'dark' else '#f0a9c8'};
-        animation-delay: 0.2s, 3.2s;
+        background: linear-gradient(135deg, {'#1a3152' if st.session_state.theme == 'dark' else '#eef6ff'} 0%, {'#274a76' if st.session_state.theme == 'dark' else '#dcecff'} 100%);
+        border-color: {'#4a78aa' if st.session_state.theme == 'dark' else '#a9c7e8'};
+        animation-delay: 0.2s;
     }}
 
     .kpi-label {{
@@ -623,8 +577,8 @@ st.markdown(f"""
     }}
 
     .tone-navy {{
-        background: linear-gradient(135deg, {'#4a2233' if st.session_state.theme == 'dark' else '#fff2ea'} 0%, {'#633041' if st.session_state.theme == 'dark' else '#ffe4d5'} 100%);
-        border-color: {'#a66781' if st.session_state.theme == 'dark' else '#efbda4'};
+        background: linear-gradient(135deg, {'#123b5d' if st.session_state.theme == 'dark' else '#eaf5ff'} 0%, {'#1d5e90' if st.session_state.theme == 'dark' else '#d6ecff'} 100%);
+        border-color: {'#3b81b0' if st.session_state.theme == 'dark' else '#9bc6e8'};
     }}
 
     .tone-green {{
@@ -633,13 +587,13 @@ st.markdown(f"""
     }}
 
     .tone-amber {{
-        background: linear-gradient(135deg, {'#332313' if st.session_state.theme == 'dark' else '#fff8ec'} 0%, {'#2b1e10' if st.session_state.theme == 'dark' else '#fbf0de'} 100%);
-        border-color: {'#5e4630' if st.session_state.theme == 'dark' else '#ecd2ac'};
+        background: linear-gradient(135deg, {'#183652' if st.session_state.theme == 'dark' else '#edf7ff'} 0%, {'#25557c' if st.session_state.theme == 'dark' else '#d8ecff'} 100%);
+        border-color: {'#4578a4' if st.session_state.theme == 'dark' else '#a5cae8'};
     }}
 
     .tone-plum {{
-        background: linear-gradient(135deg, {'#2a1f39' if st.session_state.theme == 'dark' else '#f7f0ff'} 0%, {'#22192f' if st.session_state.theme == 'dark' else '#eee4fb'} 100%);
-        border-color: {'#4e3f66' if st.session_state.theme == 'dark' else '#d9c8f5'};
+        background: linear-gradient(135deg, {'#1a3152' if st.session_state.theme == 'dark' else '#eef6ff'} 0%, {'#274a76' if st.session_state.theme == 'dark' else '#dcecff'} 100%);
+        border-color: {'#4a78aa' if st.session_state.theme == 'dark' else '#a9c7e8'};
     }}
 
     .tone-cyan {{
@@ -655,9 +609,9 @@ st.markdown(f"""
         position: relative;
         overflow: hidden;
         background:
-            radial-gradient(420px 130px at 8% -32%, rgba(244,63,94,0.22), transparent 72%),
-            radial-gradient(320px 150px at 92% -38%, rgba(251,146,60,0.18), transparent 74%),
-            linear-gradient(120deg, rgba(56,25,43,0.94) 0%, rgba(38,18,31,0.94) 100%);
+            radial-gradient(420px 130px at 8% -32%, rgba(56,189,248,0.22), transparent 72%),
+            radial-gradient(320px 150px at 92% -38%, rgba(125,211,252,0.18), transparent 74%),
+            linear-gradient(120deg, rgba(17,49,76,0.94) 0%, rgba(11,31,50,0.94) 100%);
         box-shadow: 0 10px 24px rgba(6, 14, 25, 0.24);
         animation: cardRise 0.45s ease-out both;
     }}
@@ -674,7 +628,7 @@ st.markdown(f"""
 
     .scan-hero-title {{
         margin: 0;
-        color: #fff0e6;
+        color: #eaf7ff;
         font-size: 1.08rem;
         font-weight: 680;
         letter-spacing: 0.01em;
@@ -682,7 +636,7 @@ st.markdown(f"""
 
     .scan-hero-sub {{
         margin-top: 0.32rem;
-        color: #f0c8b0;
+        color: #b9def5;
         font-size: 0.86rem;
         line-height: 1.4;
     }}
@@ -700,13 +654,13 @@ st.markdown(f"""
     .st-key-preset_africa button,
     .st-key-preset_global button {{
         border: 1px solid rgba(148, 163, 184, 0.35) !important;
-        background: rgba(255, 122, 69, 0.20) !important;
+        background: rgba(56, 189, 248, 0.22) !important;
     }}
 
     .st-key-preset_kenya button:hover,
     .st-key-preset_africa button:hover,
     .st-key-preset_global button:hover {{
-        background: rgba(255, 154, 96, 0.34) !important;
+        background: rgba(125, 211, 252, 0.38) !important;
     }}
 
     .quick-preset-note {{
@@ -715,83 +669,12 @@ st.markdown(f"""
         margin-top: 0.25rem;
     }}
 
-    .floating-widget-layer {{
-        position: fixed;
-        right: 1.05rem;
-        top: 21%;
-        width: 178px;
-        height: 320px;
-        pointer-events: none;
-        z-index: 2;
-    }}
-
-    .floating-widget {{
-        position: absolute;
-        width: 152px;
-        border-radius: 14px;
-        padding: 0.58rem 0.68rem;
-        border: 1px solid rgba(255, 170, 128, 0.38);
-        background:
-            radial-gradient(160px 80px at 12% -20%, rgba(251, 146, 60, 0.28), transparent 70%),
-            linear-gradient(140deg, rgba(59, 30, 46, 0.84) 0%, rgba(41, 21, 33, 0.84) 100%);
-        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
-        overflow: hidden;
-    }}
-
-    .floating-widget::before {{
-        content: "";
-        position: absolute;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        right: -8px;
-        top: -10px;
-        background: radial-gradient(circle at 30% 30%, rgba(255, 198, 163, 0.95), rgba(255, 122, 69, 0.18));
-    }}
-
-    .floating-widget strong {{
-        display: block;
-        color: #ffeede;
-        font-size: 0.75rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        text-transform: uppercase;
-    }}
-
-    .floating-widget span {{
-        display: block;
-        margin-top: 0.15rem;
-        color: #ffcdb1;
-        font-size: 0.72rem;
-        line-height: 1.35;
-    }}
-
-    .fw-a {{
-        top: 0;
-        right: 6px;
-        animation: widgetDriftA 8.8s ease-in-out infinite;
-    }}
-
-    .fw-b {{
-        top: 110px;
-        right: 24px;
-        animation: widgetDriftB 10.2s ease-in-out infinite;
-    }}
-
-    .fw-c {{
-        top: 222px;
-        right: -2px;
-        animation: widgetDriftA 11.4s ease-in-out infinite;
-    }}
-
     .result-card {{
         border: 1px solid var(--border-color);
         border-radius: 14px;
         padding: 0.95rem 1rem 0.85rem;
         margin-bottom: 0.8rem;
-        background: linear-gradient(140deg, rgba(50, 24, 44, 0.94) 0%, rgba(33, 17, 29, 0.94) 100%);
+        background: linear-gradient(140deg, rgba(18, 48, 74, 0.94) 0%, rgba(10, 30, 49, 0.94) 100%);
         position: relative;
         overflow: hidden;
         animation: cardRise 0.38s ease-out both;
@@ -808,7 +691,7 @@ st.markdown(f"""
         position: absolute;
         inset: 0 auto 0 0;
         width: 4px;
-        background: #ff7a45;
+        background: #38bdf8;
     }}
 
     .result-card::after {{
@@ -845,7 +728,7 @@ st.markdown(f"""
 
     .result-title {{
         margin: 0;
-        color: #fff1e7;
+        color: #eaf7ff;
         font-size: 1.03rem;
         line-height: 1.35;
         font-weight: 650;
@@ -866,8 +749,8 @@ st.markdown(f"""
         font-weight: 700;
         letter-spacing: 0.01em;
         border: 1px solid rgba(255,255,255,0.15);
-        color: #ffeede;
-        background: rgba(130, 61, 42, 0.72);
+        color: #eaf7ff;
+        background: rgba(30, 74, 111, 0.72);
     }}
 
     .badge-score.high {{
@@ -885,7 +768,7 @@ st.markdown(f"""
     .badge-score.low {{
         background: rgba(139, 111, 100, 0.30);
         border-color: rgba(187, 149, 132, 0.45);
-        color: #ffeede;
+        color: #eaf7ff;
     }}
 
     .meta-chips {{
@@ -901,18 +784,18 @@ st.markdown(f"""
         font-size: 0.72rem;
         font-weight: 560;
         border: 1px solid rgba(148, 163, 184, 0.32);
-        color: #ffe9dd;
-        background: rgba(110, 52, 64, 0.42);
+        color: #e1f4ff;
+        background: rgba(31, 70, 103, 0.42);
     }}
 
     .meta-chip.deadline {{
-        border-color: rgba(251, 146, 60, 0.55);
-        background: rgba(194, 65, 12, 0.24);
+        border-color: rgba(56, 189, 248, 0.58);
+        background: rgba(14, 116, 144, 0.24);
     }}
 
     .meta-chip.deadline.urgent {{
-        border-color: rgba(249, 115, 22, 0.58);
-        background: rgba(194, 65, 12, 0.24);
+        border-color: rgba(14, 165, 233, 0.62);
+        background: rgba(2, 132, 199, 0.26);
     }}
 
     .meta-chip.deadline.overdue {{
@@ -927,7 +810,7 @@ st.markdown(f"""
 
     .result-summary {{
         margin-top: 0.55rem;
-        color: #f0cdbb;
+        color: #b9def5;
         font-size: 0.84rem;
         line-height: 1.45;
         max-width: 100%;
@@ -944,11 +827,11 @@ st.markdown(f"""
         padding: 0.55rem 0.65rem;
         border: 1px solid rgba(148, 163, 184, 0.30);
         border-radius: 10px;
-        background: rgba(69, 33, 50, 0.55);
+        background: rgba(21, 52, 79, 0.55);
     }}
 
     .keyword-card-title {{
-        color: #e8b8a4;
+        color: #bfe4fb;
         font-size: 0.72rem;
         font-weight: 650;
         letter-spacing: 0.02em;
@@ -968,17 +851,17 @@ st.markdown(f"""
         font-size: 0.71rem;
         font-weight: 560;
         border: 1px solid rgba(103, 128, 165, 0.5);
-        color: #ffe8dc;
-        background: rgba(92, 43, 56, 0.52);
+        color: #e1f4ff;
+        background: rgba(26, 66, 100, 0.52);
     }}
 
     .keyword-empty {{
         font-size: 0.76rem;
-        color: #d5ab96;
+        color: #9cc7df;
     }}
 
     .result-muted {{
-        color: #c39d8d;
+        color: #8fbad3;
         font-size: 0.74rem;
         font-weight: 520;
         letter-spacing: 0.01em;
@@ -991,20 +874,20 @@ st.markdown(f"""
         font-size: 0.7rem;
         font-weight: 700;
         border: 1px solid rgba(148, 163, 184, 0.38);
-        color: #ffeede;
-        background: rgba(76, 40, 55, 0.45);
+        color: #eaf7ff;
+        background: rgba(24, 59, 91, 0.45);
     }}
 
     .deadline-pill.urgent {{
-        border-color: rgba(249, 115, 22, 0.58);
-        background: rgba(194, 65, 12, 0.24);
-        color: #ffedd5;
+        border-color: rgba(14, 165, 233, 0.62);
+        background: rgba(2, 132, 199, 0.26);
+        color: #e0f2fe;
     }}
 
     .deadline-pill.upcoming {{
-        border-color: rgba(245, 158, 11, 0.58);
-        background: rgba(180, 83, 9, 0.28);
-        color: #ffedd5;
+        border-color: rgba(56, 189, 248, 0.62);
+        background: rgba(14, 116, 144, 0.30);
+        color: #e0f2fe;
     }}
 
     .deadline-pill.overdue {{
@@ -1017,9 +900,6 @@ st.markdown(f"""
         .kpi-grid {{
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }}
-        .floating-widget-layer {{
-            display: none;
-        }}
     }}
 
     @media (prefers-reduced-motion: reduce) {{
@@ -1030,7 +910,6 @@ st.markdown(f"""
         .scan-hero::after,
         .result-card,
         .result-card::after,
-        .floating-widget,
         .st-key-kpi_total button,
         .st-key-kpi_high_fit button,
         .st-key-kpi_deadline_7d button,
@@ -1042,26 +921,6 @@ st.markdown(f"""
     }}
 </style>
 """, unsafe_allow_html=True)
-
-st.markdown(
-    """
-    <div class="floating-widget-layer" aria-hidden="true">
-        <div class="floating-widget fw-a">
-            <strong>Live Radar</strong>
-            <span>Kenya + Africa focus</span>
-        </div>
-        <div class="floating-widget fw-b">
-            <strong>Fast Triage</strong>
-            <span>Deadlines and fit first</span>
-        </div>
-        <div class="floating-widget fw-c">
-            <strong>F2 Pulse</strong>
-            <span>Always scanning globally</span>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
 
 # Initialize Flask app context for database.
 # Avoid long-lived global cache mismatches between Flask app and SQLAlchemy instance
@@ -3311,7 +3170,7 @@ elif page == "Settings":
         st.markdown("""
         <div style='text-align: center; margin: 1rem 0;'>
             <button onclick="window.TenderWatchPWA && window.TenderWatchPWA.setupNotifications()" 
-                    style='background: #d9562a; 
+                    style='background: #0284c7; 
                            color: white; 
                            border: none; 
                            padding: 12px 32px; 
@@ -3319,7 +3178,7 @@ elif page == "Settings":
                            font-size: 1rem; 
                            font-weight: 600; 
                            cursor: pointer;
-                           box-shadow: 0 4px 12px rgba(217, 86, 42, 0.38);'>
+                           box-shadow: 0 4px 12px rgba(2, 132, 199, 0.38);'>
                  Set Up Daily Notifications
             </button>
         </div>
