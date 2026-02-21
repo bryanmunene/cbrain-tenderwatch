@@ -1388,6 +1388,17 @@ def _looks_like_generic_result_target(tender) -> bool:
     return False
 
 
+def _apply_result_visibility_filters(tenders):
+    before_keyword_signal = len(tenders)
+    tenders = [t for t in tenders if _has_keyword_signal(t)]
+    removed_no_keyword_signal = before_keyword_signal - len(tenders)
+
+    before_generic_target = len(tenders)
+    tenders = [t for t in tenders if not _looks_like_generic_result_target(t)]
+    removed_generic_targets = before_generic_target - len(tenders)
+    return tenders, removed_no_keyword_signal, removed_generic_targets
+
+
 def _passes_strict_quality(tender, min_score: int = 20) -> bool:
     score = float(getattr(tender, "score", 0) or 0)
     if score < min_score:
@@ -2543,13 +2554,19 @@ elif page == "Scan & Results":
     
         # Filters and Export
         col_filter, col_export = st.columns([4, 1])
+
+        if "scan_market_focus" not in st.session_state:
+            st.session_state["scan_market_focus"] = "Africa First"
+        if st.session_state.get("scan_market_focus") not in MARKET_FOCUS_OPTIONS:
+            st.session_state["scan_market_focus"] = "Africa First"
+        scan_market_focus = st.session_state["scan_market_focus"]
     
         with col_filter:
             st.subheader("Filters")
     
         with col_export:
             # CSV Export button
-            all_tenders_for_export = get_tenders()
+            all_tenders_for_export = get_tenders({"market_focus": scan_market_focus})
             if all_tenders_for_export:
                 csv_data = "Title,Link,Score,Category,Country,Deadline,Days_Left,Lifecycle,Priority,Procurement_Status,F2_Fit\n"
                 for t in all_tenders_for_export:
@@ -2564,7 +2581,36 @@ elif page == "Scan & Results":
                     mime="text/csv",
                     help="Download all tenders as CSV"
                 )
-    
+
+        focus1, focus2, focus3 = st.columns(3)
+        with focus1:
+            if st.button(
+                "Kenya Search",
+                key="scan_focus_kenya_button",
+                width="stretch",
+                type="primary" if scan_market_focus == "Kenya First" else "secondary",
+            ):
+                st.session_state["scan_market_focus"] = "Kenya First"
+                st.rerun()
+        with focus2:
+            if st.button(
+                "Africa Search",
+                key="scan_focus_africa_button",
+                width="stretch",
+                type="primary" if scan_market_focus == "Africa First" else "secondary",
+            ):
+                st.session_state["scan_market_focus"] = "Africa First"
+                st.rerun()
+        with focus3:
+            if st.button(
+                "Global Search",
+                key="scan_focus_global_button",
+                width="stretch",
+                type="primary" if scan_market_focus == "Global Reach" else "secondary",
+            ):
+                st.session_state["scan_market_focus"] = "Global Reach"
+                st.rerun()
+
         qp_search = _qp_value("search", "")
         if st.session_state.get("scan_search") is None:
             st.session_state["scan_search"] = qp_search
@@ -2592,18 +2638,38 @@ elif page == "Scan & Results":
 
         # Simple query: search + sort only.
         filters = {
+            'market_focus': scan_market_focus,
             'sort_by': sort_by,
             'search': search,
             'created_after': st.session_state.get("scan_anchor_utc") if results_mode == "session_scan" else None,
         }
     
+        fallback_notice = ""
+        applied_focus = scan_market_focus
         tenders = get_tenders(filters)
-        before_keyword_signal = len(tenders)
-        tenders = [t for t in tenders if _has_keyword_signal(t)]
-        removed_no_keyword_signal = before_keyword_signal - len(tenders)
-        before_generic_target = len(tenders)
-        tenders = [t for t in tenders if not _looks_like_generic_result_target(t)]
-        removed_generic_targets = before_generic_target - len(tenders)
+        tenders, removed_no_keyword_signal, removed_generic_targets = _apply_result_visibility_filters(tenders)
+
+        if not tenders and (search or scan_market_focus != "Global Reach"):
+            # Fallback 1: clear search but keep focus.
+            if search:
+                relaxed_filters = dict(filters)
+                relaxed_filters["search"] = ""
+                relaxed = get_tenders(relaxed_filters)
+                relaxed, _, _ = _apply_result_visibility_filters(relaxed)
+                if relaxed:
+                    tenders = relaxed
+                    fallback_notice = "No matches for current search. Showing results with search cleared."
+
+            # Fallback 2: broaden focus to global if still empty.
+            if not tenders and scan_market_focus != "Global Reach":
+                broad_filters = dict(filters)
+                broad_filters["market_focus"] = "Global Reach"
+                broad = get_tenders(broad_filters)
+                broad, _, _ = _apply_result_visibility_filters(broad)
+                if broad:
+                    tenders = broad
+                    fallback_notice = f"No matches in `{scan_market_focus}`. Showing global results."
+                    applied_focus = "Global Reach (fallback)"
 
         if sort_by == "deadline":
             tenders = sorted(
@@ -2613,11 +2679,13 @@ elif page == "Scan & Results":
 
         if manual_like_view:
             st.caption("Manual-like mode active: broader discovery results are shown.")
+        if fallback_notice:
+            st.warning(fallback_notice)
         if removed_no_keyword_signal > 0:
             st.caption(f"Hidden {removed_no_keyword_signal} results with no keyword signal.")
         if removed_generic_targets > 0:
             st.caption(f"Hidden {removed_generic_targets} generic/non-opportunity links.")
-        st.markdown(f"**{len(tenders)} tenders found**")
+        st.markdown(f"**{len(tenders)} tenders found** | Focus: `{applied_focus}`")
         st.markdown("---")
 
         if tenders:
