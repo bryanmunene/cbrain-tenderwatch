@@ -1174,6 +1174,8 @@ GENERIC_KEYWORD_BLOCKLIST = {
     "keyword: unavailable",
     # Generic broad-capture terms (too weak on their own)
     "ict",
+    "tender",
+    "tender discovery",
 }
 
 
@@ -1271,6 +1273,11 @@ def _why_matched_summary(tender):
         breakdown = {}
 
     matched_phrases = breakdown.get("matched_phrases", []) or []
+    noisy_phrases = {"tender discovery", "discovery:tender"}
+    matched_phrases = [
+        p for p in matched_phrases
+        if (p or "").strip().lower() not in noisy_phrases
+    ]
     domains = breakdown.get("domains_matched", []) or []
     priority = breakdown.get("priority", "") or getattr(tender, "priority_level", "")
     fit = breakdown.get("likely_fit_for_F2", "") or getattr(tender, "likely_fit_for_f2", "")

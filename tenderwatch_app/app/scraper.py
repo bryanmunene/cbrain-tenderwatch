@@ -1169,9 +1169,10 @@ def _discover_rows(
                         breakdown["matched_phrases"] = broad_hits[:8]
                         breakdown["keywords_found"] = max(1, len(broad_hits))
                     else:
-                        matched = "discovery:tender"
-                        breakdown["matched_phrases"] = ["tender discovery"]
-                        breakdown["keywords_found"] = 1
+                        # Keep the lead for manual review, but do not inject a fake keyword.
+                        matched = ""
+                        breakdown["matched_phrases"] = []
+                        breakdown["keywords_found"] = 0
                     breakdown["broad_capture"] = True
                     if breakdown.get("likely_fit_for_F2", "uncertain") == "uncertain":
                         breakdown["likely_fit_for_F2"] = "discuss"
