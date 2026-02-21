@@ -132,6 +132,71 @@ GENERIC_TITLE_PATTERNS = [
     "view details",
 ]
 
+NON_OPPORTUNITY_TITLE_HINTS = [
+    "procurement plans",
+    "procurement plan",
+    "procurement reports",
+    "report",
+    "reports",
+    "guidance",
+    "guideline",
+    "guidelines",
+    "manual",
+    "policy",
+    "procedure",
+    "strategic plan",
+    "master plan",
+    "masterplan",
+    "service charter",
+    "tender board decisions",
+    "board decisions",
+    "available bidding opportunities",
+    "public procurement information portal",
+    "government procurement portal",
+    "quantum etendering guidance",
+    "view projects",
+    "tenders and proposal",
+]
+
+OPPORTUNITY_TITLE_HINTS = [
+    "request for",
+    "invitation",
+    "tender advert",
+    "tender document",
+    "expression of interest",
+    "eoi",
+    "rfp",
+    "rfq",
+    "tender no",
+    "bid no",
+    "lot ",
+    "submission deadline",
+]
+
+LISTING_PATH_TERMS = {
+    "home",
+    "tender",
+    "tenders",
+    "procurement",
+    "opportunity",
+    "opportunities",
+    "notice",
+    "notices",
+    "publications",
+    "publication",
+    "resources",
+    "guidance",
+    "guidelines",
+    "procurementplans",
+    "plans",
+}
+
+GENERIC_HOST_BLOCKLIST = {
+    "youtube.com",
+    "www.youtube.com",
+    "youtu.be",
+}
+
 F2_INTENT_TERMS = [
     "document management", "records management", "edms", "edrms",
     "enterprise content management", "ecm", "workflow", "workflow automation",
@@ -356,6 +421,39 @@ def _is_generic_title(title: str) -> bool:
     if not t:
         return True
     return any(pat in t for pat in GENERIC_TITLE_PATTERNS)
+
+
+def _looks_like_listing_or_home_link(link: str) -> bool:
+    parsed = urlparse(link or "")
+    host = (parsed.netloc or "").lower().strip()
+    if host in GENERIC_HOST_BLOCKLIST:
+        return True
+
+    path = (parsed.path or "").strip("/").lower()
+    if path.endswith(".pdf"):
+        return False
+    if not path:
+        return True
+
+    tokens = [tok for tok in path.split("/") if tok]
+    if not tokens:
+        return True
+    if len(tokens) == 1 and tokens[0] in LISTING_PATH_TERMS:
+        return True
+    if len(tokens) == 2 and tokens[0] in {"home", "en"} and tokens[1] in LISTING_PATH_TERMS:
+        return True
+    if len(tokens) <= 2 and tokens[-1] in {"tenders", "procurement", "opportunities", "publications"}:
+        return True
+    return False
+
+
+def _is_non_opportunity_title(title: str) -> bool:
+    t = (title or "").lower().strip()
+    if not t:
+        return True
+    has_non_opportunity_hint = any(h in t for h in NON_OPPORTUNITY_TITLE_HINTS)
+    has_opportunity_hint = any(h in t for h in OPPORTUNITY_TITLE_HINTS)
+    return has_non_opportunity_hint and not has_opportunity_hint
 
 
 def _has_f2_intent(text: str) -> bool:
@@ -742,6 +840,8 @@ def scan_source(
                 continue
             if link_lower.endswith((".jpg", ".jpeg", ".png", ".gif", ".svg", ".css", ".js")):
                 continue
+            if _looks_like_listing_or_home_link(link):
+                continue
             if link in existing or link in seen_links:
                 continue
 
@@ -756,6 +856,8 @@ def scan_source(
 
             lower_title = title.lower().strip()
             if lower_title in GENERIC_TITLES or _is_generic_title(title):
+                continue
+            if _is_non_opportunity_title(lower_title):
                 continue
             if any(pat in lower_title for pat in NAV_PATTERNS):
                 continue
@@ -1130,6 +1232,8 @@ def _discover_rows(
             link = (item.get("link") or "").strip()
             if not link or link in existing_links or link in seen_local:
                 continue
+            if _looks_like_listing_or_home_link(link):
+                continue
 
             title = (item.get("title") or "").strip()
             description = (item.get("description") or "").strip()
@@ -1142,6 +1246,8 @@ def _discover_rows(
             if title_low in GENERIC_TITLES:
                 continue
             if any(pat in title_low for pat in GENERIC_TITLE_PATTERNS):
+                continue
+            if _is_non_opportunity_title(title_low):
                 continue
             if title_low in {"open tenders", "archived tenders", "procurement", "tender notice", "tender notices"}:
                 continue

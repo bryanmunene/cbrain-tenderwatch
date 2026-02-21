@@ -1178,6 +1178,64 @@ GENERIC_KEYWORD_BLOCKLIST = {
     "tender discovery",
 }
 
+GENERIC_RESULT_TITLE_HINTS = {
+    "procurement plans",
+    "procurement plan",
+    "procurement reports",
+    "report",
+    "reports",
+    "guidance",
+    "guideline",
+    "guidelines",
+    "manual",
+    "policy",
+    "procedure",
+    "strategic plan",
+    "master plan",
+    "masterplan",
+    "service charter",
+    "tender board decisions",
+    "board decisions",
+    "available bidding opportunities",
+    "public procurement information portal",
+    "government procurement portal",
+    "view projects",
+    "tenders and proposal",
+}
+
+OPPORTUNITY_RESULT_TITLE_HINTS = {
+    "request for",
+    "invitation",
+    "tender advert",
+    "tender document",
+    "expression of interest",
+    "eoi",
+    "rfp",
+    "rfq",
+    "tender no",
+    "bid no",
+    "lot ",
+    "submission deadline",
+}
+
+LISTING_URL_PATH_HINTS = {
+    "home",
+    "tender",
+    "tenders",
+    "procurement",
+    "opportunity",
+    "opportunities",
+    "notice",
+    "notices",
+    "publications",
+    "publication",
+    "resources",
+    "guidance",
+    "guidelines",
+    "procurementplans",
+    "plans",
+}
+
 
 def _keyword_count(matched: str) -> int:
     if not matched:
@@ -1296,6 +1354,38 @@ def _has_keyword_signal(tender) -> bool:
     if _keyword_count(getattr(tender, "keywords_matched", "")) > 0:
         return True
     return bool(_direct_match_keywords(tender, limit=1))
+
+
+def _looks_like_generic_result_target(tender) -> bool:
+    title = (getattr(tender, "title_translated", "") or getattr(tender, "title", "") or "").strip().lower()
+    link = (getattr(tender, "link", "") or "").strip()
+
+    if not title or not link:
+        return True
+
+    has_opportunity_title_hint = any(h in title for h in OPPORTUNITY_RESULT_TITLE_HINTS)
+    has_generic_title_hint = any(h in title for h in GENERIC_RESULT_TITLE_HINTS)
+
+    parsed = urlsplit(link)
+    host = (parsed.netloc or "").lower().strip()
+    path = (parsed.path or "").strip("/").lower()
+    path_tokens = [tok for tok in path.split("/") if tok]
+    is_pdf = path.endswith(".pdf")
+
+    is_blocked_host = host in {"youtube.com", "www.youtube.com", "youtu.be"}
+    is_home_or_listing = (
+        (not path and not parsed.query)
+        or (len(path_tokens) == 1 and path_tokens[0] in LISTING_URL_PATH_HINTS and not parsed.query and not is_pdf)
+        or (len(path_tokens) <= 2 and path_tokens[-1] in {"tenders", "procurement", "opportunities", "publications"} and not is_pdf)
+    )
+
+    if is_blocked_host:
+        return True
+    if has_generic_title_hint and not has_opportunity_title_hint:
+        return True
+    if is_home_or_listing and not has_opportunity_title_hint:
+        return True
+    return False
 
 
 def _passes_strict_quality(tender, min_score: int = 20) -> bool:
@@ -2511,6 +2601,9 @@ elif page == "Scan & Results":
         before_keyword_signal = len(tenders)
         tenders = [t for t in tenders if _has_keyword_signal(t)]
         removed_no_keyword_signal = before_keyword_signal - len(tenders)
+        before_generic_target = len(tenders)
+        tenders = [t for t in tenders if not _looks_like_generic_result_target(t)]
+        removed_generic_targets = before_generic_target - len(tenders)
 
         if sort_by == "deadline":
             tenders = sorted(
@@ -2522,6 +2615,8 @@ elif page == "Scan & Results":
             st.caption("Manual-like mode active: broader discovery results are shown.")
         if removed_no_keyword_signal > 0:
             st.caption(f"Hidden {removed_no_keyword_signal} results with no keyword signal.")
+        if removed_generic_targets > 0:
+            st.caption(f"Hidden {removed_generic_targets} generic/non-opportunity links.")
         st.markdown(f"**{len(tenders)} tenders found**")
         st.markdown("---")
 
