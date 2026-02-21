@@ -48,6 +48,8 @@ warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 HTTP_CONNECT_TIMEOUT = int(3)
 HTTP_READ_TIMEOUT = int(10)
 HTTP_TIMEOUT = (HTTP_CONNECT_TIMEOUT, HTTP_READ_TIMEOUT)
+AUTO_DISCOVERY_TIMEOUT_SECONDS = int(os.getenv("AUTO_DISCOVERY_TIMEOUT_SECONDS", "25"))
+AUTO_DISCOVERY_MAX_QUERIES = int(os.getenv("AUTO_DISCOVERY_MAX_QUERIES", "4"))
 
 # PDF limits (adaptive parsing uses up to PDF_MAX_PAGES pages)
 PDF_MAX_BYTES = 2_000_000  # 2 MB
@@ -1183,6 +1185,10 @@ def _discover_rows(
             # No-key crawler ignores query semantics; run a compact pass for speed.
             effective_queries = [queries[0]] if queries else ["tender procurement"]
             effective_results_per_query = min(results_per_query, 8)
+        elif effective_queries:
+            # Bound API discovery breadth to keep scan runtime predictable.
+            effective_queries = effective_queries[:max(1, AUTO_DISCOVERY_MAX_QUERIES)]
+            effective_results_per_query = min(effective_results_per_query, 8)
 
         discovered = engine.discover_tenders(
             queries=effective_queries,
@@ -1354,7 +1360,7 @@ def run_scan(
     - Batch insert + best-effort salvage on uniqueness collisions
     """
 
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError, as_completed
     import time
 
     start_time = time.time()
@@ -1444,12 +1450,35 @@ def run_scan(
         executor.shutdown(wait=False, cancel_futures=True)
 
     # --- Phase 2b: Optional auto-discovery (web-wide via APIs) ---
+    # Run with a hard timeout so slow API/no-key crawling does not block scans.
+    auto_discovery_timeout_s = max(
+        8,
+        min(AUTO_DISCOVERY_TIMEOUT_SECONDS, int((scan_timeout_seconds or 60) * 0.4)),
+    )
+    discovery_executor = ThreadPoolExecutor(max_workers=1)
+    discovery_future = None
     try:
-        discovered_rows = _discover_rows(flask_app, existing_links=existing_links, max_candidates=120)
+        discovery_future = discovery_executor.submit(
+            _discover_rows,
+            flask_app,
+            existing_links=existing_links,
+            max_candidates=120,
+        )
+        discovered_rows = discovery_future.result(timeout=auto_discovery_timeout_s)
         if discovered_rows:
             candidate_rows.extend(discovered_rows)
+    except FuturesTimeoutError:
+        if discovery_future:
+            discovery_future.cancel()
+        logger.warning(
+            "Auto-discovery timed out after %ss; continuing scan with source results only.",
+            auto_discovery_timeout_s,
+        )
+        print(f" Auto-discovery timed out after {auto_discovery_timeout_s}s; using source results only.")
     except Exception as e:
         logger.warning("Auto-discovery step failed: %s", str(e)[:160])
+    finally:
+        discovery_executor.shutdown(wait=False, cancel_futures=True)
 
     # --- Phase 3: Batch insert (app context) ---
     fresh_tenders: List[TenderResult] = []
