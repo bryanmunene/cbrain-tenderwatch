@@ -1640,14 +1640,12 @@ def get_tenders(filters=None, days_window=30, created_after=None):
             if market_focus and market_focus != "All":
                 tenders = [t for t in tenders if _matches_market_focus(t, market_focus)]
 
-        include_expired = bool(filters.get("include_expired", False)) if filters else False
-        if not include_expired:
+        if filters and filters.get("exclude_expired"):
             tenders = _exclude_expired_tenders(tenders)
-        include_no_deadline = bool(filters.get("include_no_deadline", False)) if filters else False
-        if not include_no_deadline:
+        if filters and filters.get("exclude_stale_no_deadline"):
             tenders = _exclude_stale_no_deadline_tenders(tenders)
 
-        if filters and filters.get("strict_quality", True):
+        if filters and filters.get("strict_quality", False):
             # Always hide explicitly excluded/no-go opportunities in strict view.
             tenders = [
                 t for t in tenders
@@ -1956,48 +1954,6 @@ def run_tender_scan(scan_depth="fast", discovery_mode="f2_ranked"):
     return new_tenders
 
 
-def _apply_scan_preset(preset: str) -> None:
-    preset_key = (preset or "").strip().lower()
-    presets = {
-        "kenya_sprint": {
-            "scan_market_focus": "Kenya First",
-            "scan_sort_by": "score",
-            "scan_min_score": 0,
-            "scan_f2_only": True,
-            "scan_open_only": True,
-            "scan_deadline_window": "Next 30 days",
-            "scan_strict_quality": False,
-            "scan_allow_broad_fallback": True,
-        },
-        "africa_pipeline": {
-            "scan_market_focus": "Africa First",
-            "scan_sort_by": "score",
-            "scan_min_score": 0,
-            "scan_f2_only": True,
-            "scan_open_only": True,
-            "scan_deadline_window": "All",
-            "scan_strict_quality": False,
-            "scan_allow_broad_fallback": True,
-        },
-        "global_scout": {
-            "scan_market_focus": "Global Reach",
-            "scan_sort_by": "date",
-            "scan_min_score": 0,
-            "scan_f2_only": False,
-            "scan_open_only": False,
-            "scan_deadline_window": "All",
-            "scan_strict_quality": False,
-            "scan_allow_broad_fallback": True,
-        },
-    }
-    values = presets.get(preset_key)
-    if not values:
-        return
-    for k, v in values.items():
-        st.session_state[k] = v
-    if st.session_state.get("results_mode") == "fresh":
-        st.session_state["results_mode"] = "historical"
-
 # Initialize database once per user session
 bootstrap_once()
 
@@ -2082,9 +2038,6 @@ if page == "Dashboard":
             _queue_sidebar_nav("Scan & Results")
             st.session_state["results_mode"] = "historical"
             st.session_state["scan_sort_by"] = "date"
-            st.session_state["scan_min_score"] = 0
-            st.session_state["scan_open_only"] = False
-            st.session_state["scan_deadline_window"] = "All"
             st.rerun()
 
     with c2:
@@ -2093,9 +2046,6 @@ if page == "Dashboard":
             _queue_sidebar_nav("Scan & Results")
             st.session_state["results_mode"] = "historical"
             st.session_state["scan_sort_by"] = "score"
-            st.session_state["scan_min_score"] = 70
-            st.session_state["scan_open_only"] = True
-            st.session_state["scan_deadline_window"] = "All"
             st.rerun()
 
     with c3:
@@ -2104,8 +2054,6 @@ if page == "Dashboard":
             _queue_sidebar_nav("Scan & Results")
             st.session_state["results_mode"] = "historical"
             st.session_state["scan_sort_by"] = "deadline"
-            st.session_state["scan_deadline_window"] = "Next 7 days"
-            st.session_state["scan_open_only"] = True
             st.rerun()
 
     with c4:
@@ -2409,29 +2357,10 @@ elif page == "Scan & Results":
             <div class="scan-hero">
                 <div class="scan-hero-title">Tender Command Center</div>
                 <div class="scan-hero-sub">
-                    Run scans, pick market focus, and review only opportunities relevant to cBrain F2.
-                    Kenya and Africa are prioritized, with global expansion one click away.
+                    Run scans and review opportunities with a simple search and sort workflow.
                 </div>
             </div>
             """,
-            unsafe_allow_html=True,
-        )
-
-        preset1, preset2, preset3 = st.columns(3)
-        with preset1:
-            if st.button("Kenya Sprint", key="preset_kenya", width="stretch"):
-                _apply_scan_preset("kenya_sprint")
-                st.rerun()
-        with preset2:
-            if st.button("Africa Pipeline", key="preset_africa", width="stretch"):
-                _apply_scan_preset("africa_pipeline")
-                st.rerun()
-        with preset3:
-            if st.button("Global Scout", key="preset_global", width="stretch"):
-                _apply_scan_preset("global_scout")
-                st.rerun()
-        st.markdown(
-            "<div class='quick-preset-note'>Presets update filters instantly so your team can switch context without reconfiguring the page.</div>",
             unsafe_allow_html=True,
         )
 
@@ -2532,15 +2461,6 @@ elif page == "Scan & Results":
                     help="Download all tenders as CSV"
                 )
     
-        all_tenders = get_tenders()
-        categories = ["All"] + sorted(list(set([t.category for t in all_tenders if t.category]))) if all_tenders else ["All"]
-        countries = ["All"] + sorted(list(set([t.country for t in all_tenders if t.country and t.country != "Unknown"]))) if all_tenders else ["All"]
-
-        if "scan_market_focus" not in st.session_state:
-            st.session_state["scan_market_focus"] = _qp_value("focus", "Africa First")
-        if st.session_state.get("scan_market_focus") not in MARKET_FOCUS_OPTIONS:
-            st.session_state["scan_market_focus"] = "Africa First"
-
         qp_search = _qp_value("search", "")
         if st.session_state.get("scan_search") is None:
             st.session_state["scan_search"] = qp_search
@@ -2552,158 +2472,28 @@ elif page == "Scan & Results":
         if st.session_state.get("scan_sort_by") not in sort_options:
             st.session_state["scan_sort_by"] = qp_sort
 
-        min_score_options = [0, 20, 40, 70, 85]
-        qp_min_score = _qp_int("min_score", 0)
-        if qp_min_score not in min_score_options:
-            qp_min_score = 0
-        if st.session_state.get("scan_min_score") not in min_score_options:
-            st.session_state["scan_min_score"] = qp_min_score
-
-        deadline_window_options = ["All", "Next 7 days", "Next 14 days", "Next 30 days", "No deadline"]
-        if st.session_state.get("scan_deadline_window") not in deadline_window_options:
-            st.session_state["scan_deadline_window"] = _qp_value("deadline_window", "All")
-            if st.session_state["scan_deadline_window"] not in deadline_window_options:
-                st.session_state["scan_deadline_window"] = "All"
-
         active_discovery_mode = st.session_state.get("last_scan_info", {}).get("discovery_mode", "f2_ranked")
         manual_like_view = active_discovery_mode == "manual_like"
 
-        if "scan_f2_only" not in st.session_state:
-            st.session_state["scan_f2_only"] = _qp_bool("f2_only", True)
-        if "scan_open_only" not in st.session_state:
-            st.session_state["scan_open_only"] = _qp_bool("open_only", True)
-        if "scan_strict_quality" not in st.session_state:
-            st.session_state["scan_strict_quality"] = _qp_bool("strict_quality", False)
-        if "scan_allow_broad_fallback" not in st.session_state:
-            st.session_state["scan_allow_broad_fallback"] = _qp_bool("allow_broad_fallback", True)
-        if st.session_state.get("scan_category") not in categories:
-            st.session_state["scan_category"] = "All"
-
-        # Quick controls only: keep the main surface simple.
-        qc1, qc2, qc3, qc4 = st.columns([1.2, 1.6, 1.0, 1.1])
+        # Simple controls only.
+        qc1, qc2 = st.columns([2.2, 1.0])
         with qc1:
-            market_focus = st.selectbox(
-                "Market Focus",
-                MARKET_FOCUS_OPTIONS,
-                key="scan_market_focus",
-                help="Prioritize Kenya, Africa-wide opportunities, or open global coverage.",
-            )
-        with qc2:
             search = st.text_input(
                 "Search",
                 placeholder="Search titles or descriptions...",
                 key="scan_search",
             )
-        with qc3:
+        with qc2:
             sort_by = st.selectbox("Sort By", sort_options, key="scan_sort_by")
-        with qc4:
-            deadline_window = st.selectbox(
-                "Deadline Window",
-                deadline_window_options,
-                key="scan_deadline_window",
-            )
 
-        # Keep power filters available, but only in one optional section.
-        min_score = st.session_state.get("scan_min_score", 0)
-        f2_only = st.session_state.get("scan_f2_only", True)
-        open_only = st.session_state.get("scan_open_only", True)
-        strict_quality = st.session_state.get("scan_strict_quality", False)
-        allow_broad_fallback = st.session_state.get("scan_allow_broad_fallback", True)
-
-        with st.expander("More filters (optional)", expanded=False):
-            pf1, pf2, pf3, pf4 = st.columns(4)
-            with pf1:
-                min_score = st.selectbox("Min Score", min_score_options, key="scan_min_score")
-            with pf2:
-                f2_only = st.checkbox("F2-only", key="scan_f2_only", help="Show F2-relevant tenders only.")
-            with pf3:
-                open_only = st.checkbox("Open-only", key="scan_open_only", help="Hide locked/no-go opportunities.")
-            with pf4:
-                strict_quality = st.checkbox(
-                    "Strict quality",
-                    key="scan_strict_quality",
-                    help="Hide weak or noisy opportunities.",
-                )
-
-            allow_broad_fallback = st.checkbox(
-                "Broaden if empty",
-                key="scan_allow_broad_fallback",
-                help="If strict filters return none, expand to broader matches.",
-            )
-
-            reset_col1, reset_col2 = st.columns([1, 3])
-            with reset_col1:
-                if st.button("Reset", key="scan_filters_reset", help="Reset to simple defaults."):
-                    st.session_state["scan_min_score"] = 0
-                    st.session_state["scan_f2_only"] = True
-                    st.session_state["scan_open_only"] = True
-                    st.session_state["scan_strict_quality"] = False
-                    st.session_state["scan_allow_broad_fallback"] = True
-                    st.session_state["scan_category"] = "All"
-                    st.session_state["scan_priority_filter"] = "All"
-                    st.session_state["scan_status_filter"] = "All"
-                    st.session_state["scan_lifecycle_filter"] = "All"
-                    st.session_state["scan_country_filter"] = "All"
-                    st.session_state["scan_f2_fit_filter"] = "All"
-                    st.rerun()
-            with reset_col2:
-                st.caption("Use Market Focus + Search for everyday work. Open this section only when narrowing results.")
-
-            ac1, ac2, ac3 = st.columns(3)
-            with ac1:
-                category = st.selectbox("Category", categories, key="scan_category")
-            with ac2:
-                priority_options = ["All", "HIGH", "MEDIUM", "LOW", "STRATEGIC", "CONDITIONAL", "LOCKED"]
-                priority_filter = st.selectbox("Priority", priority_options, key="scan_priority_filter")
-            with ac3:
-                status_options = ["All", "open", "locked", "locked_but_open", "conditional_nogo", "conditional_strategic", "conditional_discuss"]
-                status_filter = st.selectbox("Procurement Status", status_options, key="scan_status_filter")
-
-            ac4, ac5, ac6 = st.columns(3)
-            with ac4:
-                lifecycle_options = ["All", "open", "pre_notice", "clarification", "awarded", "cancelled"]
-                lifecycle_filter = st.selectbox("Lifecycle", lifecycle_options, key="scan_lifecycle_filter")
-            with ac5:
-                country_filter = st.selectbox("Country", countries, key="scan_country_filter")
-            with ac6:
-                f2_fit_options = ["All", "true", "strategic", "discuss", "uncertain", "conditional", "no-go"]
-                f2_fit_filter = st.selectbox("F2 Fit", f2_fit_options, key="scan_f2_fit_filter")
-
-        # defaults when advanced filters have not been touched yet
-        category = st.session_state.get("scan_category", "All")
-        priority_filter = st.session_state.get("scan_priority_filter", "All")
-        status_filter = st.session_state.get("scan_status_filter", "All")
-        lifecycle_filter = st.session_state.get("scan_lifecycle_filter", "All")
-        country_filter = st.session_state.get("scan_country_filter", "All")
-        f2_fit_filter = st.session_state.get("scan_f2_fit_filter", "All")
-
-        # Get filtered tenders
+        # Simple query: search + sort only.
         filters = {
-            'market_focus': market_focus,
-            'category': category,
             'sort_by': sort_by,
             'search': search,
-            'min_score': min_score,
-            'priority': priority_filter,
-            'status': status_filter,
-            'lifecycle': lifecycle_filter,
-            'country': country_filter,
-            'f2_fit': f2_fit_filter,
-            'f2_only': f2_only,
-            'open_only': open_only,
-            'strict_quality': strict_quality,
-            'strict_min_score': 20,
-            'allow_broad_fallback': allow_broad_fallback,
-            'min_target_results': 8,
-            'require_keywords': strict_quality,
             'created_after': st.session_state.get("scan_anchor_utc") if results_mode == "session_scan" else None,
         }
     
-        tenders, applied_f2_only, fallback_message = get_tenders_with_fallback(filters)
-        tenders = _apply_deadline_window(tenders, deadline_window)
-        before_keyword_filter_count = len(tenders)
-        tenders = [t for t in tenders if _has_display_keywords(t)]
-        keyword_filtered_out = before_keyword_filter_count - len(tenders)
+        tenders = get_tenders(filters)
 
         if sort_by == "deadline":
             tenders = sorted(
@@ -2711,19 +2501,9 @@ elif page == "Scan & Results":
                 key=lambda t: (_parse_deadline_value(getattr(t, "deadline", "")) is None, _parse_deadline_value(getattr(t, "deadline", "")) or datetime.max.date())
             )
 
-        if fallback_message:
-            st.warning(fallback_message)
-        elif f2_only and not applied_f2_only:
-            st.warning("No F2-only matches found. Displaying all results.")
-        if keyword_filtered_out > 0:
-            st.caption(f"Hidden {keyword_filtered_out} results with unavailable keywords.")
         if manual_like_view:
             st.caption("Manual-like mode active: broader discovery results are shown.")
-        st.markdown(
-            f"**{len(tenders)} tenders found** | "
-            f"Focus: `{market_focus}` | "
-            f"Mode: `{'Strict' if strict_quality else 'Balanced'}`"
-        )
+        st.markdown(f"**{len(tenders)} tenders found**")
         st.markdown("---")
 
         if tenders:
