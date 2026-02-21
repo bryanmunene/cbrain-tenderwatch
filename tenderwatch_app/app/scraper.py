@@ -1161,18 +1161,14 @@ def _discover_rows(
                 broad_hits = _broad_discovery_hits(text_low)
                 has_tender_hint = any(term in text_low for term in discovery_keep_terms)
 
-                # Keep broad discovery opportunities with a low-but-nonzero score so they are reviewable.
-                if len(broad_hits) >= 1 or has_tender_hint:
-                    score = max(float(score or 0), 22.0 if has_tender_hint else 24.0)
+                # Keep broad discovery opportunities only when there is at least one
+                # concrete broad hit; title/link tender hints alone are too noisy.
+                if len(broad_hits) >= 1:
+                    score = max(float(score or 0), 24.0)
                     if broad_hits:
                         matched = ", ".join([f"broad:{h}" for h in broad_hits[:4]])
                         breakdown["matched_phrases"] = broad_hits[:8]
                         breakdown["keywords_found"] = max(1, len(broad_hits))
-                    else:
-                        # Keep the lead for manual review, but do not inject a fake keyword.
-                        matched = ""
-                        breakdown["matched_phrases"] = []
-                        breakdown["keywords_found"] = 0
                     breakdown["broad_capture"] = True
                     if breakdown.get("likely_fit_for_F2", "uncertain") == "uncertain":
                         breakdown["likely_fit_for_F2"] = "discuss"

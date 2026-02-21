@@ -1291,6 +1291,13 @@ def _why_matched_summary(tender):
     }
 
 
+def _has_keyword_signal(tender) -> bool:
+    # Keep only rows with explicit matched keywords or a direct F2 keyword hit in text.
+    if _keyword_count(getattr(tender, "keywords_matched", "")) > 0:
+        return True
+    return bool(_direct_match_keywords(tender, limit=1))
+
+
 def _passes_strict_quality(tender, min_score: int = 20) -> bool:
     score = float(getattr(tender, "score", 0) or 0)
     if score < min_score:
@@ -2501,6 +2508,9 @@ elif page == "Scan & Results":
         }
     
         tenders = get_tenders(filters)
+        before_keyword_signal = len(tenders)
+        tenders = [t for t in tenders if _has_keyword_signal(t)]
+        removed_no_keyword_signal = before_keyword_signal - len(tenders)
 
         if sort_by == "deadline":
             tenders = sorted(
@@ -2510,6 +2520,8 @@ elif page == "Scan & Results":
 
         if manual_like_view:
             st.caption("Manual-like mode active: broader discovery results are shown.")
+        if removed_no_keyword_signal > 0:
+            st.caption(f"Hidden {removed_no_keyword_signal} results with no keyword signal.")
         st.markdown(f"**{len(tenders)} tenders found**")
         st.markdown("---")
 
