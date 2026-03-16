@@ -188,18 +188,29 @@ def blend_score(rule_score: float, ml_score: Optional[float], alpha: float = 0.7
     return float((alpha * float(rule_score)) + ((1.0 - alpha) * ml_percent))
 
 
-def record_feedback(tender_id: int, event_type: str, label_weight: float) -> bool:
+def _record_feedback_inner(tender_id: int, event_type: str, label_weight: float) -> bool:
+    fb = FeedbackEvent(
+        tender_id=int(tender_id),
+        event_type=str(event_type or "unknown")[:50],
+        label_weight=float(label_weight),
+    )
+    db.session.add(fb)
+    db.session.commit()
+    return True
+
+
+def record_feedback(tender_id: int, event_type: str, label_weight: float, flask_app=None) -> bool:
     try:
-        fb = FeedbackEvent(
-            tender_id=int(tender_id),
-            event_type=str(event_type or "unknown")[:50],
-            label_weight=float(label_weight),
-        )
-        db.session.add(fb)
-        db.session.commit()
-        return True
+        if flask_app is not None:
+            with flask_app.app_context():
+                return _record_feedback_inner(tender_id, event_type, label_weight)
+        return _record_feedback_inner(tender_id, event_type, label_weight)
     except Exception:
-        db.session.rollback()
+        try:
+            db.session.rollback()
+        except RuntimeError:
+            # Feedback is non-critical; do not crash callers when there is no app context.
+            pass
         return False
 
 

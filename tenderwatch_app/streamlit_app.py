@@ -2820,7 +2820,7 @@ elif page == "Scan & Results":
 
                     with col4:
                         if st.button("Details", key=f"detail_{tender.id}", width="stretch"):
-                            record_feedback(tender.id, "view", 0.25)
+                            record_feedback(tender.id, "view", 0.25, flask_app=app)
                             st.session_state['selected_tender'] = tender.id
                             st.rerun()
         else:
