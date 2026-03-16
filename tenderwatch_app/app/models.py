@@ -7,6 +7,8 @@ class TenderSource(db.Model):
     url = db.Column(db.String(500), nullable=False)
     active = db.Column(db.Boolean, default=True)
     favorite = db.Column(db.Boolean, default=False)
+    source_group = db.Column(db.String(50), default="experimental")
+    source_tags = db.Column(db.Text, default="[]")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
@@ -25,6 +27,7 @@ class TenderResult(db.Model):
     publication_date = db.Column(db.String(200))  # F2: for timing filter
     
     score = db.Column(db.Float)
+    ranking_score = db.Column(db.Float, default=0.0)
     keywords_matched = db.Column(db.Text)
     scoring_breakdown = db.Column(db.Text, default="")
     
@@ -45,6 +48,19 @@ class TenderResult(db.Model):
     discovery_method = db.Column(db.String(50), default="manual")  # 'manual', 'auto', 'priority'
     search_query = db.Column(db.String(500))  # Search query that found this (for auto-discovered)
     search_source = db.Column(db.String(50))  # 'google', 'bing', or source name
+    source_group = db.Column(db.String(50), default="experimental")
+    scan_pipeline = db.Column(db.String(50), default="africa_priority")
+
+    # Geography and shortlist metadata
+    geographic_scope = db.Column(db.String(30), default="Unknown")
+    region = db.Column(db.String(100), default="")
+    africa_priority_flag = db.Column(db.Boolean, default=False)
+    donor_or_multilateral_flag = db.Column(db.Boolean, default=False)
+    target_beneficiary_region = db.Column(db.String(100), default="")
+    buyer_region = db.Column(db.String(100), default="")
+    implementation_region = db.Column(db.String(100), default="")
+    recommendation = db.Column(db.String(20), default="REVIEW")
+    queue_bucket = db.Column(db.String(30), default="main_shortlist")
 
     # AI-enhanced fields
     semantic_score = db.Column(db.Float, default=0.0)
@@ -106,6 +122,15 @@ class AppSettings(db.Model):
     
     # Notification thresholds
     min_score_to_notify = db.Column(db.Float, default=50.0)
+
+    # Geography and shortlist settings
+    africa_priority_weight = db.Column(db.Float, default=12.0)
+    global_relevance_threshold = db.Column(db.Float, default=28.0)
+    donor_multilateral_boost = db.Column(db.Float, default=8.0)
+    africa_only_mode = db.Column(db.Boolean, default=False)
+    include_global_sources = db.Column(db.Boolean, default=True)
+    include_global_in_default_shortlist = db.Column(db.Boolean, default=False)
+    secondary_review_queue_threshold = db.Column(db.Float, default=16.0)
     
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

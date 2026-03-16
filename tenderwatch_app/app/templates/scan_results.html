@@ -3,62 +3,85 @@
 {% block title %}Scan Results - TenderWatch{% endblock %}
 
 {% block content %}
-
-<!-- Page Header -->
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <h1 style="font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">
-            <i class="fas fa-list-check" style="color: #667eea;"></i> {{ title or 'Tender Scan Results' }}
+        <h1 style="font-weight: 800; color: #1e293b; margin-bottom: 0.4rem;">
+            <i class="fas fa-list-check" style="color: #1d4ed8;"></i> {{ title or 'Tender Shortlists' }}
         </h1>
-        {% if results %}
-        <p class="text-muted mb-0">Showing {{ results|length }} result{% if results|length != 1 %}s{% endif %}</p>
-        {% endif %}
+        <p class="text-muted mb-0">
+            {{ shortlist_mode|title }} shortlist
+            {% if results %}
+            • {{ results|length }} result{% if results|length != 1 %}s{% endif %}
+            {% endif %}
+            {% if secondary_review_count %}
+            • {{ secondary_review_count }} in secondary review
+            {% endif %}
+        </p>
     </div>
     <div class="d-flex gap-2">
         {% if results %}
-        <a href="{{ url_for('main.export_csv', sort=sort_by, category=category, min_score=min_score, search=search, recent_days=recent_days) }}" class="btn btn-outline-success" style="border-radius: 12px; padding: 0.75rem 1.5rem; border-width: 2px;">
+        <a href="{{ url_for('main.export_csv', sort=sort_by, category=category, min_score=min_score, search=search, recent_days=recent_days, shortlist_mode=shortlist_mode, geographic_scope=geographic_scope, africa_priority_flag=africa_priority_flag, donor_or_multilateral_flag=donor_or_multilateral_flag, implementation_region=implementation_region, buyer_region=buyer_region, recommendation=recommendation_filter, queue_bucket=queue_bucket) }}" class="btn btn-outline-success" style="border-radius: 12px;">
             <i class="fas fa-download"></i> Export CSV
         </a>
         {% endif %}
         <form method="post">
-            <button class="btn btn-primary btn-lg" type="submit" style="border-radius: 12px; padding: 0.75rem 2rem;">
+            <button class="btn btn-primary" type="submit" style="border-radius: 12px;">
                 <i class="fas fa-sync"></i> Run Scan
             </button>
         </form>
     </div>
 </div>
 
-<!-- Filters Card -->
-<div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <a href="{{ url_for('main.scan', shortlist_mode='africa', sort=sort_by, category=category, min_score=min_score, search=search, recent_days=recent_days, recommendation=recommendation_filter) }}" class="btn {% if shortlist_mode == 'africa' %}btn-primary{% else %}btn-outline-primary{% endif %}" style="border-radius: 999px;">
+        Africa shortlist
+    </a>
+    <a href="{{ url_for('main.scan', shortlist_mode='global', sort=sort_by, category=category, min_score=min_score, search=search, recent_days=recent_days, recommendation=recommendation_filter) }}" class="btn {% if shortlist_mode == 'global' %}btn-primary{% else %}btn-outline-primary{% endif %}" style="border-radius: 999px;">
+        Global shortlist
+    </a>
+    <a href="{{ url_for('main.scan', shortlist_mode='combined', sort=sort_by, category=category, min_score=min_score, search=search, recent_days=recent_days, recommendation=recommendation_filter) }}" class="btn {% if shortlist_mode == 'combined' %}btn-primary{% else %}btn-outline-primary{% endif %}" style="border-radius: 999px;">
+        Combined shortlist
+    </a>
+    {% if secondary_review_count %}
+    <a href="{{ url_for('main.scan', shortlist_mode='combined', queue_bucket='secondary_review', recommendation='REVIEW', sort=sort_by, category=category, min_score=min_score, search=search, recent_days=recent_days) }}" class="btn btn-outline-warning" style="border-radius: 999px;">
+        Secondary review queue
+    </a>
+    {% endif %}
+</div>
+
+<div class="card border-0 shadow-sm mb-4" style="border-radius: 18px;">
     <div class="card-body p-4">
         <form method="get" class="row g-3 align-items-end">
+            <input type="hidden" name="shortlist_mode" value="{{ shortlist_mode }}">
             <div class="col-md-4">
                 <label for="search" class="form-label" style="font-weight: 600; color: #334155;">Search</label>
-                <input type="text" class="form-control" id="search" name="search" placeholder="Title, description..." value="{{ search }}" style="border-radius: 10px;">
+                <input type="text" class="form-control" id="search" name="search" value="{{ search }}" placeholder="Title, description, buyer..." style="border-radius: 10px;">
             </div>
             <div class="col-md-2">
                 <label for="category" class="form-label" style="font-weight: 600; color: #334155;">Category</label>
                 <select class="form-select" id="category" name="category" style="border-radius: 10px;">
-                    <option value="">All Categories</option>
+                    <option value="">All categories</option>
                     {% for cat in categories %}
-                    <option value="{{ cat }}" {% if category == cat %}selected{% endif %}>{{ cat or 'Uncategorized' }}</option>
+                    <option value="{{ cat }}" {% if category == cat %}selected{% endif %}>{{ cat }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-2">
-                <label for="min_score" class="form-label" style="font-weight: 600; color: #334155;">Min Score</label>
+                <label for="min_score" class="form-label" style="font-weight: 600; color: #334155;">Min Fit Score</label>
                 <select class="form-select" id="min_score" name="min_score" style="border-radius: 10px;">
                     <option value="0" {% if min_score == 0 %}selected{% endif %}>All</option>
+                    <option value="16" {% if min_score == 16 %}selected{% endif %}>16+</option>
+                    <option value="28" {% if min_score == 28 %}selected{% endif %}>28+</option>
                     <option value="40" {% if min_score == 40 %}selected{% endif %}>40+</option>
-                    <option value="70" {% if min_score == 70 %}selected{% endif %}>70+</option>
-                    <option value="85" {% if min_score == 85 %}selected{% endif %}>85+</option>
                 </select>
             </div>
             <div class="col-md-2">
-                <label for="sort" class="form-label" style="font-weight: 600; color: #334155;">Sort By</label>
+                <label for="sort" class="form-label" style="font-weight: 600; color: #334155;">Sort</label>
                 <select class="form-select" id="sort" name="sort" style="border-radius: 10px;">
+                    <option value="recommended" {% if sort_by == 'recommended' %}selected{% endif %}>Recommended</option>
+                    <option value="fit_score" {% if sort_by == 'fit_score' %}selected{% endif %}>Fit score</option>
+                    <option value="ranking" {% if sort_by == 'ranking' %}selected{% endif %}>Ranking score</option>
                     <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest</option>
-                    <option value="score" {% if sort_by == 'score' %}selected{% endif %}>Score</option>
                     <option value="deadline" {% if sort_by == 'deadline' %}selected{% endif %}>Deadline</option>
                 </select>
             </div>
@@ -70,12 +93,64 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-12 d-flex gap-2 justify-content-end">
+            <div class="col-md-2">
+                <label for="geographic_scope" class="form-label" style="font-weight: 600; color: #334155;">Scope</label>
+                <select class="form-select" id="geographic_scope" name="geographic_scope" style="border-radius: 10px;">
+                    <option value="">All scopes</option>
+                    {% for scope in geographic_scopes %}
+                    <option value="{{ scope }}" {% if geographic_scope == scope %}selected{% endif %}>{{ scope }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="recommendation" class="form-label" style="font-weight: 600; color: #334155;">Recommendation</label>
+                <select class="form-select" id="recommendation" name="recommendation" style="border-radius: 10px;">
+                    <option value="SHORTLIST" {% if recommendation_filter == 'SHORTLIST' %}selected{% endif %}>Shortlist only</option>
+                    <option value="GO" {% if recommendation_filter == 'GO' %}selected{% endif %}>GO</option>
+                    <option value="REVIEW" {% if recommendation_filter == 'REVIEW' %}selected{% endif %}>REVIEW</option>
+                    <option value="NO-GO" {% if recommendation_filter == 'NO-GO' %}selected{% endif %}>NO-GO</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="africa_priority_flag" class="form-label" style="font-weight: 600; color: #334155;">Africa Priority</label>
+                <select class="form-select" id="africa_priority_flag" name="africa_priority_flag" style="border-radius: 10px;">
+                    <option value="">All</option>
+                    <option value="true" {% if africa_priority_flag == 'true' %}selected{% endif %}>Yes</option>
+                    <option value="false" {% if africa_priority_flag == 'false' %}selected{% endif %}>No</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="donor_or_multilateral_flag" class="form-label" style="font-weight: 600; color: #334155;">Donor / Multilateral</label>
+                <select class="form-select" id="donor_or_multilateral_flag" name="donor_or_multilateral_flag" style="border-radius: 10px;">
+                    <option value="">All</option>
+                    <option value="true" {% if donor_or_multilateral_flag == 'true' %}selected{% endif %}>Yes</option>
+                    <option value="false" {% if donor_or_multilateral_flag == 'false' %}selected{% endif %}>No</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="implementation_region" class="form-label" style="font-weight: 600; color: #334155;">Implementation Region</label>
+                <select class="form-select" id="implementation_region" name="implementation_region" style="border-radius: 10px;">
+                    <option value="">All regions</option>
+                    {% for region_name in implementation_regions %}
+                    <option value="{{ region_name }}" {% if implementation_region == region_name %}selected{% endif %}>{{ region_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="buyer_region" class="form-label" style="font-weight: 600; color: #334155;">Buyer Region</label>
+                <select class="form-select" id="buyer_region" name="buyer_region" style="border-radius: 10px;">
+                    <option value="">All buyer regions</option>
+                    {% for region_name in buyer_regions %}
+                    <option value="{{ region_name }}" {% if buyer_region == region_name %}selected{% endif %}>{{ region_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 d-flex justify-content-end gap-2">
                 <button type="submit" class="btn btn-primary" style="border-radius: 10px;">
-                    <i class="fas fa-filter"></i> Apply Filters
+                    <i class="fas fa-filter"></i> Apply filters
                 </button>
-                <a href="{{ url_for('main.scan') }}" class="btn btn-outline-secondary" style="border-radius: 10px;">
-                    <i class="fas fa-times"></i>
+                <a href="{{ url_for('main.scan', shortlist_mode=shortlist_mode) }}" class="btn btn-outline-secondary" style="border-radius: 10px;">
+                    Reset
                 </a>
             </div>
         </form>
@@ -85,114 +160,80 @@
 {% if results %}
 <div class="row g-4">
     {% for r in results %}
-    <div class="col-md-6">
-        <div class="card border-0 shadow-sm h-100 hover-lift" style="border-radius: 16px; transition: all 0.3s ease;">
+    <div class="col-xl-6">
+        <div class="card border-0 shadow-sm h-100" style="border-radius: 18px;">
             <div class="card-body p-4">
-                <!-- Score Badge and Actions -->
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    {% set score = r.score or 0 %}
-                    {% if score >= 70 %}
-                    <span class="badge" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); font-size: 1.1rem; padding: 0.6rem 1rem; border-radius: 10px; font-weight: 600;">
-                        <i class="fas fa-bullseye"></i> {{ "%.0f"|format(score) }}% Match
-                    </span>
-                    {% elif score >= 40 %}
-                    <span class="badge" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); font-size: 1.1rem; padding: 0.6rem 1rem; border-radius: 10px; font-weight: 600;">
-                        <i class="fas fa-chart-line"></i> {{ "%.0f"|format(score) }}% Match
-                    </span>
-                    {% else %}
-                    <span class="badge bg-secondary" style="font-size: 1.1rem; padding: 0.6rem 1rem; border-radius: 10px; font-weight: 600;">
-                        {{ "%.0f"|format(score) }}% Match
-                    </span>
-                    {% endif %}
-                    
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="badge {% if r.recommendation == 'GO' %}bg-success{% elif r.recommendation == 'REVIEW' %}bg-warning text-dark{% else %}bg-secondary{% endif %}" style="padding: 0.55rem 0.9rem; border-radius: 10px;">
+                            {{ r.recommendation or 'REVIEW' }}
+                        </span>
+                        <span class="badge bg-primary" style="padding: 0.55rem 0.9rem; border-radius: 10px;">Fit {{ "%.0f"|format(r.score or 0) }}%</span>
+                        <span class="badge bg-info text-dark" style="padding: 0.55rem 0.9rem; border-radius: 10px;">Rank {{ "%.1f"|format(r.ranking_score or 0) }}</span>
+                    </div>
                     <div class="d-flex gap-2">
-                        <!-- Favorite Toggle -->
-                        {% if r.favorite %}
-                        <form method="post" action="{{ url_for('main.toggle_favorite', rid=r.id) }}" class="d-inline">
-                            <button class="btn btn-sm" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; border: none; border-radius: 8px;" type="submit" title="Remove from favorites">
-                                <i class="fas fa-star"></i>
+                        <form method="post" action="{{ url_for('main.toggle_favorite', rid=r.id) }}">
+                            <button class="btn btn-sm {% if r.favorite %}btn-warning{% else %}btn-outline-warning{% endif %}" type="submit" style="border-radius: 8px;">
+                                <i class="{% if r.favorite %}fas{% else %}far{% endif %} fa-star"></i>
                             </button>
                         </form>
-                        {% else %}
-                        <form method="post" action="{{ url_for('main.toggle_favorite', rid=r.id) }}" class="d-inline">
-                            <button class="btn btn-sm btn-outline-warning" style="border-radius: 8px; border-width: 2px;" type="submit" title="Add to favorites">
-                                <i class="far fa-star"></i>
+                        <form method="post" action="{{ url_for('main.toggle_save', rid=r.id) }}">
+                            <button class="btn btn-sm {% if r.saved %}btn-primary{% else %}btn-outline-primary{% endif %}" type="submit" style="border-radius: 8px;">
+                                <i class="{% if r.saved %}fas{% else %}far{% endif %} fa-bookmark"></i>
                             </button>
                         </form>
-                        {% endif %}
-                        
-                        <!-- Save Toggle -->
-                        {% if r.saved %}
-                        <form method="post" action="{{ url_for('main.toggle_save', rid=r.id) }}" class="d-inline">
-                            <button class="btn btn-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px;" type="submit" title="Unsave">
-                                <i class="fas fa-bookmark"></i>
-                            </button>
-                        </form>
-                        {% else %}
-                        <form method="post" action="{{ url_for('main.toggle_save', rid=r.id) }}" class="d-inline">
-                            <button class="btn btn-sm btn-outline-primary" style="border-radius: 8px; border-width: 2px;" type="submit" title="Save">
-                                <i class="far fa-bookmark"></i>
-                            </button>
-                        </form>
-                        {% endif %}
                     </div>
                 </div>
-                
-                <!-- Tender Title -->
-                <h5 class="card-title mb-3" style="line-height: 1.5;">
-                    <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="text-decoration-none" style="color: #1e293b; font-weight: 600;">
-                        {% if r.title_translated and r.title_translated != r.title %}
-                        <span class="original-title-{{ r.id }}">{{ r.title[:120] }}{% if r.title|length > 120 %}...{% endif %}</span>
-                        <span class="translated-title-{{ r.id }}" style="display:none;">{{ r.title_translated[:120] }}{% if r.title_translated|length > 120 %}...{% endif %}</span>
-                        {% else %}
-                        {{ r.title[:120] }}{% if r.title|length > 120 %}...{% endif %}
-                        {% endif %}
+
+                <h5 class="mb-3" style="line-height: 1.5;">
+                    <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="text-decoration-none" style="color: #1e293b; font-weight: 700;">
+                        {{ r.title[:140] }}{% if r.title|length > 140 %}...{% endif %}
                     </a>
-                    {% if r.title_translated and r.title_translated != r.title %}
-                    <button class="btn btn-sm btn-outline-info ms-2 translate-toggle" onclick="toggleTranslation({{ r.id }}); return false;" title="Toggle translation" style="border-radius: 6px;">
-                        <i class="fas fa-language"></i>
-                    </button>
-                    {% endif %}
                 </h5>
-                
-                <!-- Metadata Badges -->
+
                 <div class="d-flex flex-wrap gap-2 mb-3">
-                    <span class="badge" style="background: #667eea; padding: 0.5rem 0.75rem; border-radius: 8px; font-weight: 500;">
-                        <i class="fas fa-folder"></i> {{ r.category or 'Uncategorized' }}
-                    </span>
-                    <span class="badge" style="background: #30cfd0; padding: 0.5rem 0.75rem; border-radius: 8px; font-weight: 500;">
-                        <i class="fas fa-globe"></i> {{ r.country or 'Global' }}
-                    </span>
+                    <span class="badge bg-light text-dark">{{ r.category or 'Uncategorized' }}</span>
+                    <span class="badge bg-light text-dark">{{ r.geographic_scope or 'Unknown scope' }}</span>
+                    <span class="badge bg-light text-dark">{{ r.country or 'Unknown country' }}</span>
+                    {% if r.africa_priority_flag %}
+                    <span class="badge bg-success">Africa priority</span>
+                    {% endif %}
+                    {% if r.donor_or_multilateral_flag %}
+                    <span class="badge bg-info text-dark">Donor / multilateral</span>
+                    {% endif %}
                     {% if r.deadline %}
-                    <span class="badge" style="background: #f5576c; padding: 0.5rem 0.75rem; border-radius: 8px; font-weight: 500;">
-                        <i class="fas fa-clock"></i> {{ r.deadline }}
-                    </span>
+                    <span class="badge bg-danger">{{ r.deadline }}</span>
                     {% endif %}
                 </div>
-                
-                <!-- Additional Info -->
-                {% if r.buyer %}
-                <div class="mb-2 p-2 rounded" style="background: #f8fafc;">
-                    <small style="color: #64748b;">
-                        <i class="fas fa-building"></i> <strong>Buyer:</strong> {{ r.buyer[:60] }}{% if r.buyer|length > 60 %}...{% endif %}
+
+                <div class="p-3 rounded mb-2" style="background: #f8fafc;">
+                    <small style="color: #475569;">
+                        <strong>Buyer:</strong> {{ r.buyer or 'Unknown' }}<br>
+                        <strong>Buyer region:</strong> {{ r.buyer_region or 'Unknown' }} |
+                        <strong>Implementation:</strong> {{ r.implementation_region or 'Unknown' }}
                     </small>
                 </div>
-                {% endif %}
-                
+
+                <div class="p-3 rounded mb-3" style="background: #f8fafc;">
+                    <small style="color: #475569;">
+                        <strong>Source group:</strong> {{ (r.source_group or 'experimental').replace('_', ' ')|title }} |
+                        <strong>Queue:</strong> {{ (r.queue_bucket or 'main_shortlist').replace('_', ' ')|title }}
+                    </small>
+                </div>
+
                 {% if r.keywords_matched %}
-                <div class="mb-3 p-2 rounded" style="background: #f8fafc;">
-                    <small style="color: #64748b;">
-                        <i class="fas fa-tags"></i> <strong>Keywords:</strong> {{ r.keywords_matched[:80] }}{% if r.keywords_matched|length > 80 %}...{% endif %}
+                <div class="p-3 rounded mb-3" style="background: #eff6ff;">
+                    <small style="color: #1e3a8a;">
+                        <strong>Matched keywords:</strong> {{ r.keywords_matched[:120] }}{% if r.keywords_matched|length > 120 %}...{% endif %}
                     </small>
                 </div>
                 {% endif %}
-                
-                <!-- Action Buttons -->
-                <div class="d-flex gap-2 mt-3">
-                    <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="btn btn-primary flex-grow-1" style="border-radius: 10px; font-weight: 600;">
-                        <i class="fas fa-eye"></i> View Details
+
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('main.tender_detail', tid=r.id) }}" class="btn btn-primary flex-grow-1" style="border-radius: 10px;">
+                        <i class="fas fa-eye"></i> View details
                     </a>
-                    <a href="{{ r.link }}" target="_blank" class="btn btn-outline-primary" style="border-radius: 10px; font-weight: 600;">
+                    <a href="{{ r.link }}" target="_blank" class="btn btn-outline-primary" style="border-radius: 10px;">
                         <i class="fas fa-external-link-alt"></i> Source
                     </a>
                 </div>
@@ -202,49 +243,17 @@
     {% endfor %}
 </div>
 {% else %}
-<div class="card border-0 shadow-sm text-center py-5" style="border-radius: 30px; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%);">
+<div class="card border-0 shadow-sm text-center py-5" style="border-radius: 24px; background: linear-gradient(135deg, #fef3c7 0%, #fff 100%);">
     <div class="card-body">
-        <i class="fas fa-search" style="font-size: 4rem; color: #8b5cf6; margin-bottom: 1.5rem; animation: bounce 2s infinite;"></i>
-        <h4 style="color: #8b5cf6; font-weight: 700; margin-bottom: 1rem;">🌟 Ready for an Adventure?</h4>
-        <p class="text-muted mb-4">Let's discover some amazing opportunities together! Hit that button below 👇</p>
+        <i class="fas fa-search" style="font-size: 4rem; color: #0f766e; margin-bottom: 1.5rem;"></i>
+        <h4 style="color: #0f766e; font-weight: 700; margin-bottom: 1rem;">No shortlist items yet</h4>
+        <p class="text-muted mb-4">Run a scan or widen the filters to surface Africa-priority and relevant global opportunities.</p>
         <form method="post" class="d-inline">
-            <button class="btn btn-primary btn-lg" type="submit" style="border-radius: 50px; padding: 1rem 3rem;">
-                <i class="fas fa-rocket"></i> Start the Hunt! 🎯
+            <button class="btn btn-primary btn-lg" type="submit" style="border-radius: 999px;">
+                <i class="fas fa-rocket"></i> Run scan
             </button>
         </form>
     </div>
 </div>
-
-<style>
-@keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-20px); }
-}
-</style>
 {% endif %}
-
-<style>
-.hover-lift:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15) !important;
-}
-</style>
-
-<script>
-function toggleTranslation(tenderId) {
-    const original = document.querySelector('.original-title-' + tenderId);
-    const translated = document.querySelector('.translated-title-' + tenderId);
-    
-    if (original && translated) {
-        if (original.style.display === 'none') {
-            original.style.display = 'inline';
-            translated.style.display = 'none';
-        } else {
-            original.style.display = 'none';
-            translated.style.display = 'inline';
-        }
-    }
-}
-</script>
-
 {% endblock %}

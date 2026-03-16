@@ -120,23 +120,34 @@ _CTX_RE = re.compile(
 )
 
 # ISO: 2026-02-15 or 2026/02/15
-_ISO_RE = re.compile(r"\b(20\d{2})[\-/\.](\d{1,2})[\-/\.](\d{1,2})\b")
+# Use digit boundaries instead of \b so URL/file tokens like "_2026-02-15"
+# are still detected.
+_ISO_RE = re.compile(r"(?<!\d)(20\d{2})[\-/\.](\d{1,2})[\-/\.](\d{1,2})(?!\d)")
 
 # DMY numeric: 15/02/2026, 15-2-26, 15.02.2026
 _DMY_NUM_RE = re.compile(
-    r"\b(\d{1,2})(?:st|nd|rd|th)?[\-/\.]\s*(\d{1,2})[\-/\.]\s*(\d{2,4})\b",
+    r"(?<!\d)(\d{1,2})(?:st|nd|rd|th)?[\-/\.]\s*(\d{1,2})[\-/\.]\s*(\d{2,4})(?!\d)",
     flags=re.IGNORECASE,
 )
 
 # DMY month name: 15 Feb 2026, 15 February, 2026
 _DMY_MON_RE = re.compile(
-    r"\b(\d{1,2})(?:st|nd|rd|th)?\s*[\-/\.]?\s*([a-zA-Z\u00C0-\u017F]{3,15})\s*[\-/\.,]?\s*(\d{2,4})\b",
+    r"(?<![A-Za-z0-9])(\d{1,2})(?:st|nd|rd|th)?\s*[\-/\.]?\s*([a-zA-Z\u00C0-\u017F]{3,15})\s*[\-/\.,]?\s*(\d{2,4})(?!\d)",
     flags=re.IGNORECASE,
 )
 
 # MDY month name: Feb 15 2026, February 15, 2026
 _MDY_MON_RE = re.compile(
-    r"\b([a-zA-Z\u00C0-\u017F]{3,15})\s*(\d{1,2})(?:st|nd|rd|th)?\s*[\-/\.,]?\s*(\d{2,4})\b",
+    r"(?<![A-Za-z0-9])([a-zA-Z\u00C0-\u017F]{3,15})\s*(\d{1,2})(?:st|nd|rd|th)?\s*[\-/\.,]?\s*(\d{2,4})(?!\d)",
+    flags=re.IGNORECASE,
+)
+
+# Coarse date patterns used for stale detection (not strict deadline parsing):
+# - 2025-11 / 2025_11 / 2025.11
+# - may-2020
+_YEAR_MONTH_RE = re.compile(r"(?<!\d)(20\d{2})[\-_/\.](\d{1,2})(?![\-_/\.]?\d)")
+_MONTH_YEAR_RE = re.compile(
+    r"(?<![A-Za-z0-9])([a-zA-Z\u00C0-\u017F]{3,15})[\s\-_/\.,]+(20\d{2})(?!\d)",
     flags=re.IGNORECASE,
 )
 
@@ -232,6 +243,33 @@ def _extract_dates(text: str) -> List[date]:
     return uniq
 
 
+def _extract_coarse_dates(text: str) -> List[date]:
+    """Extract coarse month-level dates used for stale-notice detection."""
+
+    out: List[date] = []
+
+    for y, m in _YEAR_MONTH_RE.findall(text):
+        dt = _safe_date(int(y), int(m), 1)
+        if dt:
+            out.append(dt)
+
+    for mon, y in _MONTH_YEAR_RE.findall(text):
+        mi = _month_from_token(mon)
+        if not mi:
+            continue
+        dt = _safe_date(int(y), mi, 1)
+        if dt:
+            out.append(dt)
+
+    seen = set()
+    uniq: List[date] = []
+    for dt in out:
+        if dt not in seen:
+            seen.add(dt)
+            uniq.append(dt)
+    return uniq
+
+
 def parse_deadline(text: str) -> Optional[str]:
     """Extract a best-effort deadline date from text.
 
@@ -278,7 +316,16 @@ def extract_dates(text: str) -> List[date]:
     t = (text or "").strip().lower()
     if not t:
         return []
-    return _extract_dates(t)
+    exact = _extract_dates(t)
+    coarse = _extract_coarse_dates(t)
+
+    out: List[date] = []
+    seen = set()
+    for dt in exact + coarse:
+        if dt not in seen:
+            seen.add(dt)
+            out.append(dt)
+    return out
 
 
 def check_timing_constraints(deadline_str: str, publication_date: datetime = None):

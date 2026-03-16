@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import joblib
@@ -200,3 +201,168 @@ def record_feedback(tender_id: int, event_type: str, label_weight: float) -> boo
     except Exception:
         db.session.rollback()
         return False
+
+
+def _compat_subject(
+    title: str,
+    description: str,
+    rule_score: float,
+    keywords_matched: str,
+    scoring_breakdown: str,
+):
+    """Build a text-only tender-like object for legacy compatibility APIs."""
+    return SimpleNamespace(
+        title=title or "",
+        title_translated=title or "",
+        description=description or "",
+        description_translated=description or "",
+        score=float(rule_score or 0.0),
+        keywords_matched=keywords_matched or "",
+        scoring_breakdown=scoring_breakdown or "",
+        deadline="",
+        source_id=0,
+        country="unknown",
+        category="unknown",
+        priority_level="LOW",
+        likely_fit_for_f2="uncertain",
+        procurement_status="open",
+        timing_status="open",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Legacy compatibility layer.
+# Older Flask routes/tests import these names, so keep them available.
+# ---------------------------------------------------------------------------
+def extract_features(title: str, description: str = "") -> Dict:
+    from app.scoring import score_text
+
+    t = str(title or "")
+    d = str(description or "")
+    rule_score, matched, breakdown = score_text(t, d)
+    subject = _compat_subject(t, d, rule_score, matched, breakdown)
+    return _extract_features(subject)
+
+
+def get_model_status() -> Dict:
+    mdl = model_status()
+    try:
+        fb = feedback_counts(days=3650)
+    except Exception:
+        # Support CLI/test callers that query status outside Flask app context.
+        fb = {"total": 0, "positive": 0, "negative": 0}
+    available = bool(mdl.get("available"))
+    return {
+        # New fields
+        "available": available,
+        "trained_at": mdl.get("trained_at"),
+        "samples": int(mdl.get("samples", 0) or 0),
+        "positives": int(mdl.get("positives", 0) or 0),
+        "negatives": int(mdl.get("negatives", 0) or 0),
+        # Legacy fields expected by old UI/routes
+        "sentence_model_loaded": available,
+        "ranker_model_loaded": available,
+        "golden_tenders_count": int(fb.get("positive", 0) or 0),
+        "ranker_trained_at": mdl.get("trained_at"),
+        "ranker_positive_count": int(mdl.get("positives", 0) or 0),
+        "ranker_negative_count": int(mdl.get("negatives", 0) or 0),
+        "feedback_total": int(fb.get("total", 0) or 0),
+    }
+
+
+def update_golden_embeddings() -> bool:
+    """
+    Compatibility shim for previous semantic-embedding pipeline.
+    We now store positive preference signals in feedback events.
+    """
+    try:
+        preferred_ids = [
+            int(row[0])
+            for row in (
+                db.session.query(TenderResult.id)
+                .filter((TenderResult.saved.is_(True)) | (TenderResult.favorite.is_(True)))
+                .all()
+            )
+        ]
+        if not preferred_ids:
+            return False
+
+        existing = {
+            int(row[0])
+            for row in (
+                db.session.query(FeedbackEvent.tender_id)
+                .filter(
+                    FeedbackEvent.event_type == "golden_sync",
+                    FeedbackEvent.tender_id.in_(preferred_ids),
+                )
+                .all()
+            )
+        }
+
+        new_events = 0
+        for tid in preferred_ids:
+            if tid in existing:
+                continue
+            db.session.add(
+                FeedbackEvent(
+                    tender_id=tid,
+                    event_type="golden_sync",
+                    label_weight=1.0,
+                )
+            )
+            new_events += 1
+
+        if new_events:
+            db.session.commit()
+        return True
+    except Exception:
+        db.session.rollback()
+        return False
+
+
+def train_ranker_model(min_samples: int = 40) -> Tuple[bool, str]:
+    result = train_relevance_model(min_samples=min_samples)
+    return result.trained, result.message
+
+
+def ml_score(title: str, description: str = "") -> Dict:
+    from app.scoring import score_text
+
+    t = str(title or "")
+    d = str(description or "")
+    keyword_score, matched, breakdown_raw = score_text(t, d)
+
+    try:
+        breakdown = json.loads(breakdown_raw) if breakdown_raw else {}
+    except Exception:
+        breakdown = {}
+
+    subject = _compat_subject(t, d, keyword_score, matched, breakdown_raw)
+    ml_prob = predict_relevance(subject)
+    final = blend_score(keyword_score, ml_prob)
+    method = "keyword+relevance-model" if ml_prob is not None else "keyword-only"
+    semantic_pct = float((ml_prob or 0.0) * 100.0)
+
+    flags = []
+    if breakdown.get("platform_commitment_signals"):
+        flags.append("platform commitment")
+    if breakdown.get("irrelevant_signals"):
+        flags.append("irrelevant signal")
+
+    explanation_parts = [f"Rule score {float(keyword_score):.1f}."]
+    if ml_prob is None:
+        explanation_parts.append("No trained relevance model available.")
+    else:
+        explanation_parts.append(f"Model confidence {semantic_pct:.1f}%.")
+    if flags:
+        explanation_parts.append(f"Detected: {', '.join(flags)}.")
+
+    return {
+        "method": method,
+        "keyword_score": float(keyword_score),
+        "semantic_score": semantic_pct,
+        "final_score": float(final),
+        "explanation": " ".join(explanation_parts),
+        "matched_keywords": matched,
+        "breakdown": breakdown,
+    }

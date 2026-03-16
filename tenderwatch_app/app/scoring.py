@@ -26,6 +26,7 @@ Design Principles:
 
 import json
 import app.keywords as kw
+from app.geography import enrich_scoring_with_geography
 
 # Compatibility bridge:
 # `app/keywords.py` evolved and some legacy constants may be renamed or absent.
@@ -544,6 +545,8 @@ def score_text(title: str, text: str = ""):
         "negative_penalty": negative_penalty,
         "raw_score": raw_score,
         "normalized_score": normalized_score,
+        "match_percentage": normalized_score,
+        "final_score": normalized_score,
         "priority": priority_level,
         "likely_fit_for_F2": likely_fit,
     }
@@ -554,6 +557,43 @@ def score_text(title: str, text: str = ""):
         keywords_display += f" (+{len(unique_keywords) - 15} more)"
     
     return normalized_score, keywords_display, json.dumps(breakdown)
+
+
+def score_tender(
+    title: str,
+    text: str = "",
+    *,
+    buyer: str = "",
+    country: str = "",
+    source_name: str = "",
+    source_url: str = "",
+    source_group: str = "",
+    source_tags=None,
+    pipeline_mode: str = "africa_priority",
+    settings=None,
+):
+    base_score, matched_str, breakdown_json = score_text(title, text)
+    try:
+        breakdown = json.loads(breakdown_json)
+    except Exception:
+        breakdown = {}
+
+    ranking_score, breakdown = enrich_scoring_with_geography(
+        base_score=base_score,
+        breakdown=breakdown,
+        title=title,
+        text=text,
+        buyer=buyer,
+        country=country,
+        source_name=source_name,
+        source_url=source_url,
+        source_group=source_group,
+        source_tags=source_tags,
+        pipeline_mode=pipeline_mode,
+        settings=settings,
+    )
+    breakdown["final_score"] = ranking_score
+    return base_score, matched_str, json.dumps(breakdown), ranking_score
 
 
 def classify_tender(title: str, text: str = ""):

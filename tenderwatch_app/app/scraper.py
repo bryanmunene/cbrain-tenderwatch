@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import json
 import re
 import threading
 import warnings
@@ -26,10 +27,17 @@ from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.auto_discovery import init_discovery, get_discovery_engine
-from app.models import TenderSource, TenderResult
-from app.scoring import score_text
+from app.models import AppSettings, TenderSource, TenderResult
+from app.scoring import score_tender
 from app.source_bias import COUNTRY_MAP
 from app.keywords import ALL_KEYWORDS
+from app.geography import (
+    infer_source_group,
+    parse_source_tags,
+    settings_from_model,
+    source_pipeline,
+    source_tags_for_group,
+)
 
 logger = logging.getLogger(__name__)
 logging.getLogger("pypdf").setLevel(logging.ERROR)
@@ -316,6 +324,8 @@ class SourceInfo:
     name: str
     url: str
     favorite: bool = False
+    source_group: str = "experimental"
+    source_tags: str = "[]"
 
 
 def _utcnow():
@@ -787,6 +797,8 @@ def scan_source(
     existing_links: Optional[Iterable[str]] = None,
     max_new_per_source: int = MAX_NEW_TENDERS_PER_SOURCE,
     discovery_mode: str = "f2_ranked",
+    pipeline_mode: str = "africa_priority",
+    geo_settings=None,
 ) -> List[Dict]:
     """Scan a single source URL and return candidate tender rows.
 
@@ -970,7 +982,18 @@ def scan_source(
                 scoring_text = f"{scoring_text} {detail_text}".strip()
             if pdf_text:
                 scoring_text = f"{scoring_text} {pdf_text}".strip()
-            score, matched, scoring_breakdown = score_text(title, scoring_text)
+            fit_score, matched, scoring_breakdown, ranking_score = score_tender(
+                title,
+                scoring_text,
+                buyer=source.name,
+                country=_source_country(source.name, link),
+                source_name=source.name,
+                source_url=source.url,
+                source_group=source.source_group,
+                source_tags=parse_source_tags(source.source_tags),
+                pipeline_mode=pipeline_mode,
+                settings=geo_settings,
+            )
 
             try:
                 breakdown = json_lib.loads(scoring_breakdown)
@@ -981,8 +1004,10 @@ def scan_source(
             domains_matched = breakdown.get("domains_matched", []) or []
             likely_fit = breakdown.get("likely_fit_for_F2", "uncertain")
             procurement_status = breakdown.get("procurement_status", "open")
+            recommendation = breakdown.get("recommendation", "REVIEW")
+            queue_bucket = breakdown.get("queue_bucket", "main_shortlist")
 
-            if score <= 0 or keywords_found == 0:
+            if fit_score <= 0 or keywords_found == 0:
                 # Do not resurrect tenders explicitly excluded by keyword scoring.
                 # Example: construction/civil works notices with incidental "ict" text.
                 if bool(breakdown.get("excluded", False)) or (breakdown.get("irrelevant_signals") or []):
@@ -992,7 +1017,7 @@ def scan_source(
                 allow_broad_capture = has_tender_term or has_ref_code or has_detail_url
                 broad_quality_ok = _broad_hits_pass_quality(broad_hits) or (has_tender_term and len(broad_hits) >= 1)
                 if allow_broad_capture and broad_quality_ok:
-                    score = max(float(score or 0), 18.0 if manual_like else 16.0)
+                    fit_score = max(float(fit_score or 0), 18.0 if manual_like else 16.0)
                     keywords_found = len(broad_hits)
                     matched = ", ".join([f"broad:{h}" for h in broad_hits[:4]])
                     breakdown["keywords_found"] = keywords_found
@@ -1000,36 +1025,44 @@ def scan_source(
                     breakdown["broad_capture"] = True
                     if breakdown.get("likely_fit_for_F2", "uncertain") == "uncertain":
                         breakdown["likely_fit_for_F2"] = "discuss"
+                    if breakdown.get("recommendation", "REVIEW") == "NO-GO":
+                        breakdown["recommendation"] = "REVIEW"
                     scoring_breakdown = json_lib.dumps(breakdown)
                     likely_fit = breakdown.get("likely_fit_for_F2", "discuss")
                     procurement_status = breakdown.get("procurement_status", "open")
+                    recommendation = breakdown.get("recommendation", "REVIEW")
+                    queue_bucket = breakdown.get("queue_bucket", "secondary_review")
+                    ranking_score = float(breakdown.get("ranking_score", fit_score) or fit_score)
                 else:
                     continue
             if likely_fit in {"excluded", "no-go"} and not manual_like:
                 continue
+            if recommendation == "NO-GO" and not manual_like:
+                continue
             if procurement_status in {"locked", "conditional_nogo"} and (not source.favorite) and (not manual_like):
                 continue
             # Keep more exploratory matches in F2-ranked mode; final quality is handled in UI filters.
-            if likely_fit == "uncertain" and score < 14 and not manual_like:
+            if likely_fit == "uncertain" and fit_score < 14 and not manual_like:
                 continue
             strict_no_deadline = (not bool(source.favorite)) and (not manual_like)
-            if strict_no_deadline and not deadline and likely_fit in {"uncertain", "discuss"} and score < 24 and not has_tender_term:
+            if strict_no_deadline and not deadline and likely_fit in {"uncertain", "discuss"} and fit_score < 24 and not has_tender_term:
                 continue
-            if strict_no_deadline and not deadline and keywords_found < 2 and score < 30 and not has_tender_term:
+            if strict_no_deadline and not deadline and keywords_found < 2 and fit_score < 30 and not has_tender_term:
                 continue
-            if (not manual_like) and (not _has_f2_intent(base_combined)) and len(domains_matched) < 2 and score < MIN_RELEVANCE_SCORE:
+            if (not manual_like) and (not _has_f2_intent(base_combined)) and len(domains_matched) < 2 and fit_score < MIN_RELEVANCE_SCORE:
                 continue
 
             bonus = _source_bias_bonus(source.name, link)
             if bonus:
-                score = min(100, score + bonus)
+                ranking_score = min(100, ranking_score + bonus)
                 breakdown["source_bias"] = bonus
-                breakdown["final_score"] = score
+                breakdown["ranking_score"] = ranking_score
+                breakdown["final_score"] = ranking_score
                 scoring_breakdown = json_lib.dumps(breakdown)
 
             category, _, confidence = categorize(title, scoring_text, source_name=source.name)
 
-            country = _source_country(source.name, link)
+            country = breakdown.get("country") or _source_country(source.name, link)
             inferred_domains = json_lib.dumps(domains_matched)
             priority_level = breakdown.get("priority", "LOW")
             requires_qualification = bool(breakdown.get("requires_qualification", False))
@@ -1043,7 +1076,8 @@ def scan_source(
                     "link": link,
                     "description": description,
                     "description_translated": description if description else "",
-                    "score": float(score),
+                    "score": float(fit_score),
+                    "ranking_score": float(ranking_score),
                     "keywords_matched": matched,
                     "scoring_breakdown": scoring_breakdown,
                     "category": category,
@@ -1056,6 +1090,17 @@ def scan_source(
                     "priority_level": priority_level,
                     "likely_fit_for_f2": likely_fit,
                     "procurement_status": procurement_status,
+                    "source_group": breakdown.get("source_group", source.source_group),
+                    "scan_pipeline": pipeline_mode,
+                    "geographic_scope": breakdown.get("geographic_scope", "Unknown"),
+                    "region": breakdown.get("region", ""),
+                    "africa_priority_flag": bool(breakdown.get("africa_priority_flag", False)),
+                    "donor_or_multilateral_flag": bool(breakdown.get("donor_or_multilateral_flag", False)),
+                    "target_beneficiary_region": breakdown.get("target_beneficiary_region", ""),
+                    "buyer_region": breakdown.get("buyer_region", ""),
+                    "implementation_region": breakdown.get("implementation_region", ""),
+                    "recommendation": recommendation,
+                    "queue_bucket": queue_bucket,
                     "requires_qualification": requires_qualification,
                     "qualification_reason": qualification_reason,
                     "platform_commitment_signals": platform_signals,
@@ -1126,12 +1171,12 @@ def _discover_rows(
     Returns candidate rows compatible with run_scan batch insertion.
     """
     with flask_app.app_context():
-        from app.models import AppSettings
         import json as json_lib
 
         settings = AppSettings.query.first()
         if not settings:
             return []
+        geo_settings = settings_from_model(settings)
 
         auto_enabled = bool(getattr(settings, "auto_discovery_enabled", False))
         google_api_key = (getattr(settings, "google_api_key", "") or "").strip()
@@ -1261,14 +1306,32 @@ def _discover_rows(
             if (not title_or_link_has_tender_hint) and any(term in title_low for term in discovery_noise_terms):
                 continue
 
-            score, matched, scoring_breakdown = score_text(title, description)
+            source_group = infer_source_group(
+                source_name=str(item.get("search_source", "") or ""),
+                source_url=link,
+            )
+            pipeline_mode = source_pipeline(source_group)
+            fit_score, matched, scoring_breakdown, ranking_score = score_tender(
+                title,
+                description,
+                buyer="Auto Discovery",
+                country=_source_country(str(item.get("search_source", "")), link),
+                source_name=str(item.get("search_source", "") or ""),
+                source_url=link,
+                source_group=source_group,
+                source_tags=[source_group],
+                pipeline_mode=pipeline_mode,
+                settings=geo_settings,
+            )
             try:
                 breakdown = json_lib.loads(scoring_breakdown)
             except Exception:
                 breakdown = {}
 
             keywords_found = int(breakdown.get("keywords_found", 0) or 0)
-            if score <= 0 or keywords_found == 0:
+            recommendation = breakdown.get("recommendation", "REVIEW")
+            queue_bucket = breakdown.get("queue_bucket", "secondary_review")
+            if fit_score <= 0 or keywords_found == 0:
                 text_low = f"{title} {description} {link}".lower()
                 broad_hits = _broad_discovery_hits(text_low)
                 has_tender_hint = any(term in text_low for term in discovery_keep_terms)
@@ -1276,7 +1339,7 @@ def _discover_rows(
                 # Keep broad discovery opportunities only when there is at least one
                 # concrete broad hit; title/link tender hints alone are too noisy.
                 if len(broad_hits) >= 1:
-                    score = max(float(score or 0), 24.0)
+                    fit_score = max(float(fit_score or 0), 24.0)
                     if broad_hits:
                         matched = ", ".join([f"broad:{h}" for h in broad_hits[:4]])
                         breakdown["matched_phrases"] = broad_hits[:8]
@@ -1284,7 +1347,12 @@ def _discover_rows(
                     breakdown["broad_capture"] = True
                     if breakdown.get("likely_fit_for_F2", "uncertain") == "uncertain":
                         breakdown["likely_fit_for_F2"] = "discuss"
+                    if breakdown.get("recommendation", "REVIEW") == "NO-GO":
+                        breakdown["recommendation"] = "REVIEW"
                     scoring_breakdown = json_lib.dumps(breakdown)
+                    recommendation = breakdown.get("recommendation", "REVIEW")
+                    queue_bucket = breakdown.get("queue_bucket", "secondary_review")
+                    ranking_score = float(breakdown.get("ranking_score", fit_score) or fit_score)
                 else:
                     continue
 
@@ -1292,6 +1360,12 @@ def _discover_rows(
             domains_matched = breakdown.get("domains_matched", []) or []
             likely_fit = breakdown.get("likely_fit_for_F2", "uncertain")
             procurement_status = breakdown.get("procurement_status", "open")
+            if geo_settings.africa_only_mode and not bool(breakdown.get("africa_priority_flag", False)):
+                continue
+            if (not geo_settings.include_global_sources) and pipeline_mode == "global_discovery" and not bool(breakdown.get("africa_priority_flag", False)):
+                continue
+            if recommendation == "NO-GO":
+                continue
             context = f"{title} {description} {link}".strip()
             deadline = parse_deadline(context) or ""
             if deadline:
@@ -1312,7 +1386,8 @@ def _discover_rows(
                     "link": link,
                     "description": description,
                     "description_translated": description,
-                    "score": float(score),
+                    "score": float(fit_score),
+                    "ranking_score": float(ranking_score),
                     "keywords_matched": matched,
                     "scoring_breakdown": scoring_breakdown,
                     "category": category,
@@ -1320,11 +1395,22 @@ def _discover_rows(
                     "deadline": deadline,
                     "publication_date": "",
                     "buyer": "Auto Discovery",
-                    "country": _source_country(str(item.get("search_source", "")), link),
+                    "country": breakdown.get("country") or _source_country(str(item.get("search_source", "")), link),
                     "inferred_domains": json_lib.dumps(domains_matched),
                     "priority_level": breakdown.get("priority", "LOW"),
                     "likely_fit_for_f2": likely_fit,
                     "procurement_status": procurement_status,
+                    "source_group": breakdown.get("source_group", source_group),
+                    "scan_pipeline": pipeline_mode,
+                    "geographic_scope": breakdown.get("geographic_scope", "Unknown"),
+                    "region": breakdown.get("region", ""),
+                    "africa_priority_flag": bool(breakdown.get("africa_priority_flag", False)),
+                    "donor_or_multilateral_flag": bool(breakdown.get("donor_or_multilateral_flag", False)),
+                    "target_beneficiary_region": breakdown.get("target_beneficiary_region", ""),
+                    "buyer_region": breakdown.get("buyer_region", ""),
+                    "implementation_region": breakdown.get("implementation_region", ""),
+                    "recommendation": recommendation,
+                    "queue_bucket": queue_bucket,
                     "requires_qualification": bool(breakdown.get("requires_qualification", False)),
                     "qualification_reason": breakdown.get("qualification_reason", ""),
                     "platform_commitment_signals": json_lib.dumps(breakdown.get("microsoft_commitment_signals", [])),
@@ -1375,7 +1461,50 @@ def run_scan(
         cleanup_irrelevant_tenders()
 
         sources = TenderSource.query.filter_by(active=True).all()
-        sources = sorted(sources, key=lambda s: (not bool(s.favorite), (s.name or "").lower()))
+        app_settings = AppSettings.query.first()
+        geo_settings = settings_from_model(app_settings)
+
+        for source in sources:
+            inferred_group = infer_source_group(
+                source_name=source.name,
+                source_url=source.url,
+                explicit_group=getattr(source, "source_group", "") or "",
+                explicit_tags=getattr(source, "source_tags", "") or "",
+            )
+            if getattr(source, "source_group", "") != inferred_group:
+                source.source_group = inferred_group
+            expected_tags = json.dumps(source_tags_for_group(inferred_group))
+            if getattr(source, "source_tags", "") != expected_tags:
+                source.source_tags = expected_tags
+        db.session.commit()
+
+        if geo_settings.africa_only_mode or not geo_settings.include_global_sources:
+            allowed_groups = {"africa_priority", "africa_regional"}
+            sources = [
+                s for s in sources
+                if infer_source_group(
+                    source_name=s.name,
+                    source_url=s.url,
+                    explicit_group=getattr(s, "source_group", "") or "",
+                    explicit_tags=getattr(s, "source_tags", "") or "",
+                ) in allowed_groups
+            ]
+
+        sources = sorted(
+            sources,
+            key=lambda s: (
+                source_pipeline(
+                    infer_source_group(
+                        source_name=s.name,
+                        source_url=s.url,
+                        explicit_group=getattr(s, "source_group", "") or "",
+                        explicit_tags=getattr(s, "source_tags", "") or "",
+                    )
+                ) != "africa_priority",
+                not bool(s.favorite),
+                (s.name or "").lower(),
+            ),
+        )
 
         if max_sources is not None:
             try:
@@ -1390,7 +1519,20 @@ def run_scan(
             return []
 
         sources_info: List[SourceInfo] = [
-            SourceInfo(id=s.id, name=s.name or "", url=s.url or "", favorite=bool(s.favorite)) for s in sources
+            SourceInfo(
+                id=s.id,
+                name=s.name or "",
+                url=s.url or "",
+                favorite=bool(s.favorite),
+                source_group=infer_source_group(
+                    source_name=s.name,
+                    source_url=s.url,
+                    explicit_group=getattr(s, "source_group", "") or "",
+                    explicit_tags=getattr(s, "source_tags", "") or "",
+                ),
+                source_tags=getattr(s, "source_tags", "") or "[]",
+            )
+            for s in sources
         ]
 
         # Snapshot existing links once (race-safe inserts will still enforce uniqueness).
@@ -1422,6 +1564,8 @@ def run_scan(
                 existing_links,
                 max_new_per_source,
                 discovery_mode,
+                source_pipeline(src.source_group),
+                geo_settings,
             ): src for src in sources_info
         }
 
@@ -1510,6 +1654,7 @@ def run_scan(
                         description=row.get("description", ""),
                         description_translated=row.get("description_translated", ""),
                         score=float(row.get("score", 0) or 0),
+                        ranking_score=float(row.get("ranking_score", 0) or 0),
                         keywords_matched=row.get("keywords_matched", ""),
                         scoring_breakdown=row.get("scoring_breakdown", ""),
                         category=row.get("category", ""),
@@ -1529,6 +1674,17 @@ def run_scan(
                         discovery_method=row.get("discovery_method", "manual"),
                         search_query=row.get("search_query", ""),
                         search_source=row.get("search_source", ""),
+                        source_group=row.get("source_group", "experimental"),
+                        scan_pipeline=row.get("scan_pipeline", "africa_priority"),
+                        geographic_scope=row.get("geographic_scope", "Unknown"),
+                        region=row.get("region", ""),
+                        africa_priority_flag=bool(row.get("africa_priority_flag", False)),
+                        donor_or_multilateral_flag=bool(row.get("donor_or_multilateral_flag", False)),
+                        target_beneficiary_region=row.get("target_beneficiary_region", ""),
+                        buyer_region=row.get("buyer_region", ""),
+                        implementation_region=row.get("implementation_region", ""),
+                        recommendation=row.get("recommendation", "REVIEW"),
+                        queue_bucket=row.get("queue_bucket", "main_shortlist"),
                         source_id=row.get("source_id"),
                     )
                 )

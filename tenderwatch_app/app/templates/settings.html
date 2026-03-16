@@ -76,6 +76,66 @@
                 </div>
             </div>
 
+            <!-- Geography Strategy -->
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-4">
+                        <div style="background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
+                            <i class="fas fa-globe-africa" style="color: white; font-size: 1.25rem;"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Geographic Strategy</h4>
+                            <p class="mb-0 text-muted" style="font-size: 0.875rem;">Africa-first ranking with controlled global discovery</p>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label for="africa_priority_weight" class="form-label" style="font-weight: 600; color: #334155;">Africa Priority Weight</label>
+                            <input type="number" class="form-control" id="africa_priority_weight" name="africa_priority_weight" value="{{ settings.africa_priority_weight }}" min="0" max="30" step="0.5" style="border-radius: 10px;">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="global_relevance_threshold" class="form-label" style="font-weight: 600; color: #334155;">Global Relevance Threshold</label>
+                            <input type="number" class="form-control" id="global_relevance_threshold" name="global_relevance_threshold" value="{{ settings.global_relevance_threshold }}" min="0" max="100" step="0.5" style="border-radius: 10px;">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="donor_multilateral_boost" class="form-label" style="font-weight: 600; color: #334155;">Donor Boost</label>
+                            <input type="number" class="form-control" id="donor_multilateral_boost" name="donor_multilateral_boost" value="{{ settings.donor_multilateral_boost }}" min="0" max="30" step="0.5" style="border-radius: 10px;">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="secondary_review_queue_threshold" class="form-label" style="font-weight: 600; color: #334155;">Secondary Review Queue Threshold</label>
+                        <input type="number" class="form-control" id="secondary_review_queue_threshold" name="secondary_review_queue_threshold" value="{{ settings.secondary_review_queue_threshold }}" min="0" max="100" step="0.5" style="border-radius: 10px;">
+                        <div class="form-text">Global discovery results below the main promotion threshold but above this score stay in the review queue.</div>
+                    </div>
+
+                    <div class="form-check form-switch mb-3" style="padding-left: 3rem;">
+                        <input class="form-check-input" type="checkbox" id="africa_only_mode" name="africa_only_mode" {% if settings.africa_only_mode %}checked{% endif %} style="width: 3rem; height: 1.5rem; cursor: pointer;">
+                        <label class="form-check-label" for="africa_only_mode" style="margin-left: 0.5rem; cursor: pointer;">
+                            <strong style="color: #334155;">Africa-only Mode</strong>
+                            <div class="text-muted small">Hard-filter shortlist views and scans to Africa-priority opportunities only.</div>
+                        </label>
+                    </div>
+
+                    <div class="form-check form-switch mb-3" style="padding-left: 3rem;">
+                        <input class="form-check-input" type="checkbox" id="include_global_sources" name="include_global_sources" {% if settings.include_global_sources %}checked{% endif %} style="width: 3rem; height: 1.5rem; cursor: pointer;">
+                        <label class="form-check-label" for="include_global_sources" style="margin-left: 0.5rem; cursor: pointer;">
+                            <strong style="color: #334155;">Include Global Sources</strong>
+                            <div class="text-muted small">Keep multilateral and global public procurement sources active in the sweep.</div>
+                        </label>
+                    </div>
+
+                    <div class="form-check form-switch mb-0" style="padding-left: 3rem;">
+                        <input class="form-check-input" type="checkbox" id="include_global_in_default_shortlist" name="include_global_in_default_shortlist" {% if settings.include_global_in_default_shortlist %}checked{% endif %} style="width: 3rem; height: 1.5rem; cursor: pointer;">
+                        <label class="form-check-label" for="include_global_in_default_shortlist" style="margin-left: 0.5rem; cursor: pointer;">
+                            <strong style="color: #334155;">Use Combined Shortlist by Default</strong>
+                            <div class="text-muted small">Default the scan page to the combined shortlist instead of the Africa-only shortlist.</div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <!-- Notification Settings -->
             <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
                 <div class="card-body p-4">
