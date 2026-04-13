@@ -37,7 +37,8 @@ def _get_settings() -> AppSettings:
     return settings
 
 
-def _parse_bool(value: str, default: bool = False) -> bool:
+def _parse_bool(value: str | None, default: bool = False) -> bool:
+    """Parse a string value to boolean."""
     if value is None:
         return default
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
@@ -653,7 +654,7 @@ def sources():
             return redirect(url_for("main.sources"))
         
         # Create new source
-        new_source = TenderSource(
+        new_source = TenderSource(  # type: ignore
             name=name,
             url=url,
             active=True,
@@ -917,7 +918,7 @@ def settings():
         # Restart scheduler with new settings
         from app.scheduler import restart_scheduler
 
-        restart_scheduler(current_app._get_current_object())
+        restart_scheduler(current_app)
         flash("Settings saved.", "success")
         if settings.auto_scan_enabled and not current_app.config.get("ENABLE_INTERNAL_SCHEDULER"):
             flash(

@@ -86,7 +86,8 @@ def _normalize(text: str) -> str:
     """Normalize text for matching."""
     _norm = getattr(kw, "_normalize", None)
     if callable(_norm):
-        return _norm(text)
+        result = _norm(text)
+        return str(result) if result else ""
     return text.lower() if text else ""
 
 

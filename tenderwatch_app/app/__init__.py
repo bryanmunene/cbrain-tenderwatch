@@ -8,6 +8,8 @@ from markupsafe import Markup
 
 from app.extensions import db
 
+__all__ = ["create_app", "db"]
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -1443,7 +1443,7 @@ def init_db(perform_translation=False):
     with app.app_context():
         # Curated baseline focused on Kenya/Africa first, then global.
         # tuple format: (name, url, favorite, active_by_default)
-        default_sources_data = [
+        default_sources_data: list[tuple[str, str, bool, bool]] = [
             # ========== KENYA - PRIORITY SOURCES ==========
             ("Kenya PPIP", "https://tenders.go.ke/website/tenders/all", True, True),
             ("ICT Authority", "https://icta.go.ke/tenders/", True, True),
@@ -1609,7 +1609,7 @@ def init_db(perform_translation=False):
                 name, url, is_favorite = row
                 active_by_default = bool(is_favorite)
             if _canonicalize_url(url) not in existing_urls:
-                source = TenderSource(
+                source = TenderSource(  # type: ignore
                     name=name,
                     url=url,
                     active=bool(active_by_default),
@@ -1725,7 +1725,7 @@ def bootstrap_once():
     st.session_state["bootstrap_done"] = True
 
 
-def get_tenders(filters=None, days_window=30, created_after=None):
+def get_tenders(filters=None, days_window: int | None = 30, created_after=None):
     """Get tenders with strict quality filtering."""
     with app.app_context():
         query = TenderResult.query
@@ -2089,7 +2089,7 @@ def add_source(name, url):
         existing = TenderSource.query.all()
         if any(_canonicalize_url(s.url) == canonical for s in existing):
             return False
-        source = TenderSource(name=name, url=url, active=True)
+        source = TenderSource(name=name, url=url, active=True)  # type: ignore
         db.session.add(source)
         db.session.commit()
         return True
@@ -3204,7 +3204,7 @@ elif page == "Settings":
                 settings.results_per_query = int(results_per_query)
                 db.session.commit()
             else:
-                settings = AppSettings(
+                settings = AppSettings(  # type: ignore
                     auto_discovery_enabled=auto_discovery_enabled,
                     bing_api_key=serpapi_key_input.strip() if serpapi_key_input else "",
                     discovery_queries=discovery_queries_json,
@@ -3334,6 +3334,35 @@ elif page == "Settings":
         
         st.markdown("---")
         
+        st.subheader("Google Custom Search")
+        st.caption("Google Custom Search API for discovering tenders globally.")
+        
+        has_db_google_key = bool(settings and getattr(settings, "google_api_key", ""))
+        has_secret_google_key = bool(os.getenv("GOOGLE_API_KEY", "").strip())
+        if has_db_google_key and has_secret_google_key:
+            st.caption("Google API key is saved in DB and available via secrets/env.")
+        elif has_db_google_key:
+            st.caption("Google API key is currently saved in DB.")
+        elif has_secret_google_key:
+            st.caption("Google API key is loaded from Streamlit secrets/env.")
+        
+        google_api_key_input = st.text_input(
+            "Google API Key",
+            value="",
+            type="password",
+            placeholder="Paste Google API key to set/update",
+            help="Leave blank to keep current saved key.",
+        )
+        
+        google_cx_input = st.text_input(
+            "Custom Search Engine ID (CX)",
+            value="",
+            placeholder="Paste Google CX ID to set/update",
+            help="Leave blank to keep current saved ID.",
+        )
+        
+        st.markdown("---")
+        
         # Notification Settings
         st.subheader("Notification Preferences")
         
@@ -3362,7 +3391,8 @@ elif page == "Settings":
                         settings.bing_api_key = serpapi_key_input.strip()
                     if google_api_key_input:
                         settings.google_api_key = google_api_key_input.strip()
-                    settings.google_cx = (google_cx_input or "").strip()
+                    if google_cx_input:
+                        settings.google_cx = google_cx_input.strip()
                     settings.discovery_queries = discovery_queries_json
                     settings.results_per_query = int(results_per_query)
 
@@ -3376,17 +3406,19 @@ elif page == "Settings":
                     db.session.commit()
                     st.success("Settings saved.")
                 else:
-                    new_settings = AppSettings(
-                        auto_discovery_enabled=auto_discovery_enabled,
-                        bing_api_key=serpapi_key_input.strip() if serpapi_key_input else "",
-                        google_api_key=google_api_key_input.strip() if google_api_key_input else "",
-                        google_cx=(google_cx_input or "").strip(),
-                        discovery_queries=discovery_queries_json,
-                        results_per_query=int(results_per_query),
-                        notifications_enabled=notification_enabled,
-                        min_score_to_notify=float(min_score),
-                        notify_email=False
-                    )
+                    new_settings = AppSettings()  # type: ignore
+                    new_settings.auto_discovery_enabled = auto_discovery_enabled
+                    if serpapi_key_input:
+                        new_settings.bing_api_key = serpapi_key_input.strip()
+                    if google_api_key_input:
+                        new_settings.google_api_key = google_api_key_input.strip()
+                    if google_cx_input:
+                        new_settings.google_cx = google_cx_input.strip()
+                    new_settings.discovery_queries = discovery_queries_json
+                    new_settings.results_per_query = int(results_per_query)
+                    new_settings.notifications_enabled = notification_enabled
+                    new_settings.min_score_to_notify = float(min_score)
+                    new_settings.notify_email = False
                     db.session.add(new_settings)
                     db.session.commit()
                     st.success("Settings saved.")

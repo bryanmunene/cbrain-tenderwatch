@@ -126,7 +126,7 @@ def init_sources():
 
         for name, url, source_group in DEFAULT_SOURCES:
             db.session.add(
-                TenderSource(
+                TenderSource(  # type: ignore
                     name=name,
                     url=url,
                     active=True,
