@@ -68,8 +68,9 @@ def _apply_scan_filters(query, recent_days, category, min_score, search):
     if category:
         query = query.filter_by(category=category)
 
-    if min_score > 0:
-        query = query.filter(TenderResult.score >= min_score)
+    # STRICT FILTERING: minimum score threshold (20% for any result)
+    min_score_threshold = max(20, min_score) if min_score > 0 else 20
+    query = query.filter(TenderResult.score >= min_score_threshold)
 
     if search:
         query = query.filter(
@@ -80,6 +81,22 @@ def _apply_scan_filters(query, recent_days, category, min_score, search):
             )
         )
     return query
+
+
+def _deduplicate_results(results):
+    """Remove duplicate tenders (same link) keeping highest score."""
+    seen = {}
+    deduped = []
+    for r in results:
+        if r.link not in seen:
+            seen[r.link] = r
+            deduped.append(r)
+        elif r.score > seen[r.link].score:
+            # Replace with higher score
+            deduped.remove(seen[r.link])
+            seen[r.link] = r
+            deduped.append(r)
+    return deduped
 
 
 def _filtered_tenders_from_request(base_query, settings: AppSettings):
@@ -136,6 +153,9 @@ def _filtered_tenders_from_request(base_query, settings: AppSettings):
 
     results = query.all()
     results = [t for t in results if shortlist_mode_match(t, shortlist_mode)]
+    
+    # DEDUPLICATE: Remove duplicate tenders (same link)
+    results = _deduplicate_results(results)
 
     if sort_by == "fit_score":
         results = sorted(results, key=lambda x: x.score or 0, reverse=True)
@@ -146,7 +166,15 @@ def _filtered_tenders_from_request(base_query, settings: AppSettings):
     elif sort_by == "ranking":
         results = sorted(results, key=lambda x: x.ranking_score or 0, reverse=True)
     else:
-        results = sorted(results, key=tender_sort_key)
+        # DEFAULT: Sort by relevance (score + deadline proximity)
+        results = sorted(
+            results,
+            key=lambda x: (
+                x.score or 0,
+                -(x.deadline <= datetime.utcnow().date() if x.deadline else 1)
+            ),
+            reverse=True,
+        )
 
     return {
         "results": results,

@@ -1,17 +1,13 @@
 """app.categorizer
 
-Lightweight categorization based on keyword domains.
-
-This file is called often during scans, so we:
-- precompute sorted keyword lists once at import time
-- normalize both text and keywords similarly to app.keywords to improve recall
+Enhanced categorization with strict confidence scoring.
+Only accepts high-confidence categorizations (>0.6).
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-
 import re
 import app.keywords as kw
 
@@ -38,7 +34,6 @@ def _norm_phrase(s: str) -> str:
             return _normalize_phrase(s)
         except Exception:
             return s.lower()
-    # Fallback: collapse separators and whitespace
     s = s.lower()
     s = re.sub(r"[-/\\_|]+", " ", s)
     s = re.sub(r"\s+", " ", s).strip()
@@ -72,16 +67,18 @@ for category, keywords in (KEYWORD_DOMAINS or {}).items():
             continue
         wc = len(norm.split())
         kws.append(_KW(norm=norm, orig=k, word_count=wc))
-    # Longest/multi-word first helps avoid generic matches dominating
+    # Longest/multi-word first
     kws.sort(key=lambda x: (x.word_count, len(x.norm)), reverse=True)
     _DOMAIN_KWS[category] = kws
 
 
 def categorize(title: str, text: str = "", source_name: str | None = None):
-    """Categorize tenders based on keyword hits.
+    """Strict categorization with confidence > 0.6.
 
     Returns:
         (best_category, matched_keywords_str, confidence_float)
+        
+    Confidence < 0.6 returns "Unclassified"
     """
 
     combined = _norm_text(f"{title} {text}")
@@ -90,14 +87,35 @@ def categorize(title: str, text: str = "", source_name: str | None = None):
 
     scores = defaultdict(float)
     matched_keywords = defaultdict(set)
+    total_matches = 0
 
     for category, kws in _DOMAIN_KWS.items():
         for k in kws:
             if k.norm and k.norm in combined:
-                # Weight multi-word keywords higher
-                score_value = max(1, k.word_count) * 2
-                scores[category] += score_value
+                # Multi-word keywords score higher
+                match_value = max(2, k.word_count) * 3
+                scores[category] += match_value
                 matched_keywords[category].add(k.orig)
+                total_matches += 1
+
+    if not scores:
+        return "Unclassified", "", 0.0
+
+    # Find best category
+    best_category = max(scores, key=scores.get)
+    best_score = scores[best_category]
+    max_possible_score = total_matches * 6  # Rough upper bound
+    
+    # Calculate confidence with strict threshold
+    confidence = min(1.0, best_score / (max_possible_score + 1)) if max_possible_score > 0 else 0.0
+    
+    # STRICT FILTER: require confidence > 0.6
+    if confidence < 0.6:
+        return "Unclassified", "", confidence
+    
+    matched_str = ", ".join(sorted(matched_keywords[best_category])[:3])
+    
+    return best_category, matched_str, confidence
 
     if not scores:
         return "Unclassified", "", 0.0

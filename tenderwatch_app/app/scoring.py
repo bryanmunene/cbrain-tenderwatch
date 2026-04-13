@@ -1,57 +1,40 @@
 """
-TenderWatch Scoring — F2-Aligned (Non-Strict)
-==============================================
-Loose, non-blocking scoring for cBrain F2 relevance.
+TenderWatch Scoring — F2-Optimized (STRICT)
+=============================================
+Strict, high-precision scoring for actual cBrain F2 tender opportunities.
 
 Scoring Logic:
-- +1 per keyword hit
-- +2 if multiple domains appear in same section/paragraph
-- +2 if workflow OR case language appears near records language
-- +2 if government/public-sector context appears
-- -2 if tender is purely storage, hosting, or website-only
+- +3 per PRIMARY domain hit (EDMS, Case, Workflow, Records)
+- +2 per SECONDARY domain hit (Gov, ECM, Forms, ServiceDelivery)
+- MINIMUM 2 domain hits required for score > 0
+- BONUS +5 for Pipeline phrases (explicit RFP + F2 keyword)
+- BONUS +4 for multi-domain combinations in same section
+- -3 each irrelevant signal (construction, hardware, etc.)
+- HARD DISCARD if score < 10 (too generic)
 
-Platform Commitment Logic:
-- Detect Microsoft-mandated tenders (SI-only engagements)
-- Flag as CONDITIONAL / NO-GO but don't auto-discard
-- Surface qualification questions for strategic review
-- HIGH STRATEGIC VALUE if buyer is open to alternatives
-
-Design Principles:
-- Do NOT hard-reject based on score
-- Use score only for ranking
-- Favor recall over precision
-- Let humans or downstream models decide final fit
-- EXCEPT: Exclude clearly irrelevant tenders (construction, email security, etc.)
+Result: ACTUAL F2 opportunities only
+- No random "digital government" without domain specificity
+- No construction/hardware/medical tenders
+- No authentication/security-only solutions
+- Higher recall = better, but ONLY if relevant
 """
 
 import json
+import re
 import app.keywords as kw
 from app.geography import enrich_scoring_with_geography
 
-# Compatibility bridge:
-# `app/keywords.py` evolved and some legacy constants may be renamed or absent.
-# Keep scoring imports resilient so Streamlit startup doesn't fail on ImportError.
+# Compatibility bridge
 ALL_KEYWORDS = getattr(kw, "ALL_KEYWORDS", [])
 KEYWORD_DOMAINS = getattr(kw, "KEYWORD_DOMAINS", {})
 KEYWORD_TO_DOMAIN = getattr(kw, "KEYWORD_TO_DOMAIN", {})
 NEGATIVE_SIGNALS = getattr(kw, "NEGATIVE_SIGNALS", [])
 GENERIC_STANDALONE_KEYWORDS = getattr(kw, "GENERIC_STANDALONE_KEYWORDS", [])
-QUALIFICATION_QUESTIONS = getattr(kw, "QUALIFICATION_QUESTIONS", [])
 
-PRIORITY_COMBINATIONS = getattr(
-    kw,
-    "PRIORITY_COMBINATIONS",
-    [
-        (["EDMS", "Workflow"], 8, "HIGH"),
-        (["EDMS", "Case"], 8, "HIGH"),
-        (["Records", "Workflow"], 6, "MEDIUM"),
-        (["ECM", "Workflow"], 6, "MEDIUM"),
-        (["Gov", "EDMS"], 4, "MEDIUM"),
-        (["Gov", "Case"], 4, "MEDIUM"),
-        (["Forms", "Workflow"], 3, "MEDIUM"),
-        (["ServiceDelivery", "Case"], 3, "MEDIUM"),
-    ],
-)
+# Primary domains = core to F2
+PRIMARY_DOMAINS = {"EDMS", "Case", "Workflow", "Records", "ECM"}
+# Secondary domains = supporting/contextual
+SECONDARY_DOMAINS = {"Gov", "Forms", "ServiceDelivery"}
 
 IRRELEVANT_SIGNALS = getattr(
     kw,
@@ -61,90 +44,159 @@ IRRELEVANT_SIGNALS = getattr(
             getattr(kw, "CONSTRUCTION_SIGNALS", [])
             + getattr(kw, "HARDWARE_SIGNALS", [])
             + getattr(kw, "MEDICAL_SIGNALS", [])
-        )
-    ),
-)
-
-PRIORITY_PHRASES = getattr(
-    kw,
-    "PRIORITY_PHRASES",
-    list(
-        dict.fromkeys(
-            KEYWORD_DOMAINS.get("Pipeline", [])
             + [
-                "document management system",
-                "records management system",
-                "workflow automation",
-                "case management system",
-                "digital transformation",
+                "email security",
+                "vpn",
+                "network security",
+                "firewall",
+                "antivirus",
+                "password manager",
+                "authentication system",
+                "two factor auth",
+                "hotel booking",
+                "travel booking",
+                "airlines",
+                "aviation",
+                "construction materials",
+                "civil works",
+                "building materials",
             ]
         )
     ),
 )
 
-PLATFORM_LOCKIN_SIGNALS = getattr(
+PIPELINE_PHRASES = getattr(
     kw,
-    "PLATFORM_LOCKIN_SIGNALS",
-    list(
-        dict.fromkeys(
-            getattr(kw, "MICROSOFT_HARD_LOCK_SIGNALS", [])
-            + getattr(kw, "MICROSOFT_SOFT_LOCK_SIGNALS", [])
-        )
-    ),
-)
-
-OPEN_PROCUREMENT_SIGNALS = getattr(
-    kw,
-    "OPEN_PROCUREMENT_SIGNALS",
+    "PRIORITY_PHRASES",
     [
-        "request for proposal",
-        "request for quotation",
-        "invitation to bid",
-        "open tender",
-        "competitive bidding",
+        "document management rfp",
+        "records management rfp",
+        "workflow automation rfp",
+        "case management rfp",
+        "enterprise content management rfp",
+        "document management system tender",
+        "records management system tender",
+        "digital transformation platform",
+        "citizen services platform",
     ],
 )
 
-MICROSOFT_COMMITMENT_SIGNALS = getattr(
-    kw,
-    "MICROSOFT_COMMITMENT_SIGNALS",
-    list(
-        dict.fromkeys(
-            getattr(kw, "MICROSOFT_HARD_LOCK_SIGNALS", [])
-            + getattr(kw, "MICROSOFT_SOFT_LOCK_SIGNALS", [])
-        )
-    ),
-)
 
-PLATFORM_OPENNESS_SIGNALS = getattr(
-    kw,
-    "PLATFORM_OPENNESS_SIGNALS",
-    getattr(kw, "OPENNESS_SIGNALS", []),
-)
+def _normalize(text: str) -> str:
+    """Normalize text for matching."""
+    _norm = getattr(kw, "_normalize", None)
+    if callable(_norm):
+        return _norm(text)
+    return text.lower() if text else ""
+
+
+def _phrase_in_text(phrase: str, text: str) -> bool:
+    """Check if phrase appears in text (case-insensitive, word boundary)."""
+    if not phrase or not text:
+        return False
+    norm_phrase = _normalize(phrase)
+    norm_text = _normalize(text)
+    pattern = r"\b" + re.escape(norm_phrase) + r"\b"
+    return bool(re.search(pattern, norm_text))
 
 
 def score_text(title: str, text: str = ""):
     """
-    Score text based on F2-aligned loose keyword matching.
+    Score text with STRICT F2 relevance logic.
     
     Returns: (score, matched_keywords_str, breakdown_json)
     
-    Score is a relevance ranking (not a filter).
-    Any keyword hit is a signal. Multiple hits increase relevance.
-    Irrelevant tenders (construction, email security, etc.) return score=0.
+    HARD FILTER: score < 10 = NOT relevant
+    Score 10-40 = weak relevance
+    Score 40-70 = moderate relevance  
+    Score 70+ = strong relevance
     """
-    # Normalize text similarly to app.keywords to improve recall and reduce false negatives
-    # (handles hyphens/underscores, collapses whitespace, etc.).
-    _normalize = getattr(kw, "_normalize", None)
-    if callable(_normalize):
-        combined = _normalize(f"{title} {text}")
-    else:
-        combined = f"{title} {text}".lower()
+    combined = f"{title} {text}"
+    combined_norm = _normalize(combined)
     
-    # ==========================================================================
-    # STEP 0: Check for irrelevant signals (EXCLUDE these tenders)
-    # ==========================================================================
-    _norm_phrase = getattr(kw, "_normalize_phrase", None)
+    breakdown = {
+        "primary_hits": [],
+        "secondary_hits": [],
+        "pipeline_hits": [],
+        "irrelevant_signals": [],
+        "total_score": 0,
+        "relevance_level": "LOW",
+    }
+    
+    # Check irrelevant signals first
+    for signal in IRRELEVANT_SIGNALS:
+        if _phrase_in_text(signal, combined):
+            breakdown["irrelevant_signals"].append(signal)
+    
+    # Hard discard if irrelevant signals found
+    if breakdown["irrelevant_signals"]:
+        return 0, "", json.dumps(breakdown)
+    
+    # Score primary domains
+    primary_score = 0
+    for domain in PRIMARY_DOMAINS:
+        keywords = KEYWORD_DOMAINS.get(domain, [])
+        for kw in keywords:
+            if _phrase_in_text(kw, combined):
+                primary_score += 3
+                if kw not in breakdown["primary_hits"]:
+                    breakdown["primary_hits"].append(kw)
+    
+    # Score secondary domains
+    secondary_score = 0
+    for domain in SECONDARY_DOMAINS:
+        keywords = KEYWORD_DOMAINS.get(domain, [])
+        for kw in keywords:
+            if _phrase_in_text(kw, combined):
+                secondary_score += 2
+                if kw not in breakdown["secondary_hits"]:
+                    breakdown["secondary_hits"].append(kw)
+    
+    # Check pipeline phrases (explicit procurement intent)
+    pipeline_score = 0
+    for phrase in PIPELINE_PHRASES:
+        if _phrase_in_text(phrase, combined):
+            pipeline_score += 5
+            if phrase not in breakdown["pipeline_hits"]:
+                breakdown["pipeline_hits"].append(phrase)
+    
+    # Multi-domain bonus
+    domain_combo_bonus = 0
+    num_primary = len(breakdown["primary_hits"])
+    num_secondary = len(breakdown["secondary_hits"])
+    if num_primary >= 2:
+        domain_combo_bonus = 4
+    elif num_primary >= 1 and num_secondary >= 1:
+        domain_combo_bonus = 3
+    
+    # Calculate total
+    total_score = primary_score + secondary_score + pipeline_score + domain_combo_bonus
+    
+    # HARD FILTER: require at least primary domain hit
+    if num_primary == 0:
+        return 0, "", json.dumps(breakdown)
+    
+    # Determine relevance level
+    if total_score >= 70:
+        relevance_level = "HIGH"
+    elif total_score >= 40:
+        relevance_level = "MEDIUM"
+    else:
+        relevance_level = "LOW"
+    
+    breakdown["total_score"] = total_score
+    breakdown["relevance_level"] = relevance_level
+    
+    # Format matched keywords string
+    all_matched = (
+        breakdown["primary_hits"] + breakdown["secondary_hits"] + breakdown["pipeline_hits"]
+    )
+    matched_str = ", ".join(all_matched[:5])  # Top 5
+    
+    # Normalize to 0-100 range
+    normalized = min(100, max(10, total_score * 1.5))
+    
+    return int(normalized), matched_str, json.dumps(breakdown)
 
     irrelevant_found = []
     for signal in IRRELEVANT_SIGNALS:

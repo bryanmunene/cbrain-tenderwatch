@@ -1726,7 +1726,7 @@ def bootstrap_once():
 
 
 def get_tenders(filters=None, days_window=30, created_after=None):
-    """Get tenders with optional filters."""
+    """Get tenders with strict quality filtering."""
     with app.app_context():
         query = TenderResult.query
         if created_after is None and filters:
@@ -1748,14 +1748,18 @@ def get_tenders(filters=None, days_window=30, created_after=None):
                     TenderResult.description.ilike(search_term) |
                     TenderResult.description_translated.ilike(search_term)
                 )
+            
+            # STRICT FILTERING: Enforce minimum score of 20%
             min_score = filters.get("min_score")
             if min_score is not None:
                 try:
-                    min_score = float(min_score)
+                    min_score = max(20, float(min_score))  # Never allow below 20
                 except (TypeError, ValueError):
-                    min_score = 0.0
-                if min_score > 0:
-                    query = query.filter(TenderResult.score >= min_score)
+                    min_score = 20
+            else:
+                min_score = 20  # Default minimum
+            query = query.filter(TenderResult.score >= min_score)
+            
             if filters.get('favorites_only'):
                 query = query.filter(TenderResult.favorite == True)
             if filters.get('saved_only'):
@@ -1785,6 +1789,9 @@ def get_tenders(filters=None, days_window=30, created_after=None):
                 query = query.filter(
                     ~TenderResult.timing_status.in_(["awarded", "clarification", "cancelled"])
                 )
+        else:
+            # Even without explicit filters, enforce minimum score
+            query = query.filter(TenderResult.score >= 20)
         
         # Sort (baseline in SQL; final ranking can be blended with ML below).
         sort_by = filters.get('sort_by', 'score') if filters else 'score'
@@ -1796,6 +1803,20 @@ def get_tenders(filters=None, days_window=30, created_after=None):
             query = query.order_by(TenderResult.deadline.asc())
 
         tenders = query.all()
+        
+        # DEDUPLICATE: Remove duplicate tenders (same link, keep highest score)
+        seen = {}
+        unique_tenders = []
+        for t in tenders:
+            if t.link not in seen:
+                seen[t.link] = t
+                unique_tenders.append(t)
+            elif t.score > seen[t.link].score:
+                unique_tenders.remove(seen[t.link])
+                seen[t.link] = t
+                unique_tenders.append(t)
+        
+        tenders = unique_tenders
 
         if filters:
             market_focus = filters.get("market_focus")
