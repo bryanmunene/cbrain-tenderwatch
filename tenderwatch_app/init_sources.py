@@ -5,9 +5,9 @@ Adds vetted default tender sources (Kenya/Africa first, then global official).
 
 import json
 
-from app import create_app
-from app.extensions import db
-from app.models import TenderSource
+from app import create_app  # type: ignore[attr-defined]
+from app.extensions import db  # type: ignore[attr-defined]
+from app.models import TenderSource  # type: ignore[attr-defined]
 
 
 DEFAULT_SOURCES = [
@@ -126,13 +126,13 @@ def init_sources():
 
         for name, url, source_group in DEFAULT_SOURCES:
             db.session.add(
-                TenderSource(  # type: ignore
-                    name=name,
-                    url=url,
-                    active=True,
-                    favorite=False,
-                    source_group=source_group,
-                    source_tags=json.dumps([source_group]),
+                TenderSource(  # type: ignore[call-arg]
+                    name=name,  # type: ignore[arg-type]
+                    url=url,  # type: ignore[arg-type]
+                    active=True,  # type: ignore[arg-type]
+                    favorite=False,  # type: ignore[arg-type]
+                    source_group=source_group,  # type: ignore[arg-type]
+                    source_tags=json.dumps([source_group]),  # type: ignore[arg-type]
                 )
             )
 

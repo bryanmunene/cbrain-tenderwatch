@@ -654,12 +654,12 @@ def sources():
             return redirect(url_for("main.sources"))
         
         # Create new source
-        new_source = TenderSource(  # type: ignore
-            name=name,
-            url=url,
-            active=True,
-            source_group=source_group,
-            source_tags=json.dumps([source_group]),
+        new_source = TenderSource(  # type: ignore[call-arg]
+            name=name,  # type: ignore[arg-type]
+            url=url,  # type: ignore[arg-type]
+            active=True,  # type: ignore[arg-type]
+            source_group=source_group,  # type: ignore[arg-type]
+            source_tags=json.dumps([source_group]),  # type: ignore[arg-type]
         )
         db.session.add(new_source)
         db.session.commit()

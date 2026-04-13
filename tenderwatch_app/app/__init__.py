@@ -8,8 +8,6 @@ from markupsafe import Markup
 
 from app.extensions import db
 
-__all__ = ["create_app", "db"]
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -260,3 +258,7 @@ def create_app(start_scheduler=False, init_db=True):
         start_scheduler(app)
 
     return app
+
+
+# Explicitly export public API
+__all__ = ["create_app", "db"]

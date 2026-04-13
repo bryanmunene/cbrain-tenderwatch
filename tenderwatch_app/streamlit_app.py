@@ -27,9 +27,9 @@ if "app" in sys.modules and not hasattr(sys.modules["app"], "__path__"):
 importlib.invalidate_caches()
 
 # Initialize database
-from app import create_app
-from app.extensions import db
-from app.models import TenderSource, TenderResult, AppSettings
+from app import create_app  # type: ignore[attr-defined]
+from app.extensions import db  # type: ignore[attr-defined]
+from app.models import TenderSource, TenderResult, AppSettings  # type: ignore[attr-defined]
 from app.scraper import run_scan, cleanup_irrelevant_tenders
 from app.scoring import score_text
 from app.categorizer import categorize
@@ -1604,16 +1604,16 @@ def init_db(perform_translation=False):
         added_count = 0
         for row in default_sources_data:
             if len(row) == 4:
-                name, url, is_favorite, active_by_default = row
+                name, url, is_favorite, active_by_default = row  # type: ignore
             else:
-                name, url, is_favorite = row
+                name, url, is_favorite = row  # type: ignore
                 active_by_default = bool(is_favorite)
             if _canonicalize_url(url) not in existing_urls:
                 source = TenderSource(  # type: ignore
-                    name=name,
-                    url=url,
-                    active=bool(active_by_default),
-                    favorite=bool(is_favorite),
+                    name=name,  # type: ignore
+                    url=url,  # type: ignore
+                    active=bool(active_by_default),  # type: ignore
+                    favorite=bool(is_favorite),  # type: ignore
                 )
                 db.session.add(source)
                 added_count += 1
@@ -2089,7 +2089,7 @@ def add_source(name, url):
         existing = TenderSource.query.all()
         if any(_canonicalize_url(s.url) == canonical for s in existing):
             return False
-        source = TenderSource(name=name, url=url, active=True)  # type: ignore
+        source = TenderSource(name=name, url=url, active=True)  # type: ignore[call-arg]
         db.session.add(source)
         db.session.commit()
         return True
@@ -3204,11 +3204,11 @@ elif page == "Settings":
                 settings.results_per_query = int(results_per_query)
                 db.session.commit()
             else:
-                settings = AppSettings(  # type: ignore
-                    auto_discovery_enabled=auto_discovery_enabled,
-                    bing_api_key=serpapi_key_input.strip() if serpapi_key_input else "",
-                    discovery_queries=discovery_queries_json,
-                    results_per_query=int(results_per_query),
+                settings = AppSettings(  # type: ignore[call-arg]
+                    auto_discovery_enabled=auto_discovery_enabled,  # type: ignore[arg-type]
+                    bing_api_key=serpapi_key_input.strip() if serpapi_key_input else "",  # type: ignore[arg-type]
+                    discovery_queries=discovery_queries_json,  # type: ignore[arg-type]
+                    results_per_query=int(results_per_query),  # type: ignore[arg-type]
                 )
                 db.session.add(settings)
                 db.session.commit()
