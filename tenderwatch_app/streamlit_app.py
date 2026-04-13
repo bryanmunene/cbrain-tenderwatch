@@ -38,7 +38,7 @@ st.set_page_config(
 )
 
 if "ui_theme" not in st.session_state:
-    st.session_state["ui_theme"] = "Deep Blue"
+    st.session_state["ui_theme"] = "Clean White"
 
 # Keep PWA hooks so install/notification experience remains available.
 st.markdown(
