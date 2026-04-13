@@ -37,6 +37,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+if "ui_theme" not in st.session_state:
+    st.session_state["ui_theme"] = "Deep Blue"
+
 # Keep PWA hooks so install/notification experience remains available.
 st.markdown(
     """
@@ -188,6 +191,27 @@ st.markdown(
       font-size: 0.78rem;
     }
 
+        .section-card {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: linear-gradient(145deg, rgba(16, 54, 86, 0.9) 0%, rgba(12, 42, 68, 0.9) 100%);
+            padding: 0.7rem 0.85rem;
+            margin: 0.5rem 0 0.7rem;
+        }
+
+        .section-card-title {
+            margin: 0;
+            color: var(--text);
+            font-size: 0.95rem;
+            font-weight: 800;
+        }
+
+        .section-card-sub {
+            margin-top: 0.18rem;
+            color: var(--muted);
+            font-size: 0.78rem;
+        }
+
     .score-badge {
       display: inline-block;
       border-radius: 999px;
@@ -209,6 +233,47 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+if st.session_state.get("ui_theme") == "Clean White":
+        st.markdown(
+                """
+                <style>
+                :root {
+                    --bg: #ffffff;
+                    --bg-2: #f6f9fc;
+                    --card: #ffffff;
+                    --card-2: #f8fbff;
+                    --text: #0f172a;
+                    --muted: #5b7088;
+                    --line: #d4e1ef;
+                    --accent: #0f86d5;
+                    --accent-2: #0a6fb3;
+                }
+
+                .stApp {
+                    background:
+                        radial-gradient(900px 360px at 8% -12%, rgba(15, 134, 213, 0.08), transparent 60%),
+                        radial-gradient(760px 320px at 92% -16%, rgba(30, 167, 255, 0.06), transparent 60%),
+                        linear-gradient(165deg, #ffffff 0%, #f6f9fc 100%);
+                }
+
+                .hero,
+                .result-card,
+                .section-card,
+                [data-testid="stMetric"],
+                .stExpander {
+                    background: #ffffff !important;
+                    border-color: #d4e1ef !important;
+                    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
+                }
+
+                .stButton > button {
+                    border-color: rgba(15, 134, 213, 0.25);
+                }
+                </style>
+                """,
+                unsafe_allow_html=True,
+        )
 
 
 # ------------------------------
@@ -454,6 +519,18 @@ def render_hero(title: str, subtitle: str, pills: list[str] | None = None) -> No
     )
 
 
+def render_section_card(title: str, subtitle: str) -> None:
+        st.markdown(
+                f"""
+                <div class='section-card'>
+                    <p class='section-card-title'>{title}</p>
+                    <div class='section-card-sub'>{subtitle}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+        )
+
+
 def render_tender_card(t: TenderResult) -> None:
     score = float(t.score or 0)
     score_class = "score-high" if score >= 70 else "score-mid" if score >= 45 else "score-low"
@@ -602,6 +679,7 @@ elif page == "Scan & Results":
         ["Fast decision view", "Deduplicated results"],
     )
 
+    render_section_card("Scan Controls", "Choose scan depth and trigger a new scan.")
     top1, top2, top3 = st.columns([1.2, 1.2, 2.6])
     with top1:
         scan_depth = st.selectbox("Scan Depth", ["Fast", "Balanced", "Full"], index=0)
@@ -616,7 +694,7 @@ elif page == "Scan & Results":
     with top3:
         st.caption("Tip: use Fast for frequent checks; use Full for deeper daily review.")
 
-    st.markdown("### Filters")
+    render_section_card("Filters", "Use quick filters first, then open advanced options if needed.")
     f1, f2, f3, f4 = st.columns([2, 1, 1, 1])
     with f1:
         search = st.text_input("Search", placeholder="keyword, buyer, or country")
@@ -647,6 +725,7 @@ elif page == "Scan & Results":
         sort_by=sort_by,
     )
 
+    render_section_card("Results", f"Showing {len(tenders)} matching opportunity(ies).")
     st.caption(f"Showing {len(tenders)} result(s)")
     if not tenders:
         st.warning("No tenders match your filters. Try lowering Min Score or widening Time Window.")
@@ -679,6 +758,7 @@ elif page == "Sources":
                 st.rerun()
             st.error(msg)
 
+    render_section_card("Bulk Actions", "Enable, disable, or delete multiple sources quickly.")
     sources = get_sources()
     if "selected_source_ids" not in st.session_state:
         st.session_state["selected_source_ids"] = []
@@ -711,6 +791,7 @@ elif page == "Sources":
                 st.session_state["confirm_delete_all"] = True
                 st.warning("Click Delete All again to confirm.")
 
+    render_section_card("All Sources", "Review source status and toggle individual entries.")
     st.markdown("### All Sources")
     for s in sources:
         row = st.columns([0.7, 3.5, 1.6, 1.2, 1.2])
@@ -737,6 +818,7 @@ elif page == "Sources":
 
 elif page == "Favorites":
     render_hero("Favorites", "Quick access to your starred opportunities.")
+    render_section_card("Favorite Opportunities", "Your starred shortlist for rapid review.")
     favs = get_tenders(favorites_only=True, min_score=20, days_window=None, sort_by="score")
     st.caption(f"{len(favs)} favorite tender(s)")
     if not favs:
@@ -747,6 +829,7 @@ elif page == "Favorites":
 
 elif page == "Saved":
     render_hero("Saved", "Your working shortlist for follow-up actions.")
+    render_section_card("Saved Opportunities", "Operational queue for next actions and submissions.")
     saved = get_tenders(saved_only=True, min_score=20, days_window=None, sort_by="score")
     st.caption(f"{len(saved)} saved tender(s)")
     if not saved:
@@ -969,6 +1052,14 @@ elif page == "Settings":
 
         st.markdown("---")
         st.subheader("UI Options")
+        theme_idx = 0 if st.session_state.get("ui_theme") == "Deep Blue" else 1
+        selected_theme = st.selectbox(
+            "Theme",
+            ["Deep Blue", "Clean White"],
+            index=theme_idx,
+            help="Choose a dark or white-background visual theme.",
+        )
+        st.session_state["ui_theme"] = selected_theme
         compact_mode = st.checkbox("Compact result cards", value=bool(st.session_state.get("compact_mode", False)))
         st.session_state["compact_mode"] = compact_mode
         if compact_mode:
