@@ -58,6 +58,7 @@ HTTP_READ_TIMEOUT = int(10)
 HTTP_TIMEOUT = (HTTP_CONNECT_TIMEOUT, HTTP_READ_TIMEOUT)
 AUTO_DISCOVERY_TIMEOUT_SECONDS = int(os.getenv("AUTO_DISCOVERY_TIMEOUT_SECONDS", "25"))
 AUTO_DISCOVERY_MAX_QUERIES = int(os.getenv("AUTO_DISCOVERY_MAX_QUERIES", "4"))
+ALLOW_INSECURE_TLS = (os.getenv("ALLOW_INSECURE_TLS", "") or "").strip().lower() in {"1", "true", "yes", "on"}
 
 # PDF limits (adaptive parsing uses up to PDF_MAX_PAGES pages)
 PDF_MAX_BYTES = 2_000_000  # 2 MB
@@ -580,6 +581,9 @@ def _fetch_html(url: str, session: requests.Session) -> str:
     try:
         resp = session.get(url, timeout=HTTP_TIMEOUT, verify=True)
     except requests.exceptions.SSLError:
+        if not ALLOW_INSECURE_TLS:
+            logger.warning("SSL error for %s; skipping insecure retry because ALLOW_INSECURE_TLS is disabled", url)
+            raise
         logger.warning("SSL error for %s, retrying without verification", url)
         resp = session.get(url, timeout=HTTP_TIMEOUT, verify=False)
     # Do not raise_for_status: some portals return HTML error pages that still
@@ -612,6 +616,8 @@ def _pdf_text_from_url(url: str, session: Optional[requests.Session] = None) -> 
         try:
             head = s.head(url, timeout=HTTP_TIMEOUT, allow_redirects=True, verify=True)
         except requests.exceptions.SSLError:
+            if not ALLOW_INSECURE_TLS:
+                raise
             head = s.head(url, timeout=HTTP_TIMEOUT, allow_redirects=True, verify=False)
         content_length = head.headers.get("Content-Length")
         if content_length and int(content_length) > PDF_MAX_BYTES:
@@ -626,6 +632,8 @@ def _pdf_text_from_url(url: str, session: Optional[requests.Session] = None) -> 
         try:
             r = s.get(url, timeout=HTTP_TIMEOUT, stream=True, verify=True)
         except requests.exceptions.SSLError:
+            if not ALLOW_INSECURE_TLS:
+                raise
             r = s.get(url, timeout=HTTP_TIMEOUT, stream=True, verify=False)
 
         if not r.ok:
@@ -1719,17 +1727,16 @@ def run_scan(
             db.session.rollback()
             fresh_tenders = []
 
+        if fresh_tenders:
+            try:
+                from app.push_notifications import PushNotificationService
+
+                push_service = PushNotificationService(flask_app)
+                push_service.notify_new_tenders(fresh_tenders)
+            except Exception as e:
+                print(f" Push notification failed: {e}")
+
     elapsed = time.time() - start_time
     print(f" Scan complete in {elapsed:.1f}s! Found {len(fresh_tenders)} new tenders.")
-
-    # Send push notifications for new high-score tenders
-    if fresh_tenders:
-        try:
-            from app.push_notifications import PushNotificationService
-
-            push_service = PushNotificationService(flask_app)
-            push_service.notify_new_tenders(fresh_tenders)
-        except Exception as e:
-            print(f" Push notification failed: {e}")
 
     return fresh_tenders

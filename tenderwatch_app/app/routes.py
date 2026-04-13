@@ -1,14 +1,17 @@
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify, make_response
-import json
 import csv
-from io import StringIO
+import json
 from datetime import datetime, timedelta
+from io import StringIO
+from urllib.parse import urljoin, urlparse
+
+from flask import Blueprint, current_app, flash, jsonify, make_response, redirect, render_template, request, url_for
+from sqlalchemy import or_
 
 from app.extensions import db
 from app.models import TenderSource, TenderResult, AppSettings
 from app.scraper import run_scan
 from app.translator import translate_to_english, detect_language
-from app.geography import recommendation_priority, shortlist_mode_match, tender_sort_key
+from app.geography import shortlist_mode_match, tender_sort_key
 
 
 main = Blueprint("main", __name__)
@@ -70,7 +73,7 @@ def _apply_scan_filters(query, recent_days, category, min_score, search):
 
     if search:
         query = query.filter(
-            db.or_(
+            or_(
                 TenderResult.title.ilike(f"%{search}%"),
                 TenderResult.description.ilike(f"%{search}%"),
                 TenderResult.buyer.ilike(f"%{search}%"),
@@ -171,20 +174,84 @@ def _parse_recent_days(value: str) -> int:
     return days if days in RECENT_WINDOW_OPTIONS else 30
 
 
+def _parse_int_field(raw_value, default: int, label: str, errors: list[str], min_value: int | None = None, max_value: int | None = None) -> int:
+    value = raw_value
+    if value in (None, ""):
+        return default
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        errors.append(f"{label} must be a whole number.")
+        return default
+
+    if min_value is not None and parsed < min_value:
+        errors.append(f"{label} must be at least {min_value}.")
+        return default
+    if max_value is not None and parsed > max_value:
+        errors.append(f"{label} must be at most {max_value}.")
+        return default
+    return parsed
+
+
+def _parse_float_field(raw_value, default: float, label: str, errors: list[str], min_value: float | None = None, max_value: float | None = None) -> float:
+    value = raw_value
+    if value in (None, ""):
+        return default
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        errors.append(f"{label} must be a number.")
+        return default
+
+    if min_value is not None and parsed < min_value:
+        errors.append(f"{label} must be at least {min_value:g}.")
+        return default
+    if max_value is not None and parsed > max_value:
+        errors.append(f"{label} must be at most {max_value:g}.")
+        return default
+    return parsed
+
+
+def _redirect_back(default_endpoint: str, **default_values):
+    referrer = request.referrer or ""
+    if referrer:
+        target = urlparse(referrer)
+        host = urlparse(request.host_url)
+        if target.scheme in {"http", "https"} and target.netloc == host.netloc:
+            return redirect(referrer)
+        if not target.scheme and not target.netloc:
+            joined = urljoin(request.host_url, referrer)
+            joined_parts = urlparse(joined)
+            if joined_parts.netloc == host.netloc:
+                return redirect(joined)
+    return redirect(url_for(default_endpoint, **default_values))
+
+
 @main.route("/api/source-status")
 def source_status():
     """API endpoint to check which sources are active and how many tenders they've contributed"""
     sources = TenderSource.query.all()
+    tender_counts = {
+        source_id: count
+        for source_id, count in (
+            db.session.query(
+                TenderResult.source_id,
+                db.func.count(TenderResult.id),
+            )
+            .group_by(TenderResult.source_id)
+            .all()
+        )
+        if source_id is not None
+    }
     status = []
     
     for source in sources:
-        tender_count = TenderResult.query.filter_by(source_id=source.id).count()
         status.append({
             "id": source.id,
             "name": source.name,
             "url": source.url,
             "active": source.active,
-            "tender_count": tender_count,
+            "tender_count": tender_counts.get(source.id, 0),
             "favorite": source.favorite,
             "source_group": source.source_group,
         })
@@ -315,13 +382,18 @@ def scan():
     if request.method == "POST":
         from app.notifications import notify_new_tenders
 
-        run_scan()
+        new_tenders = run_scan()
         unnotified = TenderResult.query.filter_by(notified=False).all()
         if unnotified:
             notify_new_tenders(unnotified)
             for tender in unnotified:
                 tender.notified = True
             db.session.commit()
+        new_count = len(new_tenders)
+        if new_count:
+            flash(f"Scan complete. Found {new_count} new tender{'s' if new_count != 1 else ''}.", "success")
+        else:
+            flash("Scan complete. No new tenders were added.", "info")
         return redirect(url_for("main.scan", shortlist_mode=_shortlist_default_mode(settings)))
 
     filter_state = _filtered_tenders_from_request(TenderResult.query, settings)
@@ -378,7 +450,7 @@ def tender_detail(tid):
     if r.scoring_breakdown:
         try:
             scoring_info = json.loads(r.scoring_breakdown)
-        except:
+        except Exception:
             scoring_info = {}
     return render_template("tender_detail.html", tender=r, scoring_info=scoring_info)
 
@@ -392,7 +464,8 @@ def toggle_source_active(sid):
     s = TenderSource.query.get_or_404(sid)
     s.active = not s.active
     db.session.commit()
-    return redirect(request.referrer or url_for("main.sources"))
+    flash(f"{s.name} {'enabled' if s.active else 'paused'}.", "success")
+    return _redirect_back("main.sources")
 
 
 @main.route("/source/<int:sid>/favorite", methods=["POST"])
@@ -401,7 +474,8 @@ def toggle_source_favorite(sid):
     s = TenderSource.query.get_or_404(sid)
     s.favorite = not s.favorite
     db.session.commit()
-    return redirect(request.referrer or url_for("main.sources"))
+    flash(f"{s.name} {'added to' if s.favorite else 'removed from'} favorites.", "success")
+    return _redirect_back("main.sources")
 
 
 @main.route("/source/<int:sid>/group", methods=["POST"])
@@ -414,17 +488,82 @@ def update_source_group(sid):
     s.source_group = group
     s.source_tags = json.dumps([group])
     db.session.commit()
-    return redirect(request.referrer or url_for("main.sources"))
+    flash(f"{s.name} updated to {group.replace('_', ' ')}.", "success")
+    return _redirect_back("main.sources")
 
 
 @main.route("/source/<int:sid>/delete", methods=["POST"])
 def delete_source(sid):
     """Delete a source"""
     s = TenderSource.query.get_or_404(sid)
+    TenderResult.query.filter_by(source_id=s.id).update({"source_id": None}, synchronize_session=False)
     db.session.delete(s)
     db.session.commit()
+    flash(f"Deleted source {s.name}.", "success")
     return redirect(url_for("main.sources"))
 
+@main.route("/api/sources/delete-multiple", methods=["POST"])
+def delete_multiple_sources():
+    """Delete multiple sources via API"""
+    try:
+        data = request.get_json()
+        source_ids = data.get("source_ids", [])
+        
+        if not source_ids:
+            return jsonify({"success": False, "message": "No sources selected"}), 400
+        
+        # Validate all IDs are integers
+        try:
+            source_ids = [int(sid) for sid in source_ids]
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "message": "Invalid source IDs"}), 400
+        
+        # Delete all selected sources and their related results
+        sources = TenderSource.query.filter(TenderSource.id.in_(source_ids)).all()
+        deleted_count = 0
+        
+        for source in sources:
+            TenderResult.query.filter_by(source_id=source.id).update({"source_id": None}, synchronize_session=False)
+            db.session.delete(source)
+            deleted_count += 1
+        
+        db.session.commit()
+        
+        message = f"Deleted {deleted_count} source{'s' if deleted_count != 1 else ''}."
+        flash(message, "success")
+        
+        return jsonify({"success": True, "message": message}), 200
+    
+    except Exception as e:
+        current_app.logger.error(f"Error deleting multiple sources: {str(e)}")
+        return jsonify({"success": False, "message": "Error deleting sources"}), 500
+
+
+@main.route("/api/sources/delete-all", methods=["POST"])
+def delete_all_sources():
+    """Delete all sources via API"""
+    try:
+        # Get count before deletion
+        total_sources = TenderSource.query.count()
+        
+        if total_sources == 0:
+            return jsonify({"success": False, "message": "No sources to delete"}), 400
+        
+        # Delete all tenders associated with all sources
+        TenderResult.query.update({"source_id": None}, synchronize_session=False)
+        
+        # Delete all sources
+        TenderSource.query.delete(synchronize_session=False)
+        db.session.commit()
+        
+        message = f"Deleted all {total_sources} source{'s' if total_sources != 1 else ''}."
+        flash(message, "success")
+        
+        return jsonify({"success": True, "message": message}), 200
+    
+    except Exception as e:
+        current_app.logger.error(f"Error deleting all sources: {str(e)}")
+        return jsonify({"success": False, "message": "Error deleting all sources"}), 500
 
 @main.route("/sources", methods=["GET", "POST"])
 def sources():
@@ -436,28 +575,18 @@ def sources():
         if source_group not in SOURCE_GROUP_OPTIONS:
             source_group = "experimental"
         
+        parsed_url = urlparse(url)
         if not name or not url:
-            active_sources = TenderSource.query.filter_by(active=True).all()
-            inactive_sources = TenderSource.query.filter_by(active=False).all()
-            return render_template(
-                "sources.html",
-                active_sources=active_sources,
-                inactive_sources=inactive_sources,
-                error="Name and URL are required",
-                source_group_options=SOURCE_GROUP_OPTIONS,
-            ), 400
+            flash("Name and URL are required.", "danger")
+            return redirect(url_for("main.sources"))
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+            flash("Source URL must be a valid http or https address.", "danger")
+            return redirect(url_for("main.sources"))
         
         # Check if source already exists
         if TenderSource.query.filter_by(url=url).first():
-            active_sources = TenderSource.query.filter_by(active=True).all()
-            inactive_sources = TenderSource.query.filter_by(active=False).all()
-            return render_template(
-                "sources.html",
-                active_sources=active_sources,
-                inactive_sources=inactive_sources,
-                error="This source URL already exists",
-                source_group_options=SOURCE_GROUP_OPTIONS,
-            ), 400
+            flash("This source URL already exists.", "danger")
+            return redirect(url_for("main.sources"))
         
         # Create new source
         new_source = TenderSource(
@@ -469,11 +598,11 @@ def sources():
         )
         db.session.add(new_source)
         db.session.commit()
-        
+        flash(f"Added source {name}.", "success")
         return redirect(url_for("main.sources"))
     
-    active_sources = TenderSource.query.filter_by(active=True).all()
-    inactive_sources = TenderSource.query.filter_by(active=False).all()
+    active_sources = TenderSource.query.filter_by(active=True).order_by(TenderSource.favorite.desc(), TenderSource.name.asc()).all()
+    inactive_sources = TenderSource.query.filter_by(active=False).order_by(TenderSource.favorite.desc(), TenderSource.name.asc()).all()
     
     return render_template(
         "sources.html",
@@ -580,7 +709,7 @@ def save(rid):
     except Exception as e:
         pass  # Non-critical, don't break the save
     
-    return redirect(request.referrer or url_for("main.scan"))
+    return _redirect_back("main.scan")
 
 
 @main.route("/toggle-save/<int:rid>", methods=["POST"])
@@ -597,7 +726,7 @@ def toggle_save(rid):
         except Exception:
             pass
 
-    return redirect(request.referrer or url_for("main.scan"))
+    return _redirect_back("main.scan")
 
 
 @main.route("/unsave/<int:rid>", methods=["POST"])
@@ -605,7 +734,7 @@ def unsave(rid):
     r = TenderResult.query.get_or_404(rid)
     r.saved = False
     db.session.commit()
-    return redirect(request.referrer or url_for("main.scan"))
+    return _redirect_back("main.scan")
 
 
 @main.route("/tender/<int:rid>/favorite", methods=["POST"])
@@ -623,7 +752,7 @@ def toggle_favorite(rid):
         except Exception as e:
             pass  # Non-critical
     
-    return redirect(request.referrer or url_for("main.scan"))
+    return _redirect_back("main.scan")
 
 
 @main.route("/settings", methods=["GET", "POST"])
@@ -632,30 +761,88 @@ def settings():
     settings = _get_settings()
     
     if request.method == "POST":
-        # Update scheduler settings
-        settings.auto_scan_enabled = request.form.get("auto_scan_enabled") == "on"
-        settings.scan_interval_minutes = int(request.form.get("scan_interval_minutes", 60))
-        
-        # Update notification settings
-        settings.notifications_enabled = request.form.get("notifications_enabled") == "on"
-        settings.notify_desktop = request.form.get("notify_desktop") == "on"
-        settings.notify_email = request.form.get("notify_email") == "on"
-        settings.min_score_to_notify = float(request.form.get("min_score_to_notify", 50.0))
-        
-        # Update email settings
-        settings.email_recipients = request.form.get("email_recipients", "").strip()
-        settings.smtp_server = request.form.get("smtp_server", "smtp.gmail.com").strip()
-        settings.smtp_port = int(request.form.get("smtp_port", 587))
-        settings.smtp_username = request.form.get("smtp_username", "").strip()
+        errors: list[str] = []
 
-        settings.africa_priority_weight = float(request.form.get("africa_priority_weight", 12.0))
-        settings.global_relevance_threshold = float(request.form.get("global_relevance_threshold", 28.0))
-        settings.donor_multilateral_boost = float(request.form.get("donor_multilateral_boost", 8.0))
-        settings.africa_only_mode = request.form.get("africa_only_mode") == "on"
-        settings.include_global_sources = request.form.get("include_global_sources") == "on"
-        settings.include_global_in_default_shortlist = request.form.get("include_global_in_default_shortlist") == "on"
-        settings.secondary_review_queue_threshold = float(request.form.get("secondary_review_queue_threshold", 16.0))
-        
+        scan_interval_minutes = _parse_int_field(
+            request.form.get("scan_interval_minutes"),
+            default=60,
+            label="Scan interval",
+            errors=errors,
+            min_value=5,
+            max_value=1440,
+        )
+        smtp_port = _parse_int_field(
+            request.form.get("smtp_port"),
+            default=587,
+            label="SMTP port",
+            errors=errors,
+            min_value=1,
+            max_value=65535,
+        )
+        min_score_to_notify = _parse_float_field(
+            request.form.get("min_score_to_notify"),
+            default=50.0,
+            label="Notification threshold",
+            errors=errors,
+            min_value=0.0,
+            max_value=100.0,
+        )
+        africa_priority_weight = _parse_float_field(
+            request.form.get("africa_priority_weight"),
+            default=12.0,
+            label="Africa priority weight",
+            errors=errors,
+            min_value=0.0,
+            max_value=30.0,
+        )
+        global_relevance_threshold = _parse_float_field(
+            request.form.get("global_relevance_threshold"),
+            default=28.0,
+            label="Global relevance threshold",
+            errors=errors,
+            min_value=0.0,
+            max_value=100.0,
+        )
+        donor_multilateral_boost = _parse_float_field(
+            request.form.get("donor_multilateral_boost"),
+            default=8.0,
+            label="Donor boost",
+            errors=errors,
+            min_value=0.0,
+            max_value=30.0,
+        )
+        secondary_review_queue_threshold = _parse_float_field(
+            request.form.get("secondary_review_queue_threshold"),
+            default=16.0,
+            label="Secondary review threshold",
+            errors=errors,
+            min_value=0.0,
+            max_value=100.0,
+        )
+
+        if errors:
+            for error in errors:
+                flash(error, "danger")
+            return redirect(url_for("main.settings"))
+
+        settings.auto_scan_enabled = _parse_bool(request.form.get("auto_scan_enabled"))
+        settings.scan_interval_minutes = scan_interval_minutes
+        settings.notifications_enabled = _parse_bool(request.form.get("notifications_enabled"))
+        settings.notify_desktop = _parse_bool(request.form.get("notify_desktop"))
+        settings.notify_email = _parse_bool(request.form.get("notify_email"))
+        settings.min_score_to_notify = min_score_to_notify
+        settings.email_recipients = request.form.get("email_recipients", "").strip()
+        settings.smtp_server = request.form.get("smtp_server", "smtp.gmail.com").strip() or "smtp.gmail.com"
+        settings.smtp_port = smtp_port
+        settings.smtp_username = request.form.get("smtp_username", "").strip()
+        settings.africa_priority_weight = africa_priority_weight
+        settings.global_relevance_threshold = global_relevance_threshold
+        settings.donor_multilateral_boost = donor_multilateral_boost
+        settings.africa_only_mode = _parse_bool(request.form.get("africa_only_mode"))
+        settings.include_global_sources = _parse_bool(request.form.get("include_global_sources"))
+        settings.include_global_in_default_shortlist = _parse_bool(request.form.get("include_global_in_default_shortlist"))
+        settings.secondary_review_queue_threshold = secondary_review_queue_threshold
+
         # Only update password if provided
         smtp_password = request.form.get("smtp_password", "").strip()
         if smtp_password:
@@ -665,8 +852,14 @@ def settings():
         
         # Restart scheduler with new settings
         from app.scheduler import restart_scheduler
-        from flask import current_app
+
         restart_scheduler(current_app._get_current_object())
+        flash("Settings saved.", "success")
+        if settings.auto_scan_enabled and not current_app.config.get("ENABLE_INTERNAL_SCHEDULER"):
+            flash(
+                "Auto-scan is enabled in settings, but this web process is not running the internal scheduler. Run a dedicated scheduler process if you want background scans.",
+                "warning",
+            )
         
         return redirect(url_for("main.settings"))
     
@@ -676,7 +869,8 @@ def settings():
     return render_template(
         "settings.html",
         settings=settings,
-        scheduler_status=scheduler_status
+        scheduler_status=scheduler_status,
+        internal_scheduler_enabled=bool(current_app.config.get("ENABLE_INTERNAL_SCHEDULER")),
     )
 
 
@@ -685,12 +879,12 @@ def test_notification():
     """Send a test notification"""
     from app.notifications import send_desktop_notification
     
-    send_desktop_notification(
+    success = send_desktop_notification(
         "TenderWatch Test",
         "This is a test notification from TenderWatch!"
     )
     
-    return jsonify({"success": True, "message": "Test notification sent"})
+    return jsonify({"success": bool(success), "message": "Test notification sent" if success else "Notification failed"})
 
 
 @main.route("/api/ml/status")
@@ -733,7 +927,10 @@ def ml_score_tender(rid):
         from app.ml_ranker import ml_score
         
         tender = TenderResult.query.get_or_404(rid)
-        result = ml_score(tender.title, tender.title)
+        result = ml_score(
+            tender.title_translated or tender.title,
+            tender.description_translated or tender.description,
+        )
         
         return jsonify({"success": True, "tender_id": rid, **result})
     except Exception as e:
@@ -804,14 +1001,3 @@ def export_csv():
     output.headers["Content-type"] = "text/csv"
     
     return output
-
-
-from app.translator import translate_to_english, detect_language
-
-# ...existing code...
-
-# Ensure auto-translation in tender detail view
-## Duplicate tender_detail removed; see earlier definition for logic.
-
-# Ensure auto-translation in scan results view
-## Duplicate scan removed; see earlier definition for logic.

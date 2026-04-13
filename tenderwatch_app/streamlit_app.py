@@ -99,9 +99,9 @@ st.set_page_config(
 # PWA Installation Support - inject manifest and service worker
 st.markdown("""
 <link rel="manifest" href="/static/manifest.json">
-<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32.png">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
+<link rel="icon" type="image/png" sizes="144x144" href="/static/icon-144.png">
 <meta name="theme-color" content="#38bdf8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -109,7 +109,7 @@ st.markdown("""
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="application-name" content="TenderWatch">
 <meta name="msapplication-TileColor" content="#38bdf8">
-<meta name="msapplication-TileImage" content="/static/icons/icon-144.png">
+<meta name="msapplication-TileImage" content="/static/icon-144.png">
 <script src="/static/pwa.js" defer></script>
 """, unsafe_allow_html=True)
 
@@ -2036,6 +2036,29 @@ def delete_source(source_id):
             return True
     return False
 
+def delete_multiple_sources(source_ids):
+    """Delete multiple tender sources"""
+    with app.app_context():
+        try:
+            for source_id in source_ids:
+                source = TenderSource.query.get(source_id)
+                if source:
+                    db.session.delete(source)
+            db.session.commit()
+            return True
+        except Exception:
+            return False
+
+def delete_all_sources():
+    """Delete all tender sources"""
+    with app.app_context():
+        try:
+            TenderSource.query.delete()
+            db.session.commit()
+            return True
+        except Exception:
+            return False
+
 def run_tender_scan(scan_depth="fast", discovery_mode="f2_ranked"):
     """Run tender scan"""
     started = time.time()
@@ -2829,39 +2852,101 @@ elif page == "Scan & Results":
 elif page == "Sources":
     st.title("Tender Sources")
     
+    # Initialize session state for checkboxes
+    if 'selected_sources' not in st.session_state:
+        st.session_state.selected_sources = []
+    
     tab1, tab2 = st.tabs(["Manage Sources", "Add New Source"])
     
     with tab1:
         sources = get_sources()
         
         if sources:
+            # Bulk action buttons
+            col_bulk1, col_bulk2, col_bulk3 = st.columns([2, 1, 1])
+            with col_bulk2:
+                if st.button("Delete Selected", key="delete_selected_btn", use_container_width=True):
+                    if st.session_state.selected_sources:
+                        if st.session_state.get('confirm_delete_selected'):
+                            if delete_multiple_sources(st.session_state.selected_sources):
+                                st.success(f"Deleted {len(st.session_state.selected_sources)} source(s)")
+                                st.session_state.selected_sources = []
+                                st.session_state.confirm_delete_selected = False
+                                time.sleep(1)
+                                st.rerun()
+                        else:
+                            st.session_state.confirm_delete_selected = True
+                            st.warning(f"Click again to confirm deletion of {len(st.session_state.selected_sources)} source(s)")
+                    else:
+                        st.warning("Please select sources to delete")
+            
+            with col_bulk3:
+                if st.button("Delete All", key="delete_all_btn", use_container_width=True):
+                    if st.session_state.get('confirm_delete_all'):
+                        if st.session_state.get('confirm_delete_all_final'):
+                            if delete_all_sources():
+                                st.success(f"Deleted all {len(sources)} source(s)")
+                                st.session_state.selected_sources = []
+                                st.session_state.confirm_delete_all = False
+                                st.session_state.confirm_delete_all_final = False
+                                time.sleep(1)
+                                st.rerun()
+                        else:
+                            st.session_state.confirm_delete_all_final = True
+                            st.error("⚠️ FINAL WARNING: Click again to permanently delete ALL sources")
+                    else:
+                        st.session_state.confirm_delete_all = True
+                        st.warning(f"Click again to confirm deletion of all {len(sources)} source(s)")
+            
+            st.markdown("---")
+            
+            # Display sources with checkboxes
             for source in sources:
                 with st.container():
-                    col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+                    col_check, col_info, col_toggle, col_visit, col_del = st.columns([0.5, 3, 1, 1, 1])
                     
-                    with col1:
-                        status = "Active" if source.active else "Inactive"
-                        fav = "" if source.favorite else ""
+                    with col_check:
+                        is_selected = st.checkbox(
+                            "Select",
+                            value=source.id in st.session_state.selected_sources,
+                            key=f"select_{source.id}",
+                            label_visibility="collapsed"
+                        )
+                        if is_selected and source.id not in st.session_state.selected_sources:
+                            st.session_state.selected_sources.append(source.id)
+                        elif not is_selected and source.id in st.session_state.selected_sources:
+                            st.session_state.selected_sources.remove(source.id)
+                    
+                    with col_info:
+                        status = "🟢 Active" if source.active else "⚫ Inactive"
+                        fav = "⭐ Favorite" if source.favorite else ""
                         st.markdown(f"**{source.name}** {status} {fav}")
                         st.caption(source.url)
                     
-                    with col2:
+                    with col_toggle:
                         toggle_label = "Disable" if source.active else "Enable"
-                        if st.button(toggle_label, key=f"toggle_{source.id}", width="stretch"):
+                        if st.button(toggle_label, key=f"toggle_{source.id}", use_container_width=True):
                             toggle_source(source.id)
                             st.success(f"Source {'disabled' if source.active else 'enabled'}!")
                             st.rerun()
                     
-                    with col3:
-                        st.link_button("Visit", source.url, width="stretch")
+                    with col_visit:
+                        st.link_button("Visit", source.url, use_container_width=True)
                     
-                    with col4:
-                        if st.button("Delete", key=f"del_{source.id}"):
-                            delete_source(source.id)
-                            st.success("Source deleted.")
-                            st.rerun()
+                    with col_del:
+                        if st.button("Delete", key=f"del_{source.id}", use_container_width=True):
+                            if delete_source(source.id):
+                                st.success("Source deleted.")
+                                if source.id in st.session_state.selected_sources:
+                                    st.session_state.selected_sources.remove(source.id)
+                                time.sleep(0.5)
+                                st.rerun()
                     
                     st.markdown("---")
+                    
+            # Show selected count
+            if st.session_state.selected_sources:
+                st.info(f"✓ {len(st.session_state.selected_sources)} source(s) selected")
         else:
             st.warning("No sources configured.")
             st.info("Use 'Add New Source' to configure your first tender source.")

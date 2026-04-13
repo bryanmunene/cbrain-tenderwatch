@@ -1,9 +1,10 @@
+import json
 import logging
 import os
 import secrets
-import json
 
-from flask import Flask
+from flask import Flask, abort, request, session
+from markupsafe import Markup
 
 from app.extensions import db
 
@@ -201,6 +202,9 @@ def create_app(start_scheduler=False, init_db=True):
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///tenderwatch.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.config["ENABLE_INTERNAL_SCHEDULER"] = bool(start_scheduler)
 
     secret_key = os.getenv("SECRET_KEY")
     if not secret_key:
@@ -209,6 +213,37 @@ def create_app(start_scheduler=False, init_db=True):
     app.config["SECRET_KEY"] = secret_key
 
     db.init_app(app)
+
+    def _ensure_csrf_token():
+        token = session.get("_csrf_token")
+        if not token:
+            token = secrets.token_urlsafe(32)
+            session["_csrf_token"] = token
+        return token
+
+    @app.before_request
+    def _protect_post_requests():
+        if request.method != "POST":
+            return
+
+        expected = session.get("_csrf_token")
+        provided = request.form.get("csrf_token") or request.headers.get("X-CSRFToken")
+        if not expected or not provided or not secrets.compare_digest(expected, provided):
+            abort(400, description="CSRF token missing or invalid.")
+
+    @app.context_processor
+    def _inject_template_helpers():
+        def csrf_token():
+            return _ensure_csrf_token()
+
+        def csrf_field():
+            token = _ensure_csrf_token()
+            return Markup(f'<input type="hidden" name="csrf_token" value="{token}">')
+
+        return {
+            "csrf_token": csrf_token,
+            "csrf_field": csrf_field,
+        }
 
     from app.routes import main
 

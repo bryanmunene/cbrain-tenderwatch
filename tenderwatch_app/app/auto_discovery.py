@@ -10,6 +10,7 @@ import requests
 from datetime import datetime, timedelta
 from typing import List, Dict, Tuple, Optional
 import logging
+import os
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 import urllib3
@@ -17,6 +18,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
+ALLOW_INSECURE_TLS = (os.getenv("ALLOW_INSECURE_TLS", "") or "").strip().lower() in {"1", "true", "yes", "on"}
 
 NO_KEY_SEED_URLS = [
     # Kenya + Africa priority
@@ -152,6 +154,8 @@ class NoKeyDiscoveryManager:
             r.raise_for_status()
             return r.text
         except Exception:
+            if not ALLOW_INSECURE_TLS:
+                return ""
             try:
                 r = requests.get(url, timeout=5, verify=False)
                 r.raise_for_status()
@@ -555,7 +559,8 @@ class TenderDiscovery:
             Dict with extracted details or None if fetch fails
         """
         try:
-            response = requests.get(url, timeout=10, verify=False)
+            verify_tls = not ALLOW_INSECURE_TLS
+            response = requests.get(url, timeout=10, verify=verify_tls)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.text, 'html.parser')

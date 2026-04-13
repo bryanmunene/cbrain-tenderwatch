@@ -3,299 +3,477 @@
 {% block title %}Sources - TenderWatch{% endblock %}
 
 {% block content %}
+{% set total_sources = active_sources|length + inactive_sources|length %}
 
-<!-- Page Header -->
-<div class="mb-4">
-    <h1 style="font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">
-        <i class="fas fa-link" style="color: #667eea;"></i> Tender Sources
-    </h1>
-    <p class="text-muted">Manage and monitor your tender opportunity sources</p>
-</div>
-
-{% if error %}
-<div class="alert alert-warning" style="border-radius: 12px; border: none; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
-    <i class="fas fa-exclamation-circle" style="color: #d97706;"></i> 
-    <span style="color: #92400e;">{{ error }}</span>
-</div>
-{% endif %}
-
-<!-- Add New Source -->
-<div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
-    <div class="card-body p-4">
-        <div class="d-flex align-items-center mb-4">
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
-                <i class="fas fa-plus-circle" style="color: white; font-size: 1.25rem;"></i>
-            </div>
-            <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Add New Source</h4>
-        </div>
-        <form method="post">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label for="name" class="form-label" style="font-weight: 600; color: #334155;">Source Name</label>
-                    <input type="text" class="form-control" id="name" name="name" placeholder="e.g., UNDP Kenya" required style="border-radius: 10px;">
-                    <small class="text-muted">Name of the organization or platform</small>
-                </div>
-                <div class="col-md-4">
-                    <label for="url" class="form-label" style="font-weight: 600; color: #334155;">Source URL</label>
-                    <input type="url" class="form-control" id="url" name="url" placeholder="https://example.com/tenders" required style="border-radius: 10px;">
-                    <small class="text-muted">Direct link to tender listing page</small>
-                </div>
-                <div class="col-md-2">
-                    <label for="source_group" class="form-label" style="font-weight: 600; color: #334155;">Source Group</label>
-                    <select class="form-select" id="source_group" name="source_group" style="border-radius: 10px;">
-                        {% for option in source_group_options %}
-                        <option value="{{ option }}">{{ option.replace('_', ' ')|title }}</option>
-                        {% endfor %}
-                    </select>
-                    <small class="text-muted">Controls Africa priority vs global discovery</small>
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100" style="border-radius: 10px; padding: 0.7rem;">
-                        <i class="fas fa-plus"></i> Add
-                    </button>
-                </div>
-            </div>
-        </form>
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Sources</p>
+        <h1 class="page-title">Manage tender sources</h1>
+        <p class="page-subtitle">
+            Keep the source list small, clean, and intentional. Active sources are scanned, paused sources stay available without adding noise.
+        </p>
     </div>
-</div>
+    <div class="header-actions">
+        <a class="btn btn-secondary" href="{{ url_for('main.scan') }}">
+            <i class="fa-solid fa-list-check"></i>
+            View shortlist
+        </a>
+    </div>
+</section>
 
-<!-- Active Sources -->
-{% if active_sources %}
-<div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
-    <div class="card-body p-4">
-        <div class="d-flex align-items-center mb-4">
-            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
-                <i class="fas fa-check-circle" style="color: white; font-size: 1.25rem;"></i>
+<section class="metrics-grid">
+    <article class="metric-card">
+        <span class="metric-label">Total sources</span>
+        <div class="metric-value">{{ total_sources }}</div>
+        <div class="metric-meta">Configured scan targets</div>
+    </article>
+    <article class="metric-card">
+        <span class="metric-label">Active</span>
+        <div class="metric-value">{{ active_sources|length }}</div>
+        <div class="metric-meta">Currently included in scans</div>
+    </article>
+    <article class="metric-card">
+        <span class="metric-label">Paused</span>
+        <div class="metric-value">{{ inactive_sources|length }}</div>
+        <div class="metric-meta">Kept for later reuse</div>
+    </article>
+    <article class="metric-card">
+        <span class="metric-label">Source groups</span>
+        <div class="metric-value">{{ source_group_options|length }}</div>
+        <div class="metric-meta">Available grouping options</div>
+    </article>
+</section>
+
+<section class="section-card" style="margin-bottom: 24px;">
+    <div class="section-header">
+        <h2 class="section-title">Add a new source</h2>
+        <span class="section-note">Use a direct tender listing URL with http or https</span>
+    </div>
+    <form method="post">
+        {{ csrf_field() }}
+        <div class="form-grid">
+            <div class="field">
+                <label for="name">Source name</label>
+                <input class="form-control" type="text" id="name" name="name" placeholder="UNDP Kenya" required>
+                <div class="helper-text">Use a recognizable label for the team.</div>
             </div>
-            <div>
-                <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Active Sources</h4>
-                <p class="mb-0 text-muted" style="font-size: 0.875rem;">{{ active_sources|length }} sources being scanned</p>
+            <div class="field wide">
+                <label for="url">Source URL</label>
+                <input class="form-control" type="url" id="url" name="url" placeholder="https://example.org/tenders" required>
+                <div class="helper-text">Point this at the page TenderWatch should scan.</div>
+            </div>
+            <div class="field">
+                <label for="source_group">Source group</label>
+                <select class="form-select" id="source_group" name="source_group">
+                    {% for option in source_group_options %}
+                        <option value="{{ option }}">{{ option.replace("_", " ")|title }}</option>
+                    {% endfor %}
+                </select>
+                <div class="helper-text">Used for Africa-first and global discovery logic.</div>
             </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead style="border-bottom: 2px solid #e2e8f0;">
+        <div class="action-row" style="margin-top: 18px;">
+            <button class="btn btn-primary" type="submit">
+                <i class="fa-solid fa-plus"></i>
+                Add source
+            </button>
+        </div>
+    </form>
+</section>
+
+{% if active_sources %}
+    <section class="section-card" style="margin-bottom: 24px;">
+        <div class="section-header">
+            <h2 class="section-title">Active sources</h2>
+            <span class="section-note">{{ active_sources|length }} currently scanning</span>
+            <div class="bulk-actions" id="bulkActionsActive" style="display: none; margin-top: 12px;">
+                <span id="selectedCountActive" class="muted">0 selected</span>
+                <button id="deleteSelectedActive" class="btn btn-outline-danger btn-sm" type="button">
+                    <i class="fa-solid fa-trash"></i>
+                    Delete selected
+                </button>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
                     <tr>
-                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Source</th>
-                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Group</th>
-                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">URL</th>
-                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Status</th>
-                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Added</th>
-                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem; text-align: right;">Actions</th>
+                        <th style="width: 40px;">
+                            <input type="checkbox" id="selectAllActive" class="select-all-checkbox" data-section="active">
+                        </th>
+                        <th>Source</th>
+                        <th>Group</th>
+                        <th>URL</th>
+                        <th>Added</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for s in active_sources %}
-                    <tr style="border-bottom: 1px solid #f1f5f9;">
-                        <td style="padding: 1rem 0.75rem;">
-                            <div class="d-flex align-items-center">
-                                <strong style="color: #334155;">{{ s.name }}</strong>
-                                {% if s.favorite %}
-                                <i class="fas fa-star ms-2" style="color: #f59e0b;" title="Favorite source"></i>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td style="padding: 1rem 0.75rem; min-width: 220px;">
-                            <form method="post" action="{{ url_for('main.update_source_group', sid=s.id) }}" class="d-flex gap-2">
-                                <select class="form-select form-select-sm" name="source_group" style="border-radius: 8px;">
-                                    {% for option in source_group_options %}
-                                    <option value="{{ option }}" {% if (s.source_group or 'experimental') == option %}selected{% endif %}>{{ option.replace('_', ' ')|title }}</option>
-                                    {% endfor %}
-                                </select>
-                                <button type="submit" class="btn btn-sm btn-outline-primary" style="border-radius: 8px;">
-                                    Save
-                                </button>
-                            </form>
-                        </td>
-                        <td style="padding: 1rem 0.75rem;">
-                            <a href="{{ s.url }}" target="_blank" class="text-decoration-none" style="color: #667eea; font-weight: 500;">
-                                <i class="fas fa-external-link-alt"></i> {{ s.url[:40] }}{% if s.url|length > 40 %}...{% endif %}
-                            </a>
-                        </td>
-                        <td style="padding: 1rem 0.75rem;">
-                            <span class="badge" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 0.5rem 0.75rem; border-radius: 8px; font-weight: 500;">
-                                <i class="fas fa-circle" style="font-size: 0.5rem;"></i> Active
-                            </span>
-                        </td>
-                        <td style="padding: 1rem 0.75rem;">
-                            <small class="text-muted">{{ s.created_at.strftime('%b %d, %Y') }}</small>
-                        </td>
-                        <td style="padding: 1rem 0.75rem; text-align: right;">
-                            <div class="btn-group btn-group-sm" role="group">
-                                <a href="{{ s.url }}" target="_blank" class="btn btn-outline-primary" title="Visit source" style="border-radius: 8px 0 0 8px;">
-                                    <i class="fas fa-globe"></i>
+                        <tr class="source-row" data-source-id="{{ s.id }}">
+                            <td>
+                                <input type="checkbox" class="source-checkbox" data-section="active" value="{{ s.id }}">
+                            </td>
+                                <strong>{{ s.name }}</strong>
+                                <div class="compact-list" style="margin-top: 8px;">
+                                    <span class="tag tag-success">Active</span>
+                                    {% if s.favorite %}
+                                        <span class="tag tag-warning">Favorite</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <form class="inline-form" method="post" action="{{ url_for('main.update_source_group', sid=s.id) }}">
+                                    {{ csrf_field() }}
+                                    <label class="visually-hidden" for="group-{{ s.id }}">Source group for {{ s.name }}</label>
+                                    <select class="form-select" id="group-{{ s.id }}" name="source_group">
+                                        {% for option in source_group_options %}
+                                            <option value="{{ option }}" {% if (s.source_group or "experimental") == option %}selected{% endif %}>
+                                                {{ option.replace("_", " ")|title }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    <button class="btn btn-outline-primary btn-sm" type="submit">Save</button>
+                                </form>
+                            </td>
+                            <td>
+                                <a class="text-link" href="{{ s.url }}" target="_blank" rel="noopener noreferrer">
+                                    {{ s.url[:56] }}{% if s.url|length > 56 %}...{% endif %}
                                 </a>
-                                {% if s.favorite %}
-                                <form method="post" action="{{ url_for('main.toggle_source_favorite', sid=s.id) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-warning" title="Remove from favorites" style="border-radius: 0; border-left: 1px solid rgba(255,255,255,0.3); border-right: 1px solid rgba(255,255,255,0.3);">
-                                        <i class="fas fa-star"></i>
-                                    </button>
-                                </form>
-                                {% else %}
-                                <form method="post" action="{{ url_for('main.toggle_source_favorite', sid=s.id) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-outline-warning" title="Add to favorites" style="border-radius: 0;">
-                                        <i class="far fa-star"></i>
-                                    </button>
-                                </form>
-                                {% endif %}
-                                <form method="post" action="{{ url_for('main.toggle_source_active', sid=s.id) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-outline-secondary" title="Pause source" style="border-radius: 0;">
-                                        <i class="fas fa-pause"></i>
-                                    </button>
-                                </form>
-                                <form method="post" action="{{ url_for('main.delete_source', sid=s.id) }}" class="d-inline" onclick="return confirm('Delete this source permanently?');">
-                                    <button type="submit" class="btn btn-outline-danger" title="Delete source" style="border-radius: 0 8px 8px 0;">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
+                            </td>
+                            <td>{{ s.created_at.strftime("%b %d, %Y") if s.created_at else "Unknown" }}</td>
+                            <td>
+                                <div class="table-actions">
+                                    <a class="btn btn-outline-secondary btn-sm" href="{{ s.url }}" target="_blank" rel="noopener noreferrer">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                        Visit
+                                    </a>
+                                    <form class="inline-form" method="post" action="{{ url_for('main.toggle_source_favorite', sid=s.id) }}">
+                                        {{ csrf_field() }}
+                                        <button class="btn {% if s.favorite %}btn-secondary{% else %}btn-outline-warning{% endif %} btn-sm" type="submit">
+                                            <i class="{% if s.favorite %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
+                                            {{ "Favorited" if s.favorite else "Favorite" }}
+                                        </button>
+                                    </form>
+                                    <form class="inline-form" method="post" action="{{ url_for('main.toggle_source_active', sid=s.id) }}">
+                                        {{ csrf_field() }}
+                                        <button class="btn btn-outline-secondary btn-sm" type="submit">
+                                            <i class="fa-solid fa-pause"></i>
+                                            Pause
+                                        </button>
+                                    </form>
+                                    <form class="inline-form" method="post" action="{{ url_for('main.delete_source', sid=s.id) }}" onsubmit="return confirm('Delete this source permanently?');">
+                                        {{ csrf_field() }}
+                                        <button class="btn btn-outline-danger btn-sm" type="submit">
+                                            <i class="fa-solid fa-trash"></i>
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-    </div>
-</div>
+    </section>
 {% endif %}
 
-<!-- Inactive Sources -->
 {% if inactive_sources %}
-<div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
-    <div class="card-body p-4">
-        <div class="d-flex align-items-center mb-4">
-            <div style="background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
-                <i class="fas fa-pause-circle" style="color: white; font-size: 1.25rem;"></i>
-            </div>
-            <div>
-                <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Paused Sources</h4>
-                <p class="mb-0 text-muted" style="font-size: 0.875rem;">{{ inactive_sources|length }} sources temporarily disabled</p>
+    <section class="section-card" style="margin-bottom: 24px;">
+        <div class="section-header">
+            <h2 class="section-title">Paused sources</h2>
+            <span class="section-note">{{ inactive_sources|length }} kept off the scan schedule</span>
+            <div class="bulk-actions" id="bulkActionsInactive" style="display: none; margin-top: 12px;">
+                <span id="selectedCountInactive" class="muted">0 selected</span>
+                <button id="deleteSelectedInactive" class="btn btn-outline-danger btn-sm" type="button">
+                    <i class="fa-solid fa-trash"></i>
+                    Delete selected
+                </button>
             </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead style="border-bottom: 2px solid #e2e8f0;">
+        <div class="table-wrap">
+            <table>
+                <thead>
                     <tr>
-                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Source</th>
-                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Group</th>
-                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">URL</th>
-                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Status</th>
-                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem;">Added</th>
-                        <th style="font-weight: 600; color: #64748b; border: none; padding-bottom: 1rem; text-align: right;">Actions</th>
+                        <th style="width: 40px;">
+                            <input type="checkbox" id="selectAllInactive" class="select-all-checkbox" data-section="inactive">
+                        </th>
+                        <th>Source</th>
+                        <th>Group</th>
+                        <th>URL</th>
+                        <th>Added</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for s in inactive_sources %}
-                    <tr style="border-bottom: 1px solid #f1f5f9; opacity: 0.7;">
-                        <td style="padding: 1rem 0.75rem;">
-                            <strong class="text-muted">{{ s.name }}</strong>
-                        </td>
-                        <td style="padding: 1rem 0.75rem;">
-                            <span class="badge bg-light text-dark">{{ (s.source_group or 'experimental').replace('_', ' ')|title }}</span>
-                        </td>
-                        <td style="padding: 1rem 0.75rem;">
-                            <a href="{{ s.url }}" target="_blank" class="text-muted text-decoration-none">
-                                <i class="fas fa-external-link-alt"></i> {{ s.url[:40] }}{% if s.url|length > 40 %}...{% endif %}
-                            </a>
-                        </td>
-                        <td style="padding: 1rem 0.75rem;">
-                            <span class="badge bg-secondary" style="padding: 0.5rem 0.75rem; border-radius: 8px; font-weight: 500;">
-                                <i class="fas fa-circle" style="font-size: 0.5rem;"></i> Paused
-                            </span>
-                        </td>
-                        <td style="padding: 1rem 0.75rem;">
-                            <small class="text-muted">{{ s.created_at.strftime('%b %d, %Y') }}</small>
-                        </td>
-                        <td style="padding: 1rem 0.75rem; text-align: right;">
-                            <div class="btn-group btn-group-sm" role="group">
-                                <form method="post" action="{{ url_for('main.toggle_source_active', sid=s.id) }}" class="d-inline">
-                                    <button type="submit" class="btn btn-outline-success" title="Activate source" style="border-radius: 8px 0 0 8px;">
-                                        <i class="fas fa-play"></i>
-                                    </button>
-                                </form>
-                                <form method="post" action="{{ url_for('main.delete_source', sid=s.id) }}" class="d-inline" onclick="return confirm('Delete this source permanently?');">
-                                    <button type="submit" class="btn btn-outline-danger" title="Delete source" style="border-radius: 0 8px 8px 0;">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
+                        <tr class="source-row" data-source-id="{{ s.id }}">
+                            <td>
+                                <input type="checkbox" class="source-checkbox" data-section="inactive" value="{{ s.id }}">
+                            </td>
+                            <td>
+                                <strong>{{ s.name }}</strong>
+                                <div class="compact-list" style="margin-top: 8px;">
+                                    <span class="tag tag-neutral">Paused</span>
+                                    {% if s.favorite %}
+                                        <span class="tag tag-warning">Favorite</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>{{ (s.source_group or "experimental").replace("_", " ")|title }}</td>
+                            <td>
+                                <a class="text-link" href="{{ s.url }}" target="_blank" rel="noopener noreferrer">
+                                    {{ s.url[:56] }}{% if s.url|length > 56 %}...{% endif %}
+                                </a>
+                            </td>
+                            <td>{{ s.created_at.strftime("%b %d, %Y") if s.created_at else "Unknown" }}</td>
+                            <td>
+                                <div class="table-actions">
+                                    <form class="inline-form" method="post" action="{{ url_for('main.toggle_source_active', sid=s.id) }}">
+                                        {{ csrf_field() }}
+                                        <button class="btn btn-outline-success btn-sm" type="submit">
+                                            <i class="fa-solid fa-play"></i>
+                                            Reactivate
+                                        </button>
+                                    </form>
+                                    <form class="inline-form" method="post" action="{{ url_for('main.toggle_source_favorite', sid=s.id) }}">
+                                        {{ csrf_field() }}
+                                        <button class="btn {% if s.favorite %}btn-secondary{% else %}btn-outline-warning{% endif %} btn-sm" type="submit">
+                                            <i class="{% if s.favorite %}fa-solid{% else %}fa-regular{% endif %} fa-star"></i>
+                                            {{ "Favorited" if s.favorite else "Favorite" }}
+                                        </button>
+                                    </form>
+                                    <form class="inline-form" method="post" action="{{ url_for('main.delete_source', sid=s.id) }}" onsubmit="return confirm('Delete this source permanently?');">
+                                        {{ csrf_field() }}
+                                        <button class="btn btn-outline-danger btn-sm" type="submit">
+                                            <i class="fa-solid fa-trash"></i>
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-    </div>
-</div>
+    </section>
 {% endif %}
 
-<!-- Empty State -->
 {% if not active_sources and not inactive_sources %}
-<div class="card border-0 shadow-sm text-center py-5" style="border-radius: 16px;">
-    <div class="card-body">
-        <i class="fas fa-link" style="font-size: 4rem; color: #cbd5e1; margin-bottom: 1.5rem;"></i>
-        <h4 style="color: #64748b; font-weight: 600; margin-bottom: 1rem;">No Sources Yet</h4>
-        <p class="text-muted mb-0">Add your first tender source above to start discovering opportunities!</p>
-    </div>
-</div>
+    <section class="empty-state" style="margin-bottom: 24px;">
+        <i class="fa-solid fa-link"></i>
+        <h2 class="section-title" style="margin-bottom: 10px;">No sources yet</h2>
+        <p class="muted">Add your first tender source above to start building the shortlist.</p>
+    </section>
+{% else %}
+    <section class="section-card" style="margin-bottom: 24px;">
+        <div class="section-header">
+            <h2 class="section-title">Danger zone</h2>
+            <span class="section-note">Irreversible actions</span>
+        </div>
+        <div class="alert alert-danger" style="margin-bottom: 16px;">
+            <i class="fa-solid fa-exclamation-triangle"></i>
+            <span>Deleting all sources cannot be undone. This will remove all {{ (active_sources|length) + (inactive_sources|length) }} configured tender sources.</span>
+        </div>
+        <button id="deleteAllBtn" class="btn btn-danger" type="button" style="margin-bottom: 12px;">
+            <i class="fa-solid fa-trash-can"></i>
+            Delete all sources
+        </button>
+        <p class="muted" style="font-size: 0.9rem;">Use the checkboxes above to delete specific sources instead.</p>
+    </section>
 {% endif %}
 
-<!-- Tips Card -->
-<div class="card border-0 shadow-sm mt-4" style="border-radius: 16px;">
-    <div class="card-body p-4">
-        <div class="d-flex align-items-center mb-4">
-            <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
-                <i class="fas fa-lightbulb" style="color: white; font-size: 1.25rem;"></i>
-            </div>
-            <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Tips & Best Practices</h4>
+<section class="split-grid">
+    <article class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">How groups are used</h2>
+            <span class="section-note">Keep tagging consistent</span>
         </div>
-        <div class="row g-3">
-            <div class="col-md-6">
-                <div class="p-3 rounded" style="background: #f8fafc; border-left: 4px solid #10b981;">
-                    <div class="d-flex align-items-start">
-                        <i class="fas fa-check-circle" style="color: #10b981; font-size: 1.25rem; margin-right: 0.75rem; margin-top: 0.25rem;"></i>
-                        <div>
-                            <strong style="color: #334155;">Active Sources</strong>
-                            <p class="small text-muted mb-0">Only active sources are scanned automatically. Keep relevant sources active.</p>
-                        </div>
-                    </div>
-                </div>
+        <div class="detail-list">
+            <div class="detail-block">
+                <small class="metric-label" style="margin-bottom: 0;">Africa-priority groups</small>
+                <p style="margin: 10px 0 0;">Use these for sources that regularly publish relevant Africa-facing opportunities.</p>
             </div>
-            <div class="col-md-6">
-                <div class="p-3 rounded" style="background: #f8fafc; border-left: 4px solid #f59e0b;">
-                    <div class="d-flex align-items-start">
-                        <i class="fas fa-star" style="color: #f59e0b; font-size: 1.25rem; margin-right: 0.75rem; margin-top: 0.25rem;"></i>
-                        <div>
-                            <strong style="color: #334155;">Favorites</strong>
-                            <p class="small text-muted mb-0">Mark productive sources as favorites for quick identification.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="p-3 rounded" style="background: #f8fafc; border-left: 4px solid #94a3b8;">
-                    <div class="d-flex align-items-start">
-                        <i class="fas fa-pause-circle" style="color: #94a3b8; font-size: 1.25rem; margin-right: 0.75rem; margin-top: 0.25rem;"></i>
-                        <div>
-                            <strong style="color: #334155;">Pause Temporarily</strong>
-                            <p class="small text-muted mb-0">Pause sources you want to keep but not scan right now.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="p-3 rounded" style="background: #f8fafc; border-left: 4px solid #ef4444;">
-                    <div class="d-flex align-items-start">
-                        <i class="fas fa-trash-alt" style="color: #ef4444; font-size: 1.25rem; margin-right: 0.75rem; margin-top: 0.25rem;"></i>
-                        <div>
-                            <strong style="color: #334155;">Delete Unused</strong>
-                            <p class="small text-muted mb-0">Remove sources that no longer provide relevant opportunities.</p>
-                        </div>
-                    </div>
-                </div>
+            <div class="detail-block">
+                <small class="metric-label" style="margin-bottom: 0;">Global and donor groups</small>
+                <p style="margin: 10px 0 0;">Use these when you want broader discovery without letting it overrun the Africa-first shortlist.</p>
             </div>
         </div>
-    </div>
-</div>
+    </article>
 
+    <article class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">A lean source list works best</h2>
+            <span class="section-note">Keep the scan fast and focused</span>
+        </div>
+        <div class="detail-list">
+            <div class="detail-block">
+                <small class="metric-label" style="margin-bottom: 0;">Pause before deleting</small>
+                <p style="margin: 10px 0 0;">If you are unsure about a source, pause it first and watch whether shortlist quality changes.</p>
+            </div>
+            <div class="detail-block">
+                <small class="metric-label" style="margin-bottom: 0;">Favorite the reliable ones</small>
+                <p style="margin: 10px 0 0;">Favorites make it easier to recognize the source list you trust most when you review or regroup endpoints.</p>
+            </div>
+        </div>
+    </article>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Helper function to get CSRF token
+    function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    }
+
+    // Handle select all checkboxes
+    document.querySelectorAll('.select-all-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const section = this.dataset.section;
+            const rowCheckboxes = document.querySelectorAll(`.source-checkbox[data-section="${section}"]`);
+            rowCheckboxes.forEach(cb => cb.checked = this.checked);
+            updateBulkActionsUI(section);
+        });
+    });
+
+    // Handle individual row checkboxes
+    document.querySelectorAll('.source-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const section = this.dataset.section;
+            updateBulkActionsUI(section);
+            updateSelectAllCheckbox(section);
+        });
+    });
+
+    // Handle delete selected buttons
+    document.getElementById('deleteSelectedActive')?.addEventListener('click', function() {
+        deleteSelectedSources('active');
+    });
+
+    document.getElementById('deleteSelectedInactive')?.addEventListener('click', function() {
+        deleteSelectedSources('inactive');
+    });
+
+    // Handle delete all button
+    document.getElementById('deleteAllBtn')?.addEventListener('click', function() {
+        deleteAllSources();
+    });
+
+    function getSelectedIds(section) {
+        const checkboxes = document.querySelectorAll(`.source-checkbox[data-section="${section}"]:checked`);
+        return Array.from(checkboxes).map(cb => cb.value);
+    }
+
+    function updateBulkActionsUI(section) {
+        const selectedIds = getSelectedIds(section);
+        const bulkActionsEl = document.getElementById(`bulkActions${section.charAt(0).toUpperCase() + section.slice(1)}`);
+        const selectedCountEl = document.getElementById(`selectedCount${section.charAt(0).toUpperCase() + section.slice(1)}`);
+        
+        if (bulkActionsEl) {
+            if (selectedIds.length > 0) {
+                bulkActionsEl.style.display = 'flex';
+                bulkActionsEl.style.justifyContent = 'space-between';
+                bulkActionsEl.style.alignItems = 'center';
+                selectedCountEl.textContent = `${selectedIds.length} selected`;
+            } else {
+                bulkActionsEl.style.display = 'none';
+            }
+        }
+    }
+
+    function updateSelectAllCheckbox(section) {
+        const selectAllCheckbox = document.querySelector(`#selectAll${section.charAt(0).toUpperCase() + section.slice(1)}`);
+        const checkboxes = document.querySelectorAll(`.source-checkbox[data-section="${section}"]`);
+        const checkedCheckboxes = document.querySelectorAll(`.source-checkbox[data-section="${section}"]:checked`);
+        
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.length === checkedCheckboxes.length;
+            selectAllCheckbox.indeterminate = checkedCheckboxes.length > 0 && checkedCheckboxes.length < checkboxes.length;
+        }
+    }
+
+    function deleteSelectedSources(section) {
+        const selectedIds = getSelectedIds(section);
+        if (selectedIds.length === 0) {
+            alert('No sources selected');
+            return;
+        }
+
+        const count = selectedIds.length;
+        const message = count === 1 
+            ? 'Delete 1 source permanently?' 
+            : `Delete ${count} sources permanently?`;
+
+        if (!confirm(message)) {
+            return;
+        }
+
+        fetch('{{ url_for("main.delete_multiple_sources") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ source_ids: selectedIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Failed to delete sources'));
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+        });
+    }
+
+    function deleteAllSources() {
+        const activeCount = document.querySelectorAll('.source-checkbox[data-section="active"]').length;
+        const inactiveCount = document.querySelectorAll('.source-checkbox[data-section="inactive"]').length;
+        const total = activeCount + inactiveCount;
+
+        if (total === 0) {
+            alert('No sources to delete');
+            return;
+        }
+
+        const message = total === 1 
+            ? 'Delete 1 source permanently? This cannot be undone.' 
+            : `Delete all ${total} sources permanently? This cannot be undone.`;
+
+        if (!confirm(message)) {
+            return;
+        }
+
+        // Double confirmation for delete all
+        if (!confirm('This is your final warning. All sources will be permanently deleted.')) {
+            return;
+        }
+
+        fetch('{{ url_for("main.delete_all_sources") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Failed to delete all sources'));
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+        });
+    }
+});
+</script>
 {% endblock %}

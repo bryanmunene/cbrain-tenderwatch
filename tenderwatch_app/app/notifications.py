@@ -8,10 +8,18 @@ import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from html import escape
 
 from app.models import AppSettings
 
 logger = logging.getLogger(__name__)
+
+
+def _tender_score(tender) -> float:
+    try:
+        return float(getattr(tender, "score", 0) or 0)
+    except Exception:
+        return 0.0
 
 
 def send_desktop_notification(title, message):
@@ -69,16 +77,23 @@ def send_email_notification(settings, tenders):
         html_body += f"<h2>TenderWatch Alert</h2><p>Found {len(tenders)} new tender opportunity{'ies' if len(tenders) > 1 else 'y'} matching your criteria:</p>"
 
         for tender in tenders:
-            score_class = "high-score" if tender.score >= 70 else "medium-score" if tender.score >= 50 else ""
+            score = _tender_score(tender)
+            title = escape(str(getattr(tender, "title_translated", "") or getattr(tender, "title", "") or "Untitled tender"))
+            category = escape(str(getattr(tender, "category", "") or ""))
+            buyer = escape(str(getattr(tender, "buyer", "") or ""))
+            country = escape(str(getattr(tender, "country", "") or ""))
+            deadline = escape(str(getattr(tender, "deadline", "") or ""))
+            link = escape(str(getattr(tender, "link", "") or ""))
+            score_class = "high-score" if score >= 70 else "medium-score" if score >= 50 else ""
             html_body += f"""
             <div class="tender {score_class}">
-                <div class="title">{tender.title_translated or tender.title}</div>
-                <div class="score">Score: {tender.score:.1f}</div>
-                {f'<div class="category">Category: {tender.category}</div>' if tender.category else ''}
-                {f'<div>Buyer: {tender.buyer}</div>' if tender.buyer else ''}
-                {f'<div>Country: {tender.country}</div>' if tender.country else ''}
-                {f'<div class="deadline">Deadline: {tender.deadline}</div>' if tender.deadline else ''}
-                <div><a href="{tender.link}">View Tender</a></div>
+                <div class="title">{title}</div>
+                <div class="score">Score: {score:.1f}</div>
+                {f'<div class="category">Category: {category}</div>' if category else ''}
+                {f'<div>Buyer: {buyer}</div>' if buyer else ''}
+                {f'<div>Country: {country}</div>' if country else ''}
+                {f'<div class="deadline">Deadline: {deadline}</div>' if deadline else ''}
+                <div><a href="{link}">View Tender</a></div>
             </div>
             """
 
@@ -91,7 +106,9 @@ def send_email_notification(settings, tenders):
 
         text_body = f"TenderWatch Alert\n\nFound {len(tenders)} new tender(s):\n\n"
         for tender in tenders:
-            text_body += f"- {tender.title_translated or tender.title} (Score: {tender.score:.1f})\n  {tender.link}\n\n"
+            title = str(getattr(tender, "title_translated", "") or getattr(tender, "title", "") or "Untitled tender")
+            link = str(getattr(tender, "link", "") or "")
+            text_body += f"- {title} (Score: {_tender_score(tender):.1f})\n  {link}\n\n"
 
         msg.attach(MIMEText(text_body, 'plain'))
         msg.attach(MIMEText(html_body, 'html'))
@@ -119,7 +136,7 @@ def notify_new_tenders(tenders):
         if not settings or not settings.notifications_enabled:
             return
 
-        notify_tenders = [t for t in tenders if t.score >= settings.min_score_to_notify]
+        notify_tenders = [t for t in tenders if _tender_score(t) >= float(settings.min_score_to_notify or 0)]
         if not notify_tenders:
             return
 
@@ -128,7 +145,8 @@ def notify_new_tenders(tenders):
             message = f"Found {len(notify_tenders)} new tender(s) with score >= {settings.min_score_to_notify:.0f}"
             send_desktop_notification(title, message)
 
-        # Email notifications were removed from the app.
+        if settings.notify_email:
+            send_email_notification(settings, notify_tenders)
 
     except Exception as e:
         logger.error(f"Error in notify_new_tenders: {e}")

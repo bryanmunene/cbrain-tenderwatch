@@ -3,205 +3,161 @@
 {% block title %}Dashboard - TenderWatch{% endblock %}
 
 {% block content %}
-<div style="background: linear-gradient(135deg, #0f766e 0%, #1d4ed8 100%); padding: 2.5rem; border-radius: 28px; margin-bottom: 2rem; color: white; box-shadow: 0 16px 40px rgba(15, 118, 110, 0.25);">
-    <div class="row align-items-center">
-        <div class="col-lg-8">
-            <h1 style="margin: 0; font-weight: 800; font-size: 2.4rem;">Africa-First Tender Intelligence</h1>
-            <p style="margin: 0.75rem 0 0 0; opacity: 0.95; font-size: 1.05rem;">
-                Africa remains the default strategic focus, while strong global public-sector and donor opportunities stay visible where F2 fit is clear.
-            </p>
-        </div>
-        <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
-            <a href="{{ url_for('main.scan') }}" class="btn btn-light btn-lg" style="border-radius: 999px; padding: 0.85rem 2rem; font-weight: 700;">
-                <i class="fas fa-search"></i> Open Shortlists
-            </a>
-        </div>
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Overview</p>
+        <h1 class="page-title">TenderWatch dashboard</h1>
+        <p class="page-subtitle">
+            A quick read on the live shortlist, the Africa-vs-global mix, and the sources currently feeding the pipeline.
+        </p>
     </div>
-</div>
+    <div class="header-actions">
+        <a class="btn btn-primary" href="{{ url_for('main.scan') }}">
+            <i class="fa-solid fa-list-check"></i>
+            Open shortlist
+        </a>
+        <a class="btn btn-secondary" href="{{ url_for('main.sources') }}">
+            <i class="fa-solid fa-link"></i>
+            Manage sources
+        </a>
+    </div>
+</section>
 
-<div class="row g-4 mb-5">
-    <div class="col-md-3 col-sm-6">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 18px;">
-            <div class="card-body p-4">
-                <small class="text-uppercase text-muted d-block mb-2">Africa Live Opportunities</small>
-                <h2 style="font-weight: 800; color: #0f766e;">{{ africa_live }}</h2>
-                <a href="{{ url_for('main.scan', shortlist_mode='africa') }}" class="text-decoration-none">Open Africa shortlist</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-sm-6">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 18px;">
-            <div class="card-body p-4">
-                <small class="text-uppercase text-muted d-block mb-2">Global Live Opportunities</small>
-                <h2 style="font-weight: 800; color: #1d4ed8;">{{ global_live }}</h2>
-                <a href="{{ url_for('main.scan', shortlist_mode='global') }}" class="text-decoration-none">Open global shortlist</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-sm-6">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 18px;">
-            <div class="card-body p-4">
-                <small class="text-uppercase text-muted d-block mb-2">Africa GO / REVIEW</small>
-                <h2 style="font-weight: 800; color: #15803d;">{{ africa_go }} / {{ africa_review }}</h2>
-                <a href="{{ url_for('main.scan', shortlist_mode='africa', recommendation='SHORTLIST') }}" class="text-decoration-none">View Africa shortlist</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-sm-6">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 18px;">
-            <div class="card-body p-4">
-                <small class="text-uppercase text-muted d-block mb-2">Global GO / REVIEW</small>
-                <h2 style="font-weight: 800; color: #d97706;">{{ global_go }} / {{ global_review }}</h2>
-                <a href="{{ url_for('main.scan', shortlist_mode='global', recommendation='SHORTLIST') }}" class="text-decoration-none">View global shortlist</a>
-            </div>
-        </div>
-    </div>
-</div>
+<section class="metrics-grid">
+    <article class="metric-card">
+        <span class="metric-label">Africa live</span>
+        <div class="metric-value">{{ africa_live }}</div>
+        <div class="metric-meta">{{ africa_go }} GO / {{ africa_review }} REVIEW</div>
+    </article>
+    <article class="metric-card">
+        <span class="metric-label">Global live</span>
+        <div class="metric-value">{{ global_live }}</div>
+        <div class="metric-meta">{{ global_go }} GO / {{ global_review }} REVIEW</div>
+    </article>
+    <article class="metric-card">
+        <span class="metric-label">Total shortlisted</span>
+        <div class="metric-value">{{ total_tenders }}</div>
+        <div class="metric-meta">{{ high_score_count }} high fit (70+)</div>
+    </article>
+    <article class="metric-card">
+        <span class="metric-label">Saved + favorites</span>
+        <div class="metric-value">{{ saved_count + favorite_count }}</div>
+        <div class="metric-meta">{{ saved_count }} saved / {{ favorite_count }} favorites</div>
+    </article>
+    <article class="metric-card">
+        <span class="metric-label">Donor Africa</span>
+        <div class="metric-value">{{ donor_africa_targeted }}</div>
+        <div class="metric-meta">Targeted donor or multilateral items</div>
+    </article>
+    <article class="metric-card">
+        <span class="metric-label">Active sources</span>
+        <div class="metric-value">{{ active_sources }}</div>
+        <div class="metric-meta">Tracked source endpoints</div>
+    </article>
+</section>
 
-<div class="row g-4 mb-5">
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 18px;">
-            <div class="card-body p-4">
-                <small class="text-uppercase text-muted d-block mb-2">Donor-Funded Africa-Targeted</small>
-                <h2 style="font-weight: 800; color: #7c3aed;">{{ donor_africa_targeted }}</h2>
-                <p class="text-muted mb-3">Global multilateral and donor tenders targeting African institutions.</p>
-                <a href="{{ url_for('main.scan', shortlist_mode='combined', donor_or_multilateral_flag='true', africa_priority_flag='true') }}" class="btn btn-outline-primary" style="border-radius: 999px;">View donor shortlist</a>
-            </div>
+<section class="split-grid">
+    <article class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">Top African countries</h2>
+            <span class="section-note">Current shortlist concentration</span>
         </div>
-    </div>
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 18px;">
-            <div class="card-body p-4">
-                <small class="text-uppercase text-muted d-block mb-2">Total Shortlisted</small>
-                <h2 style="font-weight: 800; color: #1e293b;">{{ total_tenders }}</h2>
-                <p class="text-muted mb-1">High fit (70+): {{ high_score_count }}</p>
-                <p class="text-muted mb-1">Saved: {{ saved_count }}</p>
-                <p class="text-muted mb-0">Favorites: {{ favorite_count }}</p>
+        {% if top_african_countries %}
+            <div class="compact-list">
+                {% for country_name, count in top_african_countries %}
+                    <span class="tag tag-success">{{ country_name or "Unknown" }} - {{ count }}</span>
+                {% endfor %}
             </div>
-        </div>
-    </div>
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 18px;">
-            <div class="card-body p-4">
-                <small class="text-uppercase text-muted d-block mb-2">Source Mix</small>
-                <h2 style="font-weight: 800; color: #334155;">{{ active_sources }}</h2>
-                <p class="text-muted mb-3">Active sources across Africa-priority and global-discovery groups.</p>
-                <a href="{{ url_for('main.sources') }}" class="btn btn-outline-secondary" style="border-radius: 999px;">Manage sources</a>
-            </div>
-        </div>
-    </div>
-</div>
+        {% else %}
+            <p class="muted">No Africa-priority shortlist data yet.</p>
+        {% endif %}
+    </article>
 
-<div class="row g-4 mb-5">
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 18px;">
-            <div class="card-body p-4">
-                <h4 style="font-weight: 700; color: #1e293b;">Top African Countries</h4>
-                {% if top_african_countries %}
-                <div class="d-flex flex-column gap-2 mt-4">
-                    {% for country_name, count in top_african_countries %}
-                    <div class="d-flex justify-content-between align-items-center p-3 rounded" style="background: #f8fafc;">
-                        <span style="font-weight: 600; color: #334155;">{{ country_name or 'Unknown' }}</span>
-                        <span class="badge" style="background: #0f766e;">{{ count }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-muted mt-4 mb-0">No Africa-priority shortlist data yet.</p>
-                {% endif %}
-            </div>
+    <article class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">Top global source groups</h2>
+            <span class="section-note">Which groups are surfacing now</span>
         </div>
-    </div>
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 18px;">
-            <div class="card-body p-4">
-                <h4 style="font-weight: 700; color: #1e293b;">Top Global Source Types</h4>
-                {% if top_global_source_types %}
-                <div class="d-flex flex-column gap-2 mt-4">
-                    {% for group_name, count in top_global_source_types %}
-                    <div class="d-flex justify-content-between align-items-center p-3 rounded" style="background: #f8fafc;">
-                        <span style="font-weight: 600; color: #334155;">{{ (group_name or 'experimental').replace('_', ' ')|title }}</span>
-                        <span class="badge" style="background: #1d4ed8;">{{ count }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-muted mt-4 mb-0">No global shortlist data yet.</p>
-                {% endif %}
+        {% if top_global_source_types %}
+            <div class="compact-list">
+                {% for group_name, count in top_global_source_types %}
+                    <span class="tag tag-primary">{{ (group_name or "experimental").replace("_", " ")|title }} - {{ count }}</span>
+                {% endfor %}
             </div>
-        </div>
-    </div>
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 18px;">
-            <div class="card-body p-4">
-                <h4 style="font-weight: 700; color: #1e293b;">Source Mix by Group</h4>
-                {% if source_mix %}
-                <div class="d-flex flex-column gap-2 mt-4">
-                    {% for group_name, count in source_mix %}
-                    <div class="d-flex justify-content-between align-items-center p-3 rounded" style="background: #f8fafc;">
-                        <span style="font-weight: 600; color: #334155;">{{ (group_name or 'experimental').replace('_', ' ')|title }}</span>
-                        <span class="badge bg-dark">{{ count }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-muted mt-4 mb-0">No tagged sources yet.</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
+        {% else %}
+            <p class="muted">No global shortlist data yet.</p>
+        {% endif %}
+    </article>
+</section>
 
-<div class="row g-4 mb-5">
-    <div class="col-lg-6">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 18px;">
-            <div class="card-body p-4">
-                <h4 style="font-weight: 700; color: #1e293b;">Categories</h4>
-                {% if categories %}
-                <div class="d-flex flex-column gap-2 mt-4">
-                    {% for category_name, count in categories[:6] %}
-                    <div class="d-flex justify-content-between align-items-center p-3 rounded" style="background: #f8fafc;">
-                        <span style="font-weight: 600; color: #334155;">{{ category_name or 'Uncategorized' }}</span>
-                        <span class="badge bg-primary">{{ count }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-muted mt-4 mb-0">No category data yet.</p>
-                {% endif %}
-            </div>
+<section class="split-grid">
+    <article class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">Source mix</h2>
+            <span class="section-note">Active sources by group</span>
         </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card border-0 shadow-sm h-100" style="border-radius: 18px;">
-            <div class="card-body p-4">
-                <h4 style="font-weight: 700; color: #1e293b;">Tenders by Source</h4>
-                {% if source_contributions %}
-                <div class="d-flex flex-column gap-2 mt-4">
-                    {% for source_name, count in source_contributions[:8] %}
-                    <div class="d-flex justify-content-between align-items-center p-3 rounded" style="background: #f8fafc;">
-                        <span style="font-weight: 600; color: #334155;">{{ source_name }}</span>
-                        <span class="badge {% if count > 0 %}bg-success{% else %}bg-secondary{% endif %}">{{ count }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-muted mt-4 mb-0">No source contribution data yet.</p>
-                {% endif %}
+        {% if source_mix %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Group</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for group_name, count in source_mix %}
+                            <tr>
+                                <td>{{ (group_name or "experimental").replace("_", " ")|title }}</td>
+                                <td>{{ count }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-        </div>
-    </div>
-</div>
+        {% else %}
+            <p class="muted">No tagged sources yet.</p>
+        {% endif %}
+    </article>
 
-<div class="card border-0 shadow-sm" style="border-radius: 18px;">
-    <div class="card-body p-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Recent Shortlisted Tenders</h4>
-            <a href="{{ url_for('main.scan') }}" class="btn btn-outline-primary" style="border-radius: 999px;">Open all shortlists</a>
+    <article class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">Categories</h2>
+            <span class="section-note">Recent classified results</span>
         </div>
-        {% if recent_tenders %}
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
+        {% if categories %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for category_name, count in categories[:8] %}
+                            <tr>
+                                <td>{{ category_name or "Uncategorized" }}</td>
+                                <td>{{ count }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="muted">No category data yet.</p>
+        {% endif %}
+    </article>
+</section>
+
+<section class="section-card">
+    <div class="section-header">
+        <h2 class="section-title">Recent shortlisted tenders</h2>
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.scan') }}">Open full shortlist</a>
+    </div>
+    {% if recent_tenders %}
+        <div class="table-wrap">
+            <table>
                 <thead>
                     <tr>
                         <th>Title</th>
@@ -213,28 +169,27 @@
                 </thead>
                 <tbody>
                     {% for tender in recent_tenders %}
-                    <tr>
-                        <td>
-                            <a href="{{ url_for('main.tender_detail', tid=tender.id) }}" class="text-decoration-none" style="font-weight: 600; color: #334155;">
-                                {{ tender.title[:80] }}{% if tender.title|length > 80 %}...{% endif %}
-                            </a>
-                        </td>
-                        <td>
-                            <span class="badge {% if tender.recommendation == 'GO' %}bg-success{% elif tender.recommendation == 'REVIEW' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-                                {{ tender.recommendation }}
-                            </span>
-                        </td>
-                        <td>{{ "%.0f"|format(tender.score or 0) }}%</td>
-                        <td>{{ tender.geographic_scope or 'Unknown' }}</td>
-                        <td>{{ tender.country or 'Unknown' }}</td>
-                    </tr>
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('main.tender_detail', tid=tender.id) }}">
+                                    {{ tender.title[:90] }}{% if tender.title|length > 90 %}...{% endif %}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="tag {% if tender.recommendation == 'GO' %}tag-success{% elif tender.recommendation == 'REVIEW' %}tag-warning{% else %}tag-neutral{% endif %}">
+                                    {{ tender.recommendation or "REVIEW" }}
+                                </span>
+                            </td>
+                            <td>{{ "%.0f"|format(tender.score or 0) }}%</td>
+                            <td>{{ tender.geographic_scope or "Unknown" }}</td>
+                            <td>{{ tender.country or "Unknown" }}</td>
+                        </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        {% else %}
-        <p class="text-muted mb-0">No shortlisted tenders yet. Run a scan to populate the dashboard.</p>
-        {% endif %}
-    </div>
-</div>
+    {% else %}
+        <p class="muted">No shortlisted tenders yet. Run a scan to populate the dashboard.</p>
+    {% endif %}
+</section>
 {% endblock %}

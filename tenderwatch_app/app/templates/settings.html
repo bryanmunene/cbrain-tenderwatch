@@ -3,347 +3,301 @@
 {% block title %}Settings - TenderWatch{% endblock %}
 
 {% block content %}
-
-<!-- Page Header -->
-<div class="mb-4">
-    <h1 style="font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">
-        <i class="fas fa-cog" style="color: #667eea;"></i> Settings
-    </h1>
-    <p class="text-muted">Configure your TenderWatch preferences</p>
-</div>
-
-<div class="row g-4">
-    <div class="col-lg-8">
-        <form method="POST">
-            <!-- Autonomous Scanning Settings -->
-            <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center mb-4">
-                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
-                            <i class="fas fa-robot" style="color: white; font-size: 1.25rem;"></i>
-                        </div>
-                        <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Autonomous Scanning</h4>
-                    </div>
-                    
-                    <div class="form-check form-switch mb-4" style="padding-left: 3rem;">
-                        <input class="form-check-input" type="checkbox" id="auto_scan_enabled" 
-                               name="auto_scan_enabled" {% if settings.auto_scan_enabled %}checked{% endif %}
-                               style="width: 3rem; height: 1.5rem; cursor: pointer;">
-                        <label class="form-check-label" for="auto_scan_enabled" style="margin-left: 0.5rem; cursor: pointer;">
-                            <strong style="color: #334155;">Enable Automatic Scanning</strong>
-                            <div class="text-muted small">Automatically scan for new tenders at regular intervals</div>
-                        </label>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label for="scan_interval_minutes" class="form-label" style="font-weight: 600; color: #334155;">Scan Interval</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" id="scan_interval_minutes" 
-                                   name="scan_interval_minutes" value="{{ settings.scan_interval_minutes }}" 
-                                   min="5" max="1440" required style="border-radius: 10px 0 0 10px;">
-                            <span class="input-group-text" style="background: #f8fafc; border-radius: 0 10px 10px 0;">minutes</span>
-                        </div>
-                        <div class="form-text">Minimum: 5 minutes • Maximum: 24 hours (1440 minutes)</div>
-                    </div>
-                    
-                    {% if scheduler_status.running %}
-                    <div class="alert mb-0" style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border: none; border-radius: 12px;">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-check-circle" style="color: #059669; font-size: 1.5rem; margin-right: 1rem;"></i>
-                            <div>
-                                <strong style="color: #065f46;">Scheduler Active</strong>
-                                {% if scheduler_status.jobs %}
-                                    {% for job in scheduler_status.jobs %}
-                                        <div class="small" style="color: #047857; margin-top: 0.25rem;">
-                                            Next scan: {{ job.next_run }}
-                                        </div>
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="alert mb-0" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: none; border-radius: 12px;">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-exclamation-triangle" style="color: #d97706; font-size: 1.5rem; margin-right: 1rem;"></i>
-                            <div>
-                                <strong style="color: #92400e;">Scheduler Inactive</strong>
-                                <div class="small" style="color: #b45309;">Enable automatic scanning above to start</div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Geography Strategy -->
-            <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center mb-4">
-                        <div style="background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
-                            <i class="fas fa-globe-africa" style="color: white; font-size: 1.25rem;"></i>
-                        </div>
-                        <div>
-                            <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Geographic Strategy</h4>
-                            <p class="mb-0 text-muted" style="font-size: 0.875rem;">Africa-first ranking with controlled global discovery</p>
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-4">
-                            <label for="africa_priority_weight" class="form-label" style="font-weight: 600; color: #334155;">Africa Priority Weight</label>
-                            <input type="number" class="form-control" id="africa_priority_weight" name="africa_priority_weight" value="{{ settings.africa_priority_weight }}" min="0" max="30" step="0.5" style="border-radius: 10px;">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="global_relevance_threshold" class="form-label" style="font-weight: 600; color: #334155;">Global Relevance Threshold</label>
-                            <input type="number" class="form-control" id="global_relevance_threshold" name="global_relevance_threshold" value="{{ settings.global_relevance_threshold }}" min="0" max="100" step="0.5" style="border-radius: 10px;">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="donor_multilateral_boost" class="form-label" style="font-weight: 600; color: #334155;">Donor Boost</label>
-                            <input type="number" class="form-control" id="donor_multilateral_boost" name="donor_multilateral_boost" value="{{ settings.donor_multilateral_boost }}" min="0" max="30" step="0.5" style="border-radius: 10px;">
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="secondary_review_queue_threshold" class="form-label" style="font-weight: 600; color: #334155;">Secondary Review Queue Threshold</label>
-                        <input type="number" class="form-control" id="secondary_review_queue_threshold" name="secondary_review_queue_threshold" value="{{ settings.secondary_review_queue_threshold }}" min="0" max="100" step="0.5" style="border-radius: 10px;">
-                        <div class="form-text">Global discovery results below the main promotion threshold but above this score stay in the review queue.</div>
-                    </div>
-
-                    <div class="form-check form-switch mb-3" style="padding-left: 3rem;">
-                        <input class="form-check-input" type="checkbox" id="africa_only_mode" name="africa_only_mode" {% if settings.africa_only_mode %}checked{% endif %} style="width: 3rem; height: 1.5rem; cursor: pointer;">
-                        <label class="form-check-label" for="africa_only_mode" style="margin-left: 0.5rem; cursor: pointer;">
-                            <strong style="color: #334155;">Africa-only Mode</strong>
-                            <div class="text-muted small">Hard-filter shortlist views and scans to Africa-priority opportunities only.</div>
-                        </label>
-                    </div>
-
-                    <div class="form-check form-switch mb-3" style="padding-left: 3rem;">
-                        <input class="form-check-input" type="checkbox" id="include_global_sources" name="include_global_sources" {% if settings.include_global_sources %}checked{% endif %} style="width: 3rem; height: 1.5rem; cursor: pointer;">
-                        <label class="form-check-label" for="include_global_sources" style="margin-left: 0.5rem; cursor: pointer;">
-                            <strong style="color: #334155;">Include Global Sources</strong>
-                            <div class="text-muted small">Keep multilateral and global public procurement sources active in the sweep.</div>
-                        </label>
-                    </div>
-
-                    <div class="form-check form-switch mb-0" style="padding-left: 3rem;">
-                        <input class="form-check-input" type="checkbox" id="include_global_in_default_shortlist" name="include_global_in_default_shortlist" {% if settings.include_global_in_default_shortlist %}checked{% endif %} style="width: 3rem; height: 1.5rem; cursor: pointer;">
-                        <label class="form-check-label" for="include_global_in_default_shortlist" style="margin-left: 0.5rem; cursor: pointer;">
-                            <strong style="color: #334155;">Use Combined Shortlist by Default</strong>
-                            <div class="text-muted small">Default the scan page to the combined shortlist instead of the Africa-only shortlist.</div>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Notification Settings -->
-            <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center mb-4">
-                        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
-                            <i class="fas fa-bell" style="color: white; font-size: 1.25rem;"></i>
-                        </div>
-                        <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Notifications</h4>
-                    </div>
-                    
-                    <div class="form-check form-switch mb-3" style="padding-left: 3rem;">
-                        <input class="form-check-input" type="checkbox" id="notifications_enabled" 
-                               name="notifications_enabled" {% if settings.notifications_enabled %}checked{% endif %}
-                               style="width: 3rem; height: 1.5rem; cursor: pointer;">
-                        <label class="form-check-label" for="notifications_enabled" style="margin-left: 0.5rem; cursor: pointer;">
-                            <strong style="color: #334155;">Enable Notifications</strong>
-                            <div class="text-muted small">Receive alerts when new tenders are found</div>
-                        </label>
-                    </div>
-                    
-                    <div class="form-check form-switch mb-3" style="padding-left: 3rem;">
-                        <input class="form-check-input" type="checkbox" id="notify_desktop" 
-                               name="notify_desktop" {% if settings.notify_desktop %}checked{% endif %}
-                               style="width: 3rem; height: 1.5rem; cursor: pointer;">
-                        <label class="form-check-label" for="notify_desktop" style="margin-left: 0.5rem; cursor: pointer;">
-                            <strong style="color: #334155;">Desktop Notifications</strong>
-                            <div class="text-muted small">Show desktop popup notifications</div>
-                        </label>
-                    </div>
-                    
-                    <div class="form-check form-switch mb-4" style="padding-left: 3rem;">
-                        <input class="form-check-input" type="checkbox" id="notify_email" 
-                               name="notify_email" {% if settings.notify_email %}checked{% endif %}
-                               style="width: 3rem; height: 1.5rem; cursor: pointer;">
-                        <label class="form-check-label" for="notify_email" style="margin-left: 0.5rem; cursor: pointer;">
-                            <strong style="color: #334155;">Email Notifications</strong>
-                            <div class="text-muted small">Send email alerts (configure settings below)</div>
-                        </label>
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label for="min_score_to_notify" class="form-label" style="font-weight: 600; color: #334155;">Minimum Score Threshold</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" id="min_score_to_notify" 
-                                   name="min_score_to_notify" value="{{ settings.min_score_to_notify }}" 
-                                   min="0" max="100" step="0.1" required style="border-radius: 10px 0 0 10px;">
-                            <span class="input-group-text" style="background: #f8fafc; border-radius: 0 10px 10px 0;">%</span>
-                        </div>
-                        <div class="form-text">Only notify about tenders scoring this percentage or higher</div>
-                    </div>
-                    
-                    <button type="button" class="btn btn-outline-primary" id="testNotification" style="border-radius: 10px; border-width: 2px;">
-                        <i class="fas fa-vial"></i> Test Desktop Notification
-                    </button>
-                </div>
-            </div>
-
-            <!-- Email Configuration -->
-            <div class="card border-0 shadow-sm mb-4" style="border-radius: 16px;">
-                <div class="card-body p-4">
-                    <div class="d-flex align-items-center mb-4">
-                        <div style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
-                            <i class="fas fa-envelope" style="color: white; font-size: 1.25rem;"></i>
-                        </div>
-                        <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Email Configuration</h4>
-                    </div>
-                    
-                    <div class="alert alert-info mb-4" style="border-radius: 12px; border: none; background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);">
-                        <i class="fas fa-info-circle" style="color: #0284c7;"></i> 
-                        <strong style="color: #0c4a6e;">Gmail Users:</strong> <span style="color: #075985;">Use an <a href="https://support.google.com/accounts/answer/185833" target="_blank" style="color: #0369a1; font-weight: 600;">App Password</a> instead of your regular password.</span>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="email_recipients" class="form-label" style="font-weight: 600; color: #334155;">Recipients</label>
-                        <input type="text" class="form-control" id="email_recipients" 
-                               name="email_recipients" value="{{ settings.email_recipients }}"
-                               placeholder="user1@example.com, user2@example.com" style="border-radius: 10px;">
-                        <div class="form-text">Comma-separated email addresses</div>
-                    </div>
-                    
-                    <div class="row g-3">
-                        <div class="col-md-8">
-                            <label for="smtp_server" class="form-label" style="font-weight: 600; color: #334155;">SMTP Server</label>
-                            <input type="text" class="form-control" id="smtp_server" 
-                                   name="smtp_server" value="{{ settings.smtp_server }}" 
-                                   placeholder="smtp.gmail.com" style="border-radius: 10px;">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="smtp_port" class="form-label" style="font-weight: 600; color: #334155;">Port</label>
-                            <input type="number" class="form-control" id="smtp_port" 
-                                   name="smtp_port" value="{{ settings.smtp_port }}" 
-                                   placeholder="587" style="border-radius: 10px;">
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3 mt-3">
-                        <label for="smtp_username" class="form-label" style="font-weight: 600; color: #334155;">SMTP Username</label>
-                        <input type="email" class="form-control" id="smtp_username" 
-                               name="smtp_username" value="{{ settings.smtp_username }}"
-                               placeholder="your.email@gmail.com" style="border-radius: 10px;">
-                    </div>
-                    
-                    <div class="mb-0">
-                        <label for="smtp_password" class="form-label" style="font-weight: 600; color: #334155;">SMTP Password</label>
-                        <input type="password" class="form-control" id="smtp_password" 
-                               name="smtp_password" placeholder="Leave blank to keep current" style="border-radius: 10px;">
-                        <div class="form-text">Your email password or app-specific password</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="d-flex gap-3 justify-content-between">
-                <button type="submit" class="btn btn-primary btn-lg flex-grow-1" style="border-radius: 12px;">
-                    <i class="fas fa-save"></i> Save Settings
-                </button>
-                <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline-secondary btn-lg" style="border-radius: 12px;">
-                    <i class="fas fa-times"></i> Cancel
-                </a>
-            </div>
-        </form>
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Settings</p>
+        <h1 class="page-title">Tune how TenderWatch runs</h1>
+        <p class="page-subtitle">
+            Keep the shortlist focused, control how often scans run, and decide when the app should notify the team.
+        </p>
     </div>
-    
-    <!-- Sidebar Info -->
-    <div class="col-lg-4">
-        <div class="card border-0 shadow-sm" style="border-radius: 16px;">
-            <div class="card-body p-4">
-                <div class="d-flex align-items-center mb-4">
-                    <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 1rem;">
-                        <i class="fas fa-lightbulb" style="color: white; font-size: 1.25rem;"></i>
-                    </div>
-                    <h4 class="mb-0" style="font-weight: 700; color: #1e293b;">Quick Tips</h4>
-                </div>
-                
-                <div class="mb-4 p-3 rounded" style="background: #f8fafc; border-left: 4px solid #667eea;">
-                    <h6 style="color: #334155; font-weight: 600; margin-bottom: 0.5rem;">
-                        <i class="fas fa-robot" style="color: #667eea;"></i> Autonomous Scanning
-                    </h6>
-                    <p class="small text-muted mb-0">
-                        Runs automatically in the background without manual intervention. Perfect for continuous monitoring.
-                    </p>
-                </div>
-                
-                <div class="mb-4 p-3 rounded" style="background: #f8fafc; border-left: 4px solid #f093fb;">
-                    <h6 style="color: #334155; font-weight: 600; margin-bottom: 0.5rem;">
-                        <i class="fas fa-desktop" style="color: #f093fb;"></i> Desktop Notifications
-                    </h6>
-                    <p class="small text-muted mb-0">
-                        Get instant popup alerts on Windows, macOS, and Linux when high-score tenders are found.
-                    </p>
-                </div>
-                
-                <div class="mb-4 p-3 rounded" style="background: #f8fafc; border-left: 4px solid #30cfd0;">
-                    <h6 style="color: #334155; font-weight: 600; margin-bottom: 0.5rem;">
-                        <i class="fas fa-envelope" style="color: #30cfd0;"></i> Email Alerts
-                    </h6>
-                    <p class="small text-muted mb-0">
-                        Receive detailed email reports with tender summaries. Stay informed even when away from your desk.
-                    </p>
-                </div>
-                
-                <div class="p-3 rounded" style="background: #f8fafc; border-left: 4px solid #fa709a;">
-                    <h6 style="color: #334155; font-weight: 600; margin-bottom: 0.5rem;">
-                        <i class="fas fa-sliders-h" style="color: #fa709a;"></i> Score Threshold
-                    </h6>
-                    <p class="small text-muted mb-0">
-                        Control notification frequency. Higher thresholds = fewer but more relevant alerts.
-                    </p>
+    <div class="header-actions">
+        <a class="btn btn-outline-secondary" href="{{ url_for('main.dashboard') }}">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to dashboard
+        </a>
+    </div>
+</section>
+
+<form method="post" class="page-layout">
+    {{ csrf_field() }}
+
+    <div class="stack">
+        <section class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">Scanning</h2>
+                <span class="section-note">Background scans and scheduler behavior</span>
+            </div>
+
+            <div class="checkbox-list">
+                <label class="toggle-row" for="auto_scan_enabled">
+                    <input type="checkbox" id="auto_scan_enabled" name="auto_scan_enabled" {% if settings.auto_scan_enabled %}checked{% endif %}>
+                    <span>
+                        <span class="toggle-title">Enable automatic scanning</span>
+                        <span class="muted">Run scans on a schedule instead of only from the shortlist page.</span>
+                    </span>
+                </label>
+            </div>
+
+            <div class="form-grid" style="margin-top: 18px;">
+                <div class="field">
+                    <label for="scan_interval_minutes">Scan interval in minutes</label>
+                    <input class="form-control" type="number" id="scan_interval_minutes" name="scan_interval_minutes" min="5" max="1440" value="{{ settings.scan_interval_minutes }}" required>
+                    <div class="helper-text">Valid range: 5 to 1440 minutes.</div>
                 </div>
             </div>
+
+            <div class="summary-strip" style="margin-top: 18px;">
+                <div class="summary-item">
+                    <small>Internal scheduler</small>
+                    <strong>{{ "Enabled in this process" if internal_scheduler_enabled else "Disabled in this process" }}</strong>
+                </div>
+                <div class="summary-item">
+                    <small>Scheduler status</small>
+                    <strong>{{ "Running" if scheduler_status.running else "Stopped" }}</strong>
+                </div>
+                <div class="summary-item">
+                    <small>Scheduled jobs</small>
+                    <strong>{{ scheduler_status.jobs|length }}</strong>
+                </div>
+            </div>
+
+            {% if scheduler_status.jobs %}
+                <div class="detail-list" style="margin-top: 18px;">
+                    {% for job in scheduler_status.jobs %}
+                        <div class="detail-block">
+                            <small class="metric-label" style="margin-bottom: 0;">{{ job.name or job.id }}</small>
+                            <p style="margin: 10px 0 0;">Next run: {{ job.next_run or "Not scheduled" }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">Geography strategy</h2>
+                <span class="section-note">Africa-first ranking and global discovery controls</span>
+            </div>
+
+            <div class="form-grid">
+                <div class="field">
+                    <label for="africa_priority_weight">Africa priority weight</label>
+                    <input class="form-control" type="number" id="africa_priority_weight" name="africa_priority_weight" min="0" max="30" step="0.5" value="{{ settings.africa_priority_weight }}">
+                </div>
+                <div class="field">
+                    <label for="global_relevance_threshold">Global relevance threshold</label>
+                    <input class="form-control" type="number" id="global_relevance_threshold" name="global_relevance_threshold" min="0" max="100" step="0.5" value="{{ settings.global_relevance_threshold }}">
+                </div>
+                <div class="field">
+                    <label for="donor_multilateral_boost">Donor boost</label>
+                    <input class="form-control" type="number" id="donor_multilateral_boost" name="donor_multilateral_boost" min="0" max="30" step="0.5" value="{{ settings.donor_multilateral_boost }}">
+                </div>
+                <div class="field">
+                    <label for="secondary_review_queue_threshold">Secondary review threshold</label>
+                    <input class="form-control" type="number" id="secondary_review_queue_threshold" name="secondary_review_queue_threshold" min="0" max="100" step="0.5" value="{{ settings.secondary_review_queue_threshold }}">
+                    <div class="helper-text">Global results above this score can stay in the review queue.</div>
+                </div>
+            </div>
+
+            <div class="checkbox-list" style="margin-top: 18px;">
+                <label class="toggle-row" for="africa_only_mode">
+                    <input type="checkbox" id="africa_only_mode" name="africa_only_mode" {% if settings.africa_only_mode %}checked{% endif %}>
+                    <span>
+                        <span class="toggle-title">Africa-only mode</span>
+                        <span class="muted">Keep shortlist views and scans restricted to Africa-priority opportunities.</span>
+                    </span>
+                </label>
+                <label class="toggle-row" for="include_global_sources">
+                    <input type="checkbox" id="include_global_sources" name="include_global_sources" {% if settings.include_global_sources %}checked{% endif %}>
+                    <span>
+                        <span class="toggle-title">Include global sources</span>
+                        <span class="muted">Allow multilateral and global procurement feeds into the wider discovery pool.</span>
+                    </span>
+                </label>
+                <label class="toggle-row" for="include_global_in_default_shortlist">
+                    <input type="checkbox" id="include_global_in_default_shortlist" name="include_global_in_default_shortlist" {% if settings.include_global_in_default_shortlist %}checked{% endif %}>
+                    <span>
+                        <span class="toggle-title">Use combined shortlist by default</span>
+                        <span class="muted">Open the scan page in a combined Africa and global view instead of Africa only.</span>
+                    </span>
+                </label>
+            </div>
+        </section>
+
+        <section class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">Notifications</h2>
+                <span class="section-note">Desktop and email alert controls</span>
+            </div>
+
+            <div class="checkbox-list">
+                <label class="toggle-row" for="notifications_enabled">
+                    <input type="checkbox" id="notifications_enabled" name="notifications_enabled" {% if settings.notifications_enabled %}checked{% endif %}>
+                    <span>
+                        <span class="toggle-title">Enable notifications</span>
+                        <span class="muted">Turn all TenderWatch alerting on or off.</span>
+                    </span>
+                </label>
+                <label class="toggle-row" for="notify_desktop">
+                    <input type="checkbox" id="notify_desktop" name="notify_desktop" {% if settings.notify_desktop %}checked{% endif %}>
+                    <span>
+                        <span class="toggle-title">Desktop notifications</span>
+                        <span class="muted">Show local pop-up alerts on this machine.</span>
+                    </span>
+                </label>
+                <label class="toggle-row" for="notify_email">
+                    <input type="checkbox" id="notify_email" name="notify_email" {% if settings.notify_email %}checked{% endif %}>
+                    <span>
+                        <span class="toggle-title">Email notifications</span>
+                        <span class="muted">Send summaries to the recipients configured below.</span>
+                    </span>
+                </label>
+            </div>
+
+            <div class="form-grid" style="margin-top: 18px;">
+                <div class="field">
+                    <label for="min_score_to_notify">Minimum score to notify</label>
+                    <input class="form-control" type="number" id="min_score_to_notify" name="min_score_to_notify" min="0" max="100" step="0.1" value="{{ settings.min_score_to_notify }}" required>
+                    <div class="helper-text">Only tenders at or above this score trigger alerts.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">Email delivery</h2>
+                <span class="section-note">SMTP details for outbound alerts</span>
+            </div>
+
+            <div class="detail-block" style="margin-bottom: 18px;">
+                <small class="metric-label" style="margin-bottom: 0;">Tip</small>
+                <p style="margin: 10px 0 0;">
+                    Gmail accounts usually need an app password rather than the main account password.
+                </p>
+            </div>
+
+            <div class="form-grid">
+                <div class="field wide">
+                    <label for="email_recipients">Recipients</label>
+                    <input class="form-control" type="text" id="email_recipients" name="email_recipients" value="{{ settings.email_recipients }}" placeholder="user1@example.com, user2@example.com">
+                    <div class="helper-text">Separate multiple addresses with commas.</div>
+                </div>
+                <div class="field">
+                    <label for="smtp_server">SMTP server</label>
+                    <input class="form-control" type="text" id="smtp_server" name="smtp_server" value="{{ settings.smtp_server }}" placeholder="smtp.gmail.com">
+                </div>
+                <div class="field">
+                    <label for="smtp_port">SMTP port</label>
+                    <input class="form-control" type="number" id="smtp_port" name="smtp_port" value="{{ settings.smtp_port }}" placeholder="587">
+                </div>
+                <div class="field">
+                    <label for="smtp_username">SMTP username</label>
+                    <input class="form-control" type="email" id="smtp_username" name="smtp_username" value="{{ settings.smtp_username }}" placeholder="your.email@example.com">
+                </div>
+                <div class="field">
+                    <label for="smtp_password">SMTP password</label>
+                    <input class="form-control" type="password" id="smtp_password" name="smtp_password" placeholder="Leave blank to keep the current password">
+                </div>
+            </div>
+        </section>
+
+        <div class="action-row">
+            <button class="btn btn-primary" type="submit">
+                <i class="fa-solid fa-floppy-disk"></i>
+                Save settings
+            </button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('main.dashboard') }}">Cancel</a>
         </div>
     </div>
-</div>
 
+    <aside class="stack">
+        <section class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">Status</h2>
+                <span class="section-note">Live operating context</span>
+            </div>
+            <div class="detail-list">
+                <div class="detail-block">
+                    <small class="metric-label" style="margin-bottom: 0;">Scheduler</small>
+                    <p style="margin: 10px 0 0;">{{ "Running" if scheduler_status.running else "Stopped" }}</p>
+                </div>
+                <div class="detail-block">
+                    <small class="metric-label" style="margin-bottom: 0;">Internal scheduler process</small>
+                    <p style="margin: 10px 0 0;">{{ "Available here" if internal_scheduler_enabled else "Not available in this web process" }}</p>
+                </div>
+                <div class="detail-block">
+                    <small class="metric-label" style="margin-bottom: 0;">Notification threshold</small>
+                    <p style="margin: 10px 0 0;">{{ "%.1f"|format(settings.min_score_to_notify or 0) }}%</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">Quick check</h2>
+                <span class="section-note">Test desktop notifications</span>
+            </div>
+            <p class="muted" style="margin-top: 0;">
+                Use this to confirm local desktop notifications still work after changing alert settings.
+            </p>
+            <button class="btn btn-secondary" type="button" id="test-notification">
+                <i class="fa-solid fa-bell"></i>
+                Send test notification
+            </button>
+            <div class="detail-block" id="notification-test-status" style="margin-top: 16px;">
+                <small class="metric-label" style="margin-bottom: 0;">Result</small>
+                <p style="margin: 10px 0 0;">No test run yet.</p>
+            </div>
+        </section>
+
+        <section class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">Good defaults</h2>
+                <span class="section-note">A few operational reminders</span>
+            </div>
+            <div class="detail-list">
+                <div class="detail-block">
+                    <small class="metric-label" style="margin-bottom: 0;">Scan cadence</small>
+                    <p style="margin: 10px 0 0;">Start with a 30 to 60 minute interval unless sources update unusually fast.</p>
+                </div>
+                <div class="detail-block">
+                    <small class="metric-label" style="margin-bottom: 0;">Threshold tuning</small>
+                    <p style="margin: 10px 0 0;">Raise the notification threshold if alerts feel noisy, or lower it if interesting items are being missed.</p>
+                </div>
+                <div class="detail-block">
+                    <small class="metric-label" style="margin-bottom: 0;">Deployment note</small>
+                    <p style="margin: 10px 0 0;">If this web process does not run the scheduler, background scans need a dedicated scheduler process elsewhere.</p>
+                </div>
+            </div>
+        </section>
+    </aside>
+</form>
+{% endblock %}
+
+{% block scripts %}
 <script>
-document.getElementById('testNotification').addEventListener('click', function() {
-    const btn = this;
-    const originalHTML = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-    
-    fetch('{{ url_for("main.test_notification") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
-        if (data.success) {
-            showToast('✅ Test notification sent! Check your desktop.', 'success');
-        } else {
-            showToast('❌ Failed to send notification. Check settings.', 'error');
-        }
-    })
-    .catch(error => {
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
-        showToast('❌ Failed to send notification. Make sure notifications are enabled.', 'error');
-    });
-});
+    const testNotificationButton = document.getElementById("test-notification");
+    const testNotificationStatus = document.getElementById("notification-test-status");
 
-function showToast(message, type) {
-    // Simple toast notification (will be replaced with proper toast system later)
-    alert(message);
-}
+    if (testNotificationButton && testNotificationStatus) {
+        testNotificationButton.addEventListener("click", async () => {
+            const originalHtml = testNotificationButton.innerHTML;
+            testNotificationButton.disabled = true;
+            testNotificationButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+            testNotificationStatus.innerHTML = '<small class="metric-label" style="margin-bottom: 0;">Result</small><p style="margin: 10px 0 0;">Sending test notification...</p>';
+
+            try {
+                const response = await window.tenderwatch.postJson('{{ url_for("main.test_notification") }}');
+                const data = await response.json();
+                testNotificationStatus.innerHTML = `<small class="metric-label" style="margin-bottom: 0;">Result</small><p style="margin: 10px 0 0;">${data.message || "Notification request finished."}</p>`;
+            } catch (error) {
+                testNotificationStatus.innerHTML = '<small class="metric-label" style="margin-bottom: 0;">Result</small><p style="margin: 10px 0 0;">Notification test failed. Check whether desktop notifications are enabled on this machine.</p>';
+            } finally {
+                testNotificationButton.disabled = false;
+                testNotificationButton.innerHTML = originalHtml;
+            }
+        });
+    }
 </script>
-
 {% endblock %}
