@@ -857,50 +857,115 @@ elif page == "Settings":
                 st.success("Quick Start will show again on Dashboard.")
 
     with tab_experience:
-        st.subheader("Install App")
         st.markdown(
             """
-            **Mobile (Android/iOS):**
-            1. Open this app in Chrome/Safari.
-            2. Tap browser menu/share.
-            3. Select **Add to Home Screen**.
-
-            **Desktop (Chrome/Edge):**
-            1. Click install icon in address bar.
-            2. Confirm install prompt.
-            """
+            <div style='padding: 1rem 1.25rem; background: rgba(14,52,84,0.6); border: 1px solid #2a5a84; border-radius: 10px; margin-bottom: 1rem;'>
+                <div style='color: #f4f9ff; font-weight: 700; font-size: 1.05rem;'>Install TenderWatch</div>
+                <div style='color: #a9c3de; font-size: 0.9rem; margin-top: 0.25rem;'>Add to your home screen for quick access.</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(
+                """
+                **Mobile (Android/iOS):**
+                1. Open this app in Chrome/Safari
+                2. Tap the **Share** button (iOS) or browser menu (Android)
+                3. Select **"Add to Home Screen"**
+                4. The app icon will appear on your home screen
+                """
+            )
+
+        with col2:
+            st.markdown(
+                """
+                **Desktop (Chrome/Edge):**
+                1. Look for the install button in the address bar
+                2. Or click the floating install button (bottom-right)
+                3. Click **"Install"** when prompted
+                4. TenderWatch opens as a standalone app
+                """
+            )
+
         st.markdown(
             """
-<div style='text-align:center; margin:0.8rem 0 1rem;'>
-  <button onclick="window.TenderWatchPWA && window.TenderWatchPWA.promptInstall && window.TenderWatchPWA.promptInstall()"
-          style='background:#1ea7ff;color:white;border:none;padding:10px 24px;border-radius:10px;font-weight:700;cursor:pointer;'>
-      Install TenderWatch
-  </button>
-</div>
+            <div style='text-align:center; margin:0.8rem 0 1rem;'>
+              <button onclick="window.TenderWatchPWA && window.TenderWatchPWA.promptInstall && window.TenderWatchPWA.promptInstall()"
+                      style='background:#1ea7ff;color:white;border:none;padding:10px 24px;border-radius:10px;font-weight:700;cursor:pointer;'>
+                  Install TenderWatch
+              </button>
+            </div>
             """,
             unsafe_allow_html=True,
         )
 
         st.markdown("---")
-        st.subheader("Daily Reminder Notifications")
         st.markdown(
             """
-Set a daily reminder so your team checks new tenders consistently.
-            """
-        )
-        st.markdown(
-            """
-<div style='text-align:center; margin:0.8rem 0;'>
-  <button onclick="window.TenderWatchPWA && window.TenderWatchPWA.setupNotifications && window.TenderWatchPWA.setupNotifications()"
-          style='background:#0f86d5;color:white;border:none;padding:10px 24px;border-radius:10px;font-weight:700;cursor:pointer;'>
-      Set Up Daily Notifications
-  </button>
-</div>
+            <div style='padding: 1rem 1.25rem; background: rgba(14,52,84,0.6); border: 1px solid #2a5a84; border-radius: 10px; margin-bottom: 1rem;'>
+                <div style='color: #f4f9ff; font-weight: 700; font-size: 1.05rem;'>Daily Scan Reminders</div>
+                <div style='color: #a9c3de; font-size: 0.9rem; margin-top: 0.25rem;'>Configure a daily reminder to review new tenders.</div>
+            </div>
             """,
             unsafe_allow_html=True,
         )
+
+        st.markdown(
+            """
+            **How it works:**
+            - Click the notification setup button below
+            - Choose your preferred time (e.g., 8:00 AM)
+            - You will receive a notification every day to scan for new tenders
+            - Works on both mobile and desktop (after installing the app)
+
+            **Tips:**
+            - For best results, **install the app** first
+            - Allow notifications when your browser asks
+            - Notifications can work when the browser is closed (supported devices)
+            """
+        )
+
+        st.markdown(
+            """
+            <div style='text-align:center; margin:0.8rem 0;'>
+              <button onclick="window.TenderWatchPWA && window.TenderWatchPWA.setupNotifications && window.TenderWatchPWA.setupNotifications()"
+                      style='background:#0f86d5;color:white;border:none;padding:10px 24px;border-radius:10px;font-weight:700;cursor:pointer;'>
+                  Set Up Daily Notifications
+              </button>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("---")
+        st.subheader("Notification Preferences")
+        exp_notifications_enabled = st.checkbox(
+            "Enable In-App Notifications",
+            value=bool(settings.notifications_enabled),
+            key="exp_notifications_enabled",
+            help="Show notifications for high-score tenders during scans.",
+        )
+        exp_min_score = st.slider(
+            "Minimum Score for Alerts",
+            0,
+            100,
+            value=int(settings.min_score_to_notify or 70),
+            key="exp_min_score",
+            help="Only alert for tenders above this score.",
+        )
+        if st.button("Save Notification Preferences", key="save_exp_notification_prefs"):
+            with app.app_context():
+                s = AppSettings.query.first()
+                if not s:
+                    s = AppSettings()  # type: ignore[call-arg]
+                    db.session.add(s)
+                s.notifications_enabled = bool(exp_notifications_enabled)
+                s.min_score_to_notify = float(exp_min_score)
+                db.session.commit()
+            st.success("Notification preferences saved.")
 
         st.markdown("---")
         st.subheader("UI Options")
