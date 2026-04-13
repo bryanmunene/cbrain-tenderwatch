@@ -2127,6 +2127,21 @@ def delete_all_sources():
         except Exception:
             return False
 
+def pause_or_enable_all_sources(active_only=True):
+    """Pause (disable) all active sources or enable all inactive sources"""
+    with app.app_context():
+        try:
+            if active_only:
+                # Pause (disable) all active sources
+                TenderSource.query.filter_by(active=True).update({"active": False}, synchronize_session=False)
+            else:
+                # Enable all inactive sources
+                TenderSource.query.filter_by(active=False).update({"active": True}, synchronize_session=False)
+            db.session.commit()
+            return True
+        except Exception as e:
+            return False
+
 def run_tender_scan(scan_depth="fast", discovery_mode="f2_ranked"):
     """Run tender scan"""
     started = time.time()
@@ -2931,8 +2946,23 @@ elif page == "Sources":
         
         if sources:
             # Bulk action buttons
-            col_bulk1, col_bulk2, col_bulk3 = st.columns([2, 1, 1])
+            col_bulk1, col_bulk2, col_bulk3, col_bulk4, col_bulk5 = st.columns([1.5, 1, 1, 1, 1])
+            
+            with col_bulk1:
+                if st.button("Enable All", key="enable_all_btn", use_container_width=True):
+                    if pause_or_enable_all_sources(active_only=False):
+                        st.success(f"Enabled all sources")
+                        time.sleep(0.5)
+                        st.rerun()
+            
             with col_bulk2:
+                if st.button("Disable All", key="disable_all_btn", use_container_width=True):
+                    if pause_or_enable_all_sources(active_only=True):
+                        st.success(f"Disabled all sources")
+                        time.sleep(0.5)
+                        st.rerun()
+            
+            with col_bulk3:
                 if st.button("Delete Selected", key="delete_selected_btn", use_container_width=True):
                     if st.session_state.selected_sources:
                         if st.session_state.get('confirm_delete_selected'):
@@ -2948,7 +2978,10 @@ elif page == "Sources":
                     else:
                         st.warning("Please select sources to delete")
             
-            with col_bulk3:
+            with col_bulk4:
+                st.markdown("&nbsp;")  # Spacer
+            
+            with col_bulk5:
                 if st.button("Delete All", key="delete_all_btn", use_container_width=True):
                     if st.session_state.get('confirm_delete_all'):
                         if st.session_state.get('confirm_delete_all_final'):

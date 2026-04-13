@@ -86,9 +86,14 @@
         <div class="section-header">
             <h2 class="section-title">Active sources</h2>
             <span class="section-note">{{ active_sources|length }} currently scanning</span>
-            <div class="bulk-actions" id="bulkActionsActive" style="display: none; margin-top: 12px;">
+            <div class="bulk-actions" style="display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
+                <button id="pauseAllBtn" class="btn btn-outline-secondary btn-sm" type="button" title="Pause all active sources">
+                    <i class="fa-solid fa-pause"></i>
+                    Pause all
+                </button>
+                <span id="bulkSeparator" style="color: var(--border-color);">|</span>
                 <span id="selectedCountActive" class="muted">0 selected</span>
-                <button id="deleteSelectedActive" class="btn btn-outline-danger btn-sm" type="button">
+                <button id="deleteSelectedActive" class="btn btn-outline-danger btn-sm" type="button" style="display: none;">
                     <i class="fa-solid fa-trash"></i>
                     Delete selected
                 </button>
@@ -184,9 +189,14 @@
         <div class="section-header">
             <h2 class="section-title">Paused sources</h2>
             <span class="section-note">{{ inactive_sources|length }} kept off the scan schedule</span>
-            <div class="bulk-actions" id="bulkActionsInactive" style="display: none; margin-top: 12px;">
+            <div class="bulk-actions" style="display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
+                <button id="resumeAllBtn" class="btn btn-outline-success btn-sm" type="button" title="Reactivate all paused sources">
+                    <i class="fa-solid fa-play"></i>
+                    Resume all
+                </button>
+                <span id="bulkSeparatorInactive" style="color: var(--border-color);">|</span>
                 <span id="selectedCountInactive" class="muted">0 selected</span>
-                <button id="deleteSelectedInactive" class="btn btn-outline-danger btn-sm" type="button">
+                <button id="deleteSelectedInactive" class="btn btn-outline-danger btn-sm" type="button" style="display: none;">
                     <i class="fa-solid fa-trash"></i>
                     Delete selected
                 </button>
@@ -355,6 +365,15 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('deleteSelectedInactive')?.addEventListener('click', function() {
         deleteSelectedSources('inactive');
     });
+    
+    // Handle enable/disable all buttons
+    document.getElementById('pauseAllBtn')?.addEventListener('click', function() {
+        pauseAllSources();
+    });
+
+    document.getElementById('resumeAllBtn')?.addEventListener('click', function() {
+        resumeAllSources();
+    });
 
     // Handle delete all button
     document.getElementById('deleteAllBtn')?.addEventListener('click', function() {
@@ -468,6 +487,80 @@ document.addEventListener('DOMContentLoaded', function() {
                 location.reload();
             } else {
                 alert('Error: ' + (data.message || 'Failed to delete all sources'));
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+        });
+    }
+    
+    function pauseAllSources() {
+        const activeCount = document.querySelectorAll('.source-checkbox[data-section="active"]').length;
+        
+        if (activeCount === 0) {
+            alert('No active sources to pause');
+            return;
+        }
+        
+        const message = activeCount === 1 
+            ? 'Pause 1 active source?' 
+            : `Pause all ${activeCount} active sources?`;
+        
+        if (!confirm(message)) {
+            return;
+        }
+        
+        fetch('{{ url_for("main.pause_all_sources") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Failed to pause sources'));
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+        });
+    }
+    
+    function resumeAllSources() {
+        const inactiveCount = document.querySelectorAll('.source-checkbox[data-section="inactive"]').length;
+        
+        if (inactiveCount === 0) {
+            alert('No paused sources to resume');
+            return;
+        }
+        
+        const message = inactiveCount === 1 
+            ? 'Resume 1 paused source?' 
+            : `Resume all ${inactiveCount} paused sources?`;
+        
+        if (!confirm(message)) {
+            return;
+        }
+        
+        fetch('{{ url_for("main.resume_all_sources") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Failed to resume sources'));
             }
         })
         .catch(error => {

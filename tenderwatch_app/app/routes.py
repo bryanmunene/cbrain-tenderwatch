@@ -593,6 +593,42 @@ def delete_all_sources():
         current_app.logger.error(f"Error deleting all sources: {str(e)}")
         return jsonify({"success": False, "message": "Error deleting all sources"}), 500
 
+
+@main.route("/api/sources/pause-all", methods=["POST"])
+def pause_all_sources():
+    """Pause all active sources via API"""
+    try:
+        # Get count before pausing
+        paused_count = TenderSource.query.filter_by(active=True).update({"active": False}, synchronize_session=False)
+        db.session.commit()
+        
+        message = f"Paused {paused_count} source{'s' if paused_count != 1 else ''}."
+        flash(message, "success")
+        
+        return jsonify({"success": True, "message": message}), 200
+    
+    except Exception as e:
+        current_app.logger.error(f"Error pausing all sources: {str(e)}")
+        return jsonify({"success": False, "message": "Error pausing all sources"}), 500
+
+
+@main.route("/api/sources/resume-all", methods=["POST"])
+def resume_all_sources():
+    """Resume all paused sources via API"""
+    try:
+        # Get count before resuming
+        resumed_count = TenderSource.query.filter_by(active=False).update({"active": True}, synchronize_session=False)
+        db.session.commit()
+        
+        message = f"Resumed {resumed_count} source{'s' if resumed_count != 1 else ''}."
+        flash(message, "success")
+        
+        return jsonify({"success": True, "message": message}), 200
+    
+    except Exception as e:
+        current_app.logger.error(f"Error resuming all sources: {str(e)}")
+        return jsonify({"success": False, "message": "Error resuming all sources"}), 500
+
 @main.route("/sources", methods=["GET", "POST"])
 def sources():
     """View and manage tender sources"""
