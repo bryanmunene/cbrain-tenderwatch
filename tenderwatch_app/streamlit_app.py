@@ -1444,7 +1444,7 @@ def init_db(perform_translation=False):
         # Curated baseline focused on Kenya/Africa first, then global.
         # tuple format: (name, url, favorite, active_by_default)
         default_sources_data = [
-            # Kenya (primary market)
+            # ========== KENYA - PRIORITY SOURCES ==========
             ("Kenya PPIP", "https://tenders.go.ke/website/tenders/all", True, True),
             ("ICT Authority", "https://icta.go.ke/tenders/", True, True),
             ("KEMSA Tenders", "https://www.kemsa.co.ke/tenders/", True, True),
@@ -1455,48 +1455,95 @@ def init_db(perform_translation=False):
             ("Kenya Railways", "https://krc.co.ke/tenders/", True, True),
             ("NTSA Tenders", "https://ntsa.go.ke/tenders/", False, True),
             ("CAK Tenders", "https://cak.go.ke/tenders", False, True),
-            ("KEBS Tenders", "https://www.kebs.org/index.php?option=com_content&view=article&id=190", False, True),
             ("CBK Tenders", "https://www.centralbank.go.ke/tenders/", False, True),
             ("NEMA Tenders", "https://www.nema.go.ke/index.php/tenders", False, True),
+            ("Public Service Commission", "https://www.psc.go.ke/tenders/", False, True),
+            ("Kenya Bureau of Standards", "https://www.kebs.org/procurement/tenders/", False, True),
+            ("Energy & Petroleum Regulatory", "https://www.epra.go.ke/tenders/", False, True),
+            ("Communications Authority", "https://ca.go.ke/tenders/", False, True),
+            ("Nairobi City County", "https://nairobi.go.ke/tenders/", False, True),
 
-            # Africa focus (including cBrain presence regions)
+            # ========== EAST AFRICA REGIONAL ==========
             ("South Africa eTender", "https://www.etenders.gov.za/", True, True),
             ("Uganda PPDA", "https://www.ppda.go.ug/", True, True),
             ("Tanzania PPRA", "https://www.ppra.go.tz/", True, True),
+            ("Rwanda RPPA", "https://www.rppa.gov.rw/", False, False),
+            ("Botswana PPADB", "https://www.ppadb.bw/", False, True),
+            ("Malawi PPDA", "https://www.ppda.mw/", False, True),
+
+            # ========== WEST & CENTRAL AFRICA ==========
             ("Nigeria BPP", "https://www.bpp.gov.ng/", True, True),
             ("Nigeria BPP P-COMS", "https://pcoms.bpp.gov.ng/", False, True),
             ("Ghana PPA", "https://ppa.gov.gh/", True, True),
             ("GHANEPS", "https://www.ghaneps.gov.gh/", True, True),
             ("Zambia ZPPA", "https://www.zppa.org.zm/", False, True),
-            ("Rwanda RPPA", "https://www.rppa.gov.rw/", False, False),
+            ("Cote d'Ivoire Marchés Publics", "https://www.marchespublics.gouv.ci/", False, False),
+            ("Cameroon Marchés", "https://www.marchespublics.cm/", False, False),
+
+            # ========== AFRICA - CONTINENTAL & MULTILATERAL ==========
             ("TradeMark Africa Procurement", "https://trademarkafrica.com/procurement/", True, True),
             ("AfDB Procurement", "https://www.afdb.org/en/projects-and-operations/procurement", True, True),
-            ("Eswatini SPPRA", "https://www.sppra.co.sz", False, True),
+            ("African Union Commission", "https://au.int/en/procurement", False, True),
+            ("East African Development Bank", "https://www.eadb.org/procurement/", False, True),
+            ("StatBank Africa Tenders", "https://www.statbankafrica.com/", False, True),
 
-            # Global official sources (including cBrain footprint markets)
+            # ========== UNITED NATIONS GLOBAL ==========
             ("UNDP Procurement Notices", "https://procurement-notices.undp.org/", True, True),
             ("UN Global Marketplace", "https://www.ungm.org/Public/Notice", True, True),
             ("UNOPS Opportunities", "https://www.unops.org/business-opportunities", True, True),
+            ("UN Habitat Tenders", "https://unhabitat.org/procurement", False, True),
+            ("UNIDO Procurement", "https://www.unido.org/who-we-are/partnerships/business-cooperation/procurement", False, True),
+            ("UNESCO Procurement", "https://en.unesco.org/open-calls", False, True),
+            ("UNAIDS Procurement", "https://www.unaids.org/en/business-opportunities", False, True),
+            ("UNHCR Procurement", "https://www.unhcr.org/careers-and-business-opportunities/", False, True),
+            ("ILO Procurement", "https://www.ilo.org/global/about-the-ilo/work-for-the-ilo/business-opportunities/lang--en/index.htm", False, True),
+
+            # ========== WORLD BANK & DEVELOPMENT BANKS ==========
             ("World Bank Procurement", "https://projects.worldbank.org/en/projects-operations/procurement", True, True),
+            ("World Bank Contracts", "https://www.worldbank.org/en/about/business/contracts-and-procurement", False, True),
             ("DevBusiness (World Bank)", "https://devbusiness.un.org/", True, True),
-            ("WFP Procurement", "https://www.wfp.org/procurement", False, True),
+            ("IDB Procurement Projects", "https://www.iadb.org/en/how-we-can-work-together/procurement/procurement-projects", False, True),
+            ("AIIB Project Procurement", "https://www.aiib.org/en/opportunities/business/project-procurement/index.html", False, True),
+            ("AsDB Procurement", "https://www.adb.org/who-we-are/headquarters/adb-business-opportunities", False, True),
+            ("EIB Procurement Calls", "https://www.eib.org/en/about/procurement/all/index.htm", False, True),
+            ("EBRD Procurement", "https://www.ebrd.com/work-with-us/procurement.html", False, False),
+            ("New Development Bank", "https://www.ndb.int/procurement/", False, True),
+
+            # ========== WHO & HEALTH SECTOR ==========
             ("WHO Procurement", "https://www.who.int/about/accountability/procurement", False, True),
-            ("FAO Procurement", "https://www.fao.org/unfao/procurement/", False, True),
-            ("ILO Procurement", "https://www.ilo.org/procurement/", False, True),
+            ("WFP Procurement", "https://www.wfp.org/procurement", False, True),
+            ("GAVI Procurement", "https://www.gavi.org/our-work/procurement", False, True),
+            ("IFAD Procurement", "https://www.ifad.org/en/business-opportunities", False, True),
+            ("FAO Procurement", "https://www.fao.org/about/business-opportunities/en", False, True),
+
+            # ========== EUROPE - PUBLIC PROCUREMENT ==========
             ("TED Europa Tenders", "https://ted.europa.eu/en/search/result", True, True),
             ("UK Find a Tender", "https://www.find-tender.service.gov.uk/Search", True, True),
             ("Denmark Udbud", "https://udbud.dk/", False, True),
             ("Germany BUND", "https://www.service.bund.de/Content/DE/Ausschreibungen/Suche/Formular.html", False, False),
-            ("France BOAMP", "https://www.boamp.fr/", False, False),
+            ("EU Funding & Tenders", "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-search", False, False),
+            ("France Marches Publics", "https://www.marches.senat.fr/", False, False),
+            ("Spain Licitaciones", "https://www.placespublicas.com/", False, False),
+
+            # ========== AMERICAS & PACIFIC ==========
             ("SAM.gov (US Federal)", "https://sam.gov/search/?index=opp&page=1&sort=-modifiedDate", False, False),
             ("Australia AusTender", "https://www.tenders.gov.au/", False, False),
+            ("Canada Buy & Sell", "https://www.buyandsell.gc.ca/", False, False),
+
+            # ========== ASIA-PACIFIC ==========
             ("India CPPP", "https://eprocure.gov.in/eprocure/app", False, False),
             ("Singapore GeBIZ", "https://www.gebiz.gov.sg/", False, False),
-            ("EU Funding & Tenders", "https://ec.europa.eu/info/funding-tenders/opportunities/portal/screen/opportunities/topic-search", False, False),
+            ("Malaysia eProcurement", "https://www.eproc.gov.my/semakan/", False, False),
+            ("Philippines PhilGEPS", "https://www.philgeps.gov.ph/", False, False),
+            ("Vietnam Procurement", "https://muasamcong.mpi.gov.vn/", False, False),
+            ("Indonesia LPSE", "https://portal.lpse.go.id/app/", False, False),
+            ("Thailand eProcurement", "https://www.procure.go.th/", False, False),
+
+            # ========== COMMONWEALTH & MULTILATERAL ==========
             ("Commonwealth Secretariat Procurement", "https://thecommonwealth.org/procurement", False, True),
-            ("IDB Procurement Projects", "https://www.iadb.org/en/how-we-can-work-together/procurement/procurement-projects", False, True),
-            ("AIIB Project Procurement", "https://www.aiib.org/en/opportunities/business/project-procurement/index.html", False, True),
-            ("EIB Procurement Calls", "https://www.eib.org/en/about/procurement/all/index.htm", False, True),
+            ("WIPO Procurement", "https://www.wipo.int/about-wipo/en/business-opportunities/procurement/", False, True),
+            ("WTO Procurement", "https://www.wto.org/english/tratop_e/invtrans_e/inv_10_e.htm", False, True),
+            ("GEF Procurement", "https://www.thegef.org/business-opportunities", False, True),
         ]
         low_signal_sources = {
             "DgMarket",
