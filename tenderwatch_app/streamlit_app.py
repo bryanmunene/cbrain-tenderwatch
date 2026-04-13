@@ -18,6 +18,11 @@ from app.extensions import db  # type: ignore[attr-defined]
 from app.models import AppSettings, TenderResult, TenderSource  # type: ignore[attr-defined]
 from app.scraper import run_scan
 
+try:
+    from app.scraper import cleanup_irrelevant_tenders
+except Exception:
+    cleanup_irrelevant_tenders = None
+
 
 # ------------------------------
 # App setup
@@ -30,6 +35,21 @@ st.set_page_config(
     page_icon="TW",
     layout="wide",
     initial_sidebar_state="collapsed",
+)
+
+# Keep PWA hooks so install/notification experience remains available.
+st.markdown(
+    """
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<meta name="theme-color" content="#1ea7ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TenderWatch">
+<meta name="mobile-web-app-capable" content="yes">
+<script src="/static/pwa.js" defer></script>
+    """,
+    unsafe_allow_html=True,
 )
 
 st.markdown(
@@ -442,8 +462,10 @@ def render_tender_card(t: TenderResult) -> None:
     country = t.country or "Unknown"
     category = t.category or "Unclassified"
     desc = (t.description_translated or t.description or "").strip()
-    if len(desc) > 220:
-        desc = desc[:220].rstrip() + "..."
+    compact_mode = bool(st.session_state.get("compact_mode", False))
+    desc_limit = 120 if compact_mode else 220
+    if len(desc) > desc_limit:
+        desc = desc[:desc_limit].rstrip() + "..."
 
     st.markdown(
         f"""
@@ -513,13 +535,22 @@ nav_labels = {
     "Settings": "Settings",
 }
 
+nav_icons = {
+    "Dashboard": "📊",
+    "Scan & Results": "🔎",
+    "Sources": "🗂️",
+    "Favorites": "⭐",
+    "Saved": "💾",
+    "Settings": "⚙️",
+}
+
 try:
     page = st.radio(
         "Navigation",
         NAV_PAGES,
         key="page",
         horizontal=True,
-        format_func=lambda x: nav_labels.get(x, x),
+        format_func=lambda x: f"{nav_icons.get(x, '•')} {nav_labels.get(x, x)}",
         label_visibility="collapsed",
     )
 except TypeError:
@@ -527,7 +558,7 @@ except TypeError:
         "Navigation",
         NAV_PAGES,
         key="page",
-        format_func=lambda x: nav_labels.get(x, x),
+        format_func=lambda x: f"{nav_icons.get(x, '•')} {nav_labels.get(x, x)}",
         label_visibility="collapsed",
     )
 
@@ -551,6 +582,10 @@ if page == "Dashboard":
     k1.metric("Live Opportunities", stats["total"])
     k2.metric("High Fit (>=70)", stats["high_fit"])
     k3.metric("Deadlines (7 days)", stats["due_soon"])
+
+    k4, k5 = st.columns(2)
+    k4.metric("Saved Pipeline", stats["saved"])
+    k5.metric("Favorites", stats["favorites"])
 
     st.markdown("### Latest Opportunities")
     recent = get_tenders(min_score=25, days_window=30, sort_by="date")[:6]
@@ -728,7 +763,7 @@ elif page == "Settings":
         ["Simple by default", "Advanced on demand"],
     )
 
-    tab_basic, tab_advanced = st.tabs(["Basic", "Advanced"])
+    tab_basic, tab_advanced, tab_experience = st.tabs(["Basic", "Advanced", "Experience"])
 
     with tab_basic:
         b1, b2 = st.columns(2)
@@ -801,6 +836,80 @@ elif page == "Settings":
                 st.success("Advanced settings saved.")
             except Exception as exc:
                 st.error(f"Could not save advanced settings: {exc}")
+
+        st.markdown("---")
+        st.subheader("Maintenance")
+        m1, m2 = st.columns(2)
+        with m1:
+            if st.button("Run Cleanup (Closed/Awarded)", key="run_cleanup_closed"):
+                if cleanup_irrelevant_tenders is None:
+                    st.warning("Cleanup utility is unavailable in this environment.")
+                else:
+                    try:
+                        with app.app_context():
+                            cleanup_irrelevant_tenders()
+                        st.success("Cleanup completed.")
+                    except Exception as exc:
+                        st.error(f"Cleanup failed: {exc}")
+        with m2:
+            if st.button("Reset Quick Start", key="reset_quickstart"):
+                st.session_state["quickstart_dismissed"] = False
+                st.success("Quick Start will show again on Dashboard.")
+
+    with tab_experience:
+        st.subheader("Install App")
+        st.markdown(
+            """
+            **Mobile (Android/iOS):**
+            1. Open this app in Chrome/Safari.
+            2. Tap browser menu/share.
+            3. Select **Add to Home Screen**.
+
+            **Desktop (Chrome/Edge):**
+            1. Click install icon in address bar.
+            2. Confirm install prompt.
+            """
+        )
+
+        st.markdown(
+            """
+<div style='text-align:center; margin:0.8rem 0 1rem;'>
+  <button onclick="window.TenderWatchPWA && window.TenderWatchPWA.promptInstall && window.TenderWatchPWA.promptInstall()"
+          style='background:#1ea7ff;color:white;border:none;padding:10px 24px;border-radius:10px;font-weight:700;cursor:pointer;'>
+      Install TenderWatch
+  </button>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("---")
+        st.subheader("Daily Reminder Notifications")
+        st.markdown(
+            """
+Set a daily reminder so your team checks new tenders consistently.
+            """
+        )
+        st.markdown(
+            """
+<div style='text-align:center; margin:0.8rem 0;'>
+  <button onclick="window.TenderWatchPWA && window.TenderWatchPWA.setupNotifications && window.TenderWatchPWA.setupNotifications()"
+          style='background:#0f86d5;color:white;border:none;padding:10px 24px;border-radius:10px;font-weight:700;cursor:pointer;'>
+      Set Up Daily Notifications
+  </button>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("---")
+        st.subheader("UI Options")
+        compact_mode = st.checkbox("Compact result cards", value=bool(st.session_state.get("compact_mode", False)))
+        st.session_state["compact_mode"] = compact_mode
+        if compact_mode:
+            st.caption("Compact mode is enabled for tighter lists in Scan & Results.")
+        else:
+            st.caption("Comfort mode is enabled for easier readability.")
 
 
 st.caption("cBrain TenderWatch | redesigned UI")
