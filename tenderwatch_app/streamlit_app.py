@@ -90,10 +90,10 @@ def _nav_href(nav: str, **params) -> str:
 
 # Set page config
 st.set_page_config(
-    page_title="TenderWatch - cBrain",
-    page_icon="",
+    page_title="TenderWatch - cBrain F2",
+    page_icon="🎯",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"  # Collapsed by default for cleaner UI
 )
 
 # PWA Installation Support - inject manifest and service worker
@@ -116,10 +116,177 @@ st.markdown("""
 # Force a single dark theme for consistent readability.
 st.session_state.theme = 'dark'
 
-# Professional visual system
-st.markdown(f"""
+# Modern, clean CSS with improved UX
+st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * {{ font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }}
+
+    :root {{
+        --primary: #061f3d;
+        --secondary: #0a3656;
+        --surface: #0d2a47;
+        --text-primary: #f0f4f8;
+        --text-secondary: #a8bfdb;
+        --border: #1f4d72;
+        --accent: #3b82f6;
+        --accent-hover: #2563eb;
+        --success: #10b981;
+        --warning: #f59e0b;
+        --error: #ef4444;
+    }}
+
+    html, body, .stApp {{ background: linear-gradient(135deg, var(--primary) 0%, #0f2d4a 100%); }}
+
+    .block-container {{ max-width: 1200px; padding: 1.5rem; }}
+
+    /* Navigation */
+    .nav-container {{
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+    }}
+
+    .nav-tab {{
+        padding: 0.75rem 1.5rem;
+        background: var(--secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        color: var(--text-primary);
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }}
+
+    .nav-tab:hover {{ background: var(--accent); color: white; }}
+    .nav-tab.active {{ background: var(--accent); color: white; border-color: var(--accent); }}
+
+    /* Headers */
+    h1, h2, h3 {{ color: var(--text-primary); margin-bottom: 0.5rem; }}
+    h1 {{ font-size: 2rem; font-weight: 700; }}
+    h2 {{ font-size: 1.5rem; font-weight: 700; }}
+    h3 {{ font-size: 1.25rem; font-weight: 600; }}
+
+    p {{ color: var(--text-primary); line-height: 1.6; }}
+
+    /* Dashboard Metrics */
+    [data-testid="stMetric"] {{
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+    }}
+
+    [data-testid="stMetric"]:hover {{
+        border-color: var(--accent);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }}
+
+    [data-testid="stMetricValue"] {{ color: var(--text-primary); font-size: 1.75rem; font-weight: 700; }}
+    [data-testid="stMetricLabel"] {{ color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; }}
+
+    /* Buttons */
+    .stButton > button {{
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.65rem 1.25rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }}
+
+    .stButton > button:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+    }}
+
+    .stButton > button:active {{ transform: translateY(0); }}
+
+    /* Input Fields */
+    .stTextInput input, .stSelectbox select, .stNumberInput input {{
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text-primary);
+        border-radius: 8px;
+        padding: 0.75rem;
+        transition: all 0.2s ease;
+    }}
+
+    .stTextInput input:focus, .stSelectbox select:focus, .stNumberInput input:focus {{
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }}
+
+    /* Cards & Expanders */
+    .stExpander {{
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+    }}
+
+    /* Alerts */
+    .stAlert {{
+        border-radius: 10px;
+        border-left: 4px solid;
+        padding: 1rem;
+        color: var(--text-primary);
+    }}
+
+    .stAlert p {{ color: var(--text-primary); margin: 0; }}
+
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {{ gap: 8px; }}
+    .stTabs [data-baseweb="tab"] {{
+        border-radius: 8px;
+        padding: 0.6rem 1.2rem;
+        background: var(--secondary);
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }}
+
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {{
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+    }}
+
+    /* Links */
+    a {{ color: var(--accent); text-decoration: none; }}
+    a:hover {{ color: var(--accent-hover); text-decoration: underline; }}
+
+    /* Data Tables */
+    [data-testid="stDataFrame"] {{
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+    }}
+
+    /* Sidebar */
+    [data-testid="stSidebar"] {{ background-color: var(--primary); border-right: 1px solid var(--border); }}
+    [data-testid="stSidebar"] * {{ color: var(--text-primary); }}
+
+    /* Status colors */
+    .status-high {{ color: var(--success); font-weight: 700; }}
+    .status-medium {{ color: var(--warning); font-weight: 700; }}
+    .status-low {{ color: var(--error); font-weight: 700; }}
+
+    /* Responsive */
+    @media (max-width: 768px) {{
+        .block-container {{ padding: 1rem; }}
+        h1 {{ font-size: 1.5rem; }}
+        .nav-container {{ flex-wrap: wrap; }}
+        .nav-tab {{ flex: 1; min-width: 120px; }}
+    }}
+</style>
+""", unsafe_allow_html=True)
 
     /* Theme Variables */
     :root {{
