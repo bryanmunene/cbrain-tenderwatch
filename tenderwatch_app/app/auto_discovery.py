@@ -7,13 +7,16 @@ and feed endpoints.
 """
 
 import requests
+from requests.adapters import HTTPAdapter
 from datetime import datetime, timedelta
 from typing import List, Dict, Tuple, Optional
 import logging
 import os
+import time
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 import urllib3
+from urllib3.util.retry import Retry
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -192,6 +195,9 @@ class SearchAPIManager:
         self.serpapi_url = "https://serpapi.com/search.json"
         self.google_url = "https://www.googleapis.com/customsearch/v1"
         self.bing_url = "https://api.bing.microsoft.com/v7.0/search"
+
+        self.http_timeout = int(os.getenv("DISCOVERY_HTTP_TIMEOUT_SECONDS", "20") or 20)
+        self.session = self._make_session()
         
         # Quota tracking (reset daily)
         self.serpapi_quota_used = 0
@@ -203,6 +209,77 @@ class SearchAPIManager:
         self.SERPAPI_DAILY_LIMIT = 5000
         self.GOOGLE_DAILY_LIMIT = 100
         self.BING_DAILY_LIMIT = 33  # ~1000/month
+
+        self.provider_health = {
+            "serpapi": {
+                "last_status": "unknown",
+                "last_error": "",
+                "last_http_status": None,
+                "last_latency_ms": 0,
+                "success_count": 0,
+                "failure_count": 0,
+            },
+            "google": {
+                "last_status": "unknown",
+                "last_error": "",
+                "last_http_status": None,
+                "last_latency_ms": 0,
+                "success_count": 0,
+                "failure_count": 0,
+            },
+            "bing": {
+                "last_status": "unknown",
+                "last_error": "",
+                "last_http_status": None,
+                "last_latency_ms": 0,
+                "success_count": 0,
+                "failure_count": 0,
+            },
+        }
+
+    def _make_session(self) -> requests.Session:
+        session = requests.Session()
+        try:
+            retry = Retry(
+                total=2,
+                connect=2,
+                read=1,
+                backoff_factor=0.4,
+                status_forcelist=(429, 500, 502, 503, 504),
+                allowed_methods=frozenset(["GET", "HEAD"]),
+            )
+        except TypeError:
+            retry = Retry(
+                total=2,
+                connect=2,
+                read=1,
+                backoff_factor=0.4,
+                status_forcelist=(429, 500, 502, 503, 504),
+                method_whitelist=frozenset(["GET", "HEAD"]),
+            )
+
+        adapter = HTTPAdapter(max_retries=retry, pool_connections=8, pool_maxsize=8)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        return session
+
+    def _mark_provider_success(self, provider: str, latency_ms: int, http_status: int):
+        state = self.provider_health.get(provider, {})
+        state["last_status"] = "success"
+        state["last_error"] = ""
+        state["last_http_status"] = http_status
+        state["last_latency_ms"] = latency_ms
+        state["success_count"] = int(state.get("success_count", 0) or 0) + 1
+        self.provider_health[provider] = state
+
+    def _mark_provider_failure(self, provider: str, err: Exception, latency_ms: int, http_status: Optional[int] = None):
+        state = self.provider_health.get(provider, {})
+        state["last_status"] = "failed"
+        state["last_error"] = str(err)[:260]
+        state["last_http_status"] = http_status
+        state["last_latency_ms"] = latency_ms
+        state["failure_count"] = int(state.get("failure_count", 0) or 0) + 1
+        self.provider_health[provider] = state
     
     def _reset_quota_if_needed(self):
         """Reset quota counters if new day."""
@@ -232,11 +309,14 @@ class SearchAPIManager:
                 "num": max(1, min(num_results, 100)),
                 "api_key": self.serpapi_api_key,
             }
-            response = requests.get(self.serpapi_url, params=params, timeout=20)
+            start = time.perf_counter()
+            response = self.session.get(self.serpapi_url, params=params, timeout=self.http_timeout)
             response.raise_for_status()
+            latency_ms = int((time.perf_counter() - start) * 1000)
 
             self.serpapi_quota_used += 1
             data = response.json()
+            self._mark_provider_success("serpapi", latency_ms=latency_ms, http_status=response.status_code)
 
             results = []
             for item in data.get("organic_results", []):
@@ -258,6 +338,9 @@ class SearchAPIManager:
             )
             return results
         except requests.RequestException as e:
+            latency_ms = int((time.perf_counter() - start) * 1000) if 'start' in locals() else 0
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            self._mark_provider_failure("serpapi", e, latency_ms=latency_ms, http_status=status)
             logger.error(f"SerpAPI search error: {e}")
             return []
     
@@ -290,11 +373,14 @@ class SearchAPIManager:
                 'num': min(num_results, 10)  # Google max 10/request
             }
             
-            response = requests.get(self.google_url, params=params, timeout=15)
+            start = time.perf_counter()
+            response = self.session.get(self.google_url, params=params, timeout=min(self.http_timeout, 15))
             response.raise_for_status()
+            latency_ms = int((time.perf_counter() - start) * 1000)
             
             self.google_quota_used += 1
             data = response.json()
+            self._mark_provider_success("google", latency_ms=latency_ms, http_status=response.status_code)
             
             results = []
             for item in data.get('items', []):
@@ -309,6 +395,9 @@ class SearchAPIManager:
             return results
             
         except requests.RequestException as e:
+            latency_ms = int((time.perf_counter() - start) * 1000) if 'start' in locals() else 0
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            self._mark_provider_failure("google", e, latency_ms=latency_ms, http_status=status)
             logger.error(f"Google search API error: {e}")
             return []
     
@@ -342,11 +431,14 @@ class SearchAPIManager:
                 'textFormat': 'HTML'
             }
             
-            response = requests.get(self.bing_url, headers=headers, params=params, timeout=15)
+            start = time.perf_counter()
+            response = self.session.get(self.bing_url, headers=headers, params=params, timeout=min(self.http_timeout, 15))
             response.raise_for_status()
+            latency_ms = int((time.perf_counter() - start) * 1000)
             
             self.bing_quota_used += 1
             data = response.json()
+            self._mark_provider_success("bing", latency_ms=latency_ms, http_status=response.status_code)
             
             results = []
             for item in data.get('webPages', {}).get('value', []):
@@ -361,6 +453,9 @@ class SearchAPIManager:
             return results
             
         except requests.RequestException as e:
+            latency_ms = int((time.perf_counter() - start) * 1000) if 'start' in locals() else 0
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            self._mark_provider_failure("bing", e, latency_ms=latency_ms, http_status=status)
             logger.error(f"Bing search API error: {e}")
             return []
     
@@ -424,6 +519,7 @@ class SearchAPIManager:
                 'limit': self.BING_DAILY_LIMIT,
                 'remaining': self.BING_DAILY_LIMIT - self.bing_quota_used
             },
+            'provider_health': self.provider_health,
             'reset_date': self.quota_reset_date.isoformat()
         }
 

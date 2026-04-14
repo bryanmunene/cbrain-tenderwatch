@@ -597,6 +597,32 @@ def delete_source(sid):
     flash(f"Deleted source {s.name}.", "success")
     return redirect(url_for("main.sources"))
 
+
+@main.route("/api/discovery/health")
+def discovery_health_api():
+    """Return discovery/provider readiness and source reliability summary."""
+    source_health_rows = SourceHealth.query.all()
+    total_sources = len(source_health_rows)
+    failed_last_scan = sum(1 for r in source_health_rows if (r.last_status or "") == "failed")
+    successful_last_scan = sum(1 for r in source_health_rows if (r.last_status or "") in {"success", "success_empty"})
+    success_rate = (successful_last_scan / total_sources * 100.0) if total_sources else 0.0
+
+    return jsonify(
+        {
+            "providers": {
+                "serpapi_configured": bool((os.getenv("SERPAPI_API_KEY", "") or "").strip()),
+                "google_configured": bool((os.getenv("GOOGLE_API_KEY", "") or "").strip() and (os.getenv("GOOGLE_CX", "") or "").strip()),
+                "bing_configured": bool((os.getenv("BING_API_KEY", "") or "").strip()),
+            },
+            "source_reliability": {
+                "tracked_sources": total_sources,
+                "failed_last_scan": failed_last_scan,
+                "successful_last_scan": successful_last_scan,
+                "success_rate": round(success_rate, 1),
+            },
+        }
+    )
+
 @main.route("/api/sources/delete-multiple", methods=["POST"])
 def delete_multiple_sources():
     """Delete multiple sources via API"""
@@ -983,9 +1009,6 @@ def settings():
         settings.include_global_in_default_shortlist = _parse_bool(request.form.get("include_global_in_default_shortlist"))
         settings.secondary_review_queue_threshold = secondary_review_queue_threshold
 
-        if request.form.get("smtp_password", "").strip():
-            flash("SMTP password is no longer stored in the database. Set SMTP_PASSWORD in environment variables.", "warning")
-        
         db.session.commit()
         
         # Restart scheduler with new settings
@@ -1008,6 +1031,7 @@ def settings():
         "serpapi_configured": bool((os.getenv("SERPAPI_API_KEY", "") or "").strip()),
         "google_configured": bool((os.getenv("GOOGLE_API_KEY", "") or "").strip() and (os.getenv("GOOGLE_CX", "") or "").strip()),
         "bing_configured": bool((os.getenv("BING_API_KEY", "") or "").strip()),
+        "smtp_password_configured": bool((os.getenv("SMTP_PASSWORD", "") or "").strip()),
     }
     latest_discovery_logs = (
         DiscoveryLog.query
@@ -1021,6 +1045,11 @@ def settings():
         .limit(50)
         .all()
     )
+
+    source_health_total = len(source_health_rows)
+    source_health_failed = sum(1 for r in source_health_rows if (r.last_status or "") == "failed")
+    source_health_success = sum(1 for r in source_health_rows if (r.last_status or "") in {"success", "success_empty"})
+    source_health_success_rate = (source_health_success / source_health_total * 100.0) if source_health_total else 0.0
     
     return render_template(
         "settings.html",
@@ -1030,6 +1059,10 @@ def settings():
         discovery_health=discovery_health,
         latest_discovery_logs=latest_discovery_logs,
         source_health_rows=source_health_rows,
+        source_health_total=source_health_total,
+        source_health_failed=source_health_failed,
+        source_health_success=source_health_success,
+        source_health_success_rate=source_health_success_rate,
     )
 
 

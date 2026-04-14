@@ -201,9 +201,9 @@
                     <input class="form-control" type="email" id="smtp_username" name="smtp_username" value="{{ settings.smtp_username }}" placeholder="your.email@example.com">
                 </div>
                 <div class="field">
-                    <label for="smtp_password">SMTP password</label>
-                    <input class="form-control" type="password" id="smtp_password" name="smtp_password" placeholder="Managed via SMTP_PASSWORD environment variable">
-                    <div class="helper-text">Password values are no longer persisted in the database.</div>
+                    <label>SMTP password source</label>
+                    <input class="form-control" type="text" value="Environment variable SMTP_PASSWORD" readonly>
+                    <div class="helper-text">Set SMTP_PASSWORD in deployment environment. No SMTP password is stored in the database.</div>
                 </div>
             </div>
         </section>
@@ -257,6 +257,10 @@
                     <small class="metric-label" style="margin-bottom: 0;">Bing</small>
                     <p style="margin: 10px 0 0;">{{ "Configured" if discovery_health.bing_configured else "Missing BING_API_KEY" }}</p>
                 </div>
+                <div class="detail-block">
+                    <small class="metric-label" style="margin-bottom: 0;">SMTP Password</small>
+                    <p style="margin: 10px 0 0;">{{ "Configured" if discovery_health.smtp_password_configured else "Missing SMTP_PASSWORD" }}</p>
+                </div>
             </div>
             {% if latest_discovery_logs %}
                 <div class="detail-list" style="margin-top: 16px;">
@@ -277,6 +281,24 @@
             <div class="section-header">
                 <h2 class="section-title">Source Reliability</h2>
                 <span class="section-note">Last scan outcomes per source</span>
+            </div>
+            <div class="summary-strip" style="margin-bottom: 16px;">
+                <div class="summary-item">
+                    <small>Tracked sources</small>
+                    <strong>{{ source_health_total or 0 }}</strong>
+                </div>
+                <div class="summary-item">
+                    <small>Successful last scan</small>
+                    <strong>{{ source_health_success or 0 }}</strong>
+                </div>
+                <div class="summary-item">
+                    <small>Failed last scan</small>
+                    <strong>{{ source_health_failed or 0 }}</strong>
+                </div>
+                <div class="summary-item">
+                    <small>Success rate</small>
+                    <strong>{{ "%.1f"|format(source_health_success_rate or 0) }}%</strong>
+                </div>
             </div>
             {% if source_health_rows %}
                 <div class="detail-list">

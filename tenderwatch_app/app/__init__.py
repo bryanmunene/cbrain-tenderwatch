@@ -165,6 +165,10 @@ def _initialize_database(app):
                 settings.donor_multilateral_boost = float(settings.donor_multilateral_boost or 8.0)
                 settings.secondary_review_queue_threshold = float(settings.secondary_review_queue_threshold or 16.0)
                 settings.retention_days = int(settings.retention_days or 90)
+                # Secret deprecation: do not persist secrets in database anymore.
+                settings.google_api_key = ""
+                settings.bing_api_key = ""
+                settings.smtp_password = ""
                 if settings.global_relevance_threshold == 60.0 and settings.secondary_review_queue_threshold == 45.0:
                     settings.global_relevance_threshold = 28.0
                     settings.secondary_review_queue_threshold = 16.0
