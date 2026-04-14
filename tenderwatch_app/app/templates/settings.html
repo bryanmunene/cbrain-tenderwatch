@@ -45,6 +45,11 @@
                     <input class="form-control" type="number" id="scan_interval_minutes" name="scan_interval_minutes" min="5" max="1440" value="{{ settings.scan_interval_minutes }}" required>
                     <div class="helper-text">Valid range: 5 to 1440 minutes.</div>
                 </div>
+                <div class="field">
+                    <label for="retention_days">Retention window (days)</label>
+                    <input class="form-control" type="number" id="retention_days" name="retention_days" min="7" max="365" value="{{ settings.retention_days or 90 }}" required>
+                    <div class="helper-text">Tenders older than this are cleaned up during scan maintenance.</div>
+                </div>
             </div>
 
             <div class="summary-strip" style="margin-top: 18px;">
@@ -197,7 +202,8 @@
                 </div>
                 <div class="field">
                     <label for="smtp_password">SMTP password</label>
-                    <input class="form-control" type="password" id="smtp_password" name="smtp_password" placeholder="Leave blank to keep the current password">
+                    <input class="form-control" type="password" id="smtp_password" name="smtp_password" placeholder="Managed via SMTP_PASSWORD environment variable">
+                    <div class="helper-text">Password values are no longer persisted in the database.</div>
                 </div>
             </div>
         </section>
@@ -231,6 +237,66 @@
                     <p style="margin: 10px 0 0;">{{ "%.1f"|format(settings.min_score_to_notify or 0) }}%</p>
                 </div>
             </div>
+        </section>
+
+        <section class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">Discovery Providers</h2>
+                <span class="section-note">Environment-based credential health</span>
+            </div>
+            <div class="detail-list">
+                <div class="detail-block">
+                    <small class="metric-label" style="margin-bottom: 0;">SerpAPI</small>
+                    <p style="margin: 10px 0 0;">{{ "Configured" if discovery_health.serpapi_configured else "Missing SERPAPI_API_KEY" }}</p>
+                </div>
+                <div class="detail-block">
+                    <small class="metric-label" style="margin-bottom: 0;">Google CSE</small>
+                    <p style="margin: 10px 0 0;">{{ "Configured" if discovery_health.google_configured else "Missing GOOGLE_API_KEY or GOOGLE_CX" }}</p>
+                </div>
+                <div class="detail-block">
+                    <small class="metric-label" style="margin-bottom: 0;">Bing</small>
+                    <p style="margin: 10px 0 0;">{{ "Configured" if discovery_health.bing_configured else "Missing BING_API_KEY" }}</p>
+                </div>
+            </div>
+            {% if latest_discovery_logs %}
+                <div class="detail-list" style="margin-top: 16px;">
+                    {% for log in latest_discovery_logs %}
+                        <div class="detail-block">
+                            <small class="metric-label" style="margin-bottom: 0;">{{ log.created_at.strftime('%Y-%m-%d %H:%M') if log.created_at else 'Unknown time' }}</small>
+                            <p style="margin: 10px 0 0;">Queries {{ log.queries_run or 0 }}, found {{ log.results_found or 0 }}, saved {{ log.results_saved or 0 }}</p>
+                            {% if log.error_message %}
+                                <p class="muted" style="margin: 8px 0 0;">{{ log.error_message[:140] }}{% if log.error_message|length > 140 %}...{% endif %}</p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="section-card">
+            <div class="section-header">
+                <h2 class="section-title">Source Reliability</h2>
+                <span class="section-note">Last scan outcomes per source</span>
+            </div>
+            {% if source_health_rows %}
+                <div class="detail-list">
+                    {% for row in source_health_rows[:20] %}
+                        <div class="detail-block">
+                            <small class="metric-label" style="margin-bottom: 0;">{{ row.source_name or 'Unknown source' }}</small>
+                            <p style="margin: 10px 0 0;">
+                                Status: {{ row.last_status }}
+                                | Candidates: {{ row.last_candidates or 0 }}
+                                | Duration: {{ "%.1f"|format(row.last_duration_seconds or 0) }}s
+                            </p>
+                            {% if row.last_error %}
+                                <p class="muted" style="margin: 8px 0 0;">{{ row.last_error[:140] }}{% if row.last_error|length > 140 %}...{% endif %}</p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="muted" style="margin-top: 0;">No source health data yet. Run a scan to populate diagnostics.</p>
+            {% endif %}
         </section>
 
         <section class="section-card">

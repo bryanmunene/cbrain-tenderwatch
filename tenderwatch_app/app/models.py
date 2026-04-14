@@ -94,6 +94,7 @@ class AppSettings(db.Model):
     # Scheduler settings
     auto_scan_enabled = db.Column(db.Boolean, default=False)
     scan_interval_minutes = db.Column(db.Integer, default=60)
+    retention_days = db.Column(db.Integer, default=90)
     
     # Auto-discovery settings
     auto_discovery_enabled = db.Column(db.Boolean, default=False)
@@ -159,6 +160,23 @@ class DiscoveryLog(db.Model):
     execution_time_seconds = db.Column(db.Float, default=0.0)
     error_message = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class SourceHealth(db.Model):
+    """Track per-source scan outcomes for reliability diagnostics."""
+    id = db.Column(db.Integer, primary_key=True)
+    source_id = db.Column(db.Integer, db.ForeignKey("tender_source.id"), nullable=True, unique=True)
+    source = db.relationship("TenderSource")
+    source_name = db.Column(db.String(200), default="")
+    source_url = db.Column(db.String(500), default="")
+    last_status = db.Column(db.String(30), default="unknown")  # success, success_empty, failed
+    last_error = db.Column(db.Text, default="")
+    last_candidates = db.Column(db.Integer, default=0)
+    last_duration_seconds = db.Column(db.Float, default=0.0)
+    last_scan_at = db.Column(db.DateTime, default=datetime.utcnow)
+    total_success = db.Column(db.Integer, default=0)
+    total_failure = db.Column(db.Integer, default=0)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class FeedbackEvent(db.Model):

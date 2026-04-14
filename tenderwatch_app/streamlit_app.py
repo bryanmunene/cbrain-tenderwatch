@@ -6,6 +6,7 @@ Simple, focused, and modern UI for cBrain F2 tender monitoring.
 from __future__ import annotations
 
 import json
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -15,7 +16,7 @@ from sqlalchemy import func
 
 from app import create_app  # type: ignore[attr-defined]
 from app.extensions import db  # type: ignore[attr-defined]
-from app.models import AppSettings, TenderResult, TenderSource  # type: ignore[attr-defined]
+from app.models import AppSettings, SourceHealth, TenderResult, TenderSource  # type: ignore[attr-defined]
 from app.scraper import run_scan
 
 try:
@@ -560,6 +561,15 @@ def get_sources() -> list[TenderSource]:
         return TenderSource.query.order_by(TenderSource.active.desc(), TenderSource.name.asc()).all()
 
 
+def get_source_health_snapshot(limit: int = 8) -> list[SourceHealth]:
+    with app.app_context():
+        return (
+            SourceHealth.query.order_by(SourceHealth.last_scan_at.desc())
+            .limit(max(1, int(limit)))
+            .all()
+        )
+
+
 def add_source(name: str, url: str, group: str = "africa_priority") -> tuple[bool, str]:
     name = (name or "").strip()
     url = (url or "").strip()
@@ -926,6 +936,17 @@ elif page == "Scan & Results":
             unsafe_allow_html=True,
         )
 
+        st.markdown("##### Source Reliability")
+        health_rows = get_source_health_snapshot(limit=6)
+        if not health_rows:
+            st.caption("No source health data yet. Run a scan to populate this view.")
+        else:
+            for row in health_rows:
+                status = (row.last_status or "unknown").upper()
+                candidates = int(row.last_candidates or 0)
+                duration = float(row.last_duration_seconds or 0)
+                st.caption(f"{row.source_name or 'Unknown'} | {status} | {candidates} candidates | {duration:.1f}s")
+
     status_map = {
         "Active pipeline": "Open",
         "All statuses": "All",
@@ -1141,9 +1162,14 @@ elif page == "Settings":
             )
             auto_discovery_enabled = st.checkbox("Enable Auto Discovery", value=bool(settings.auto_discovery_enabled))
         with a2:
-            bing_api_key = st.text_input("SerpAPI/Bing API Key", value=settings.bing_api_key or "", type="password")
-            google_api_key = st.text_input("Google API Key", value=settings.google_api_key or "", type="password")
-            google_cx = st.text_input("Google CX", value=settings.google_cx or "")
+            serpapi_ready = bool((os.getenv("SERPAPI_API_KEY", "") or "").strip())
+            google_ready = bool((os.getenv("GOOGLE_API_KEY", "") or "").strip() and (os.getenv("GOOGLE_CX", "") or "").strip())
+            bing_ready = bool((os.getenv("BING_API_KEY", "") or "").strip())
+            st.markdown("**Discovery Provider Health**")
+            st.caption(f"SerpAPI: {'Configured' if serpapi_ready else 'Missing SERPAPI_API_KEY'}")
+            st.caption(f"Google CSE: {'Configured' if google_ready else 'Missing GOOGLE_API_KEY or GOOGLE_CX'}")
+            st.caption(f"Bing: {'Configured' if bing_ready else 'Missing BING_API_KEY'}")
+            st.info("API keys are now read from environment variables and are not saved in the database.")
 
         discovery_queries_text = st.text_area(
             "Discovery Queries (one per line)",
@@ -1162,9 +1188,6 @@ elif page == "Settings":
                     s.africa_only_mode = bool(africa_only_mode)
                     s.results_per_query = int(results_per_query)
                     s.auto_discovery_enabled = bool(auto_discovery_enabled)
-                    s.bing_api_key = bing_api_key.strip()
-                    s.google_api_key = google_api_key.strip()
-                    s.google_cx = google_cx.strip()
                     s.discovery_queries = json.dumps(queries)
                     db.session.commit()
                 st.success("Advanced settings saved.")

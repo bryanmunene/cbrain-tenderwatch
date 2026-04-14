@@ -27,7 +27,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.auto_discovery import init_discovery, get_discovery_engine
-from app.models import AppSettings, TenderSource, TenderResult
+from app.models import AppSettings, TenderSource, TenderResult, SourceHealth
 from app.scoring import score_tender
 from app.source_bias import COUNTRY_MAP
 from app.keywords import ALL_KEYWORDS
@@ -1144,28 +1144,32 @@ def scan_source(
     return out
 
 
-def cleanup_old_tenders():
-    """Remove tenders older than 1 month"""
-    one_month_ago = _utcnow() - timedelta(days=30)
+def cleanup_old_tenders(retention_days: int = 90):
+    """Remove tenders older than the configured retention window."""
+    try:
+        retention_days = max(7, int(retention_days or 90))
+    except Exception:
+        retention_days = 90
+    cutoff = _utcnow() - timedelta(days=retention_days)
     try:
         # Single SQL DELETE (much faster than loading rows into Python)
         count = (
-            TenderResult.query.filter(TenderResult.created_at < one_month_ago)
+            TenderResult.query.filter(TenderResult.created_at < cutoff)
             .delete(synchronize_session=False)
         )
         if count:
             db.session.commit()
-            print(f"  Removed {count} tender(s) older than 1 month")
+            print(f"  Removed {count} tender(s) older than {retention_days} days")
     except Exception:
         # Fallback to safe row-by-row delete if the backend doesn't support this well
         db.session.rollback()
-        old_tenders = TenderResult.query.filter(TenderResult.created_at < one_month_ago).all()
+        old_tenders = TenderResult.query.filter(TenderResult.created_at < cutoff).all()
         if old_tenders:
             count = len(old_tenders)
             for tender in old_tenders:
                 db.session.delete(tender)
             db.session.commit()
-            print(f"  Removed {count} tender(s) older than 1 month")
+            print(f"  Removed {count} tender(s) older than {retention_days} days")
 
 
 def _discover_rows(
@@ -1187,11 +1191,9 @@ def _discover_rows(
         geo_settings = settings_from_model(settings)
 
         auto_enabled = bool(getattr(settings, "auto_discovery_enabled", False))
-        google_api_key = (getattr(settings, "google_api_key", "") or "").strip()
-        google_cx = (getattr(settings, "google_cx", "") or "").strip()
-        # We store SerpAPI key in settings.bing_api_key for backward compatibility
-        # with existing DB schema/settings forms.
-        serpapi_api_key = (getattr(settings, "bing_api_key", "") or "").strip() or (os.getenv("SERPAPI_API_KEY", "") or "").strip()
+        google_api_key = (os.getenv("GOOGLE_API_KEY", "") or "").strip()
+        google_cx = (os.getenv("GOOGLE_CX", "") or "").strip()
+        serpapi_api_key = (os.getenv("SERPAPI_API_KEY", "") or "").strip()
         bing_api_key = (os.getenv("BING_API_KEY", "") or "").strip()
 
         # Require explicit enable. Credentials are optional (no-key crawling fallback is supported).
@@ -1465,11 +1467,12 @@ def run_scan(
 
     # --- Phase 1: DB housekeeping + snapshot sources/links (app context) ---
     with flask_app.app_context():
-        cleanup_old_tenders()
+        app_settings = AppSettings.query.first()
+        retention_days = int(getattr(app_settings, "retention_days", 90) or 90) if app_settings else 90
+        cleanup_old_tenders(retention_days=retention_days)
         cleanup_irrelevant_tenders()
 
         sources = TenderSource.query.filter_by(active=True).all()
-        app_settings = AppSettings.query.first()
         geo_settings = settings_from_model(app_settings)
 
         for source in sources:
@@ -1562,9 +1565,11 @@ def run_scan(
     print(f"\n FAST PARALLEL scan: {len(sources_info)} sources with {workers} workers...")
 
     candidate_rows: List[Dict] = []
+    source_health_updates: List[Dict] = []
 
     executor = ThreadPoolExecutor(max_workers=workers)
     try:
+        submitted_at: Dict[int, float] = {}
         future_to_source = {
             executor.submit(
                 scan_source,
@@ -1576,6 +1581,8 @@ def run_scan(
                 geo_settings,
             ): src for src in sources_info
         }
+        for src in sources_info:
+            submitted_at[src.id] = time.time()
 
         completed = 0
         try:
@@ -1584,12 +1591,37 @@ def run_scan(
                 completed += 1
                 try:
                     rows = future.result() or []
+                    duration = max(0.0, time.time() - submitted_at.get(src.id, time.time()))
+                    status = "success" if rows else "success_empty"
+                    source_health_updates.append(
+                        {
+                            "source_id": src.id,
+                            "source_name": src.name,
+                            "source_url": src.url,
+                            "status": status,
+                            "error": "",
+                            "candidates": len(rows),
+                            "duration": duration,
+                        }
+                    )
                     if rows:
                         candidate_rows.extend(rows)
                         print(f" [{completed}/{len(sources_info)}] {src.name}: {len(rows)} candidates")
                     else:
                         print(f" [{completed}/{len(sources_info)}] {src.name}: 0")
                 except Exception as e:
+                    duration = max(0.0, time.time() - submitted_at.get(src.id, time.time()))
+                    source_health_updates.append(
+                        {
+                            "source_id": src.id,
+                            "source_name": src.name,
+                            "source_url": src.url,
+                            "status": "failed",
+                            "error": str(e)[:300],
+                            "candidates": 0,
+                            "duration": duration,
+                        }
+                    )
                     print(f" [{completed}/{len(sources_info)}] {src.name}: {str(e)[:60]}")
         except Exception:
             # Timeout reached - return completed results immediately.
@@ -1600,6 +1632,27 @@ def run_scan(
     finally:
         # Critical: do not wait for hung workers after timeout.
         executor.shutdown(wait=False, cancel_futures=True)
+
+    if source_health_updates:
+        with flask_app.app_context():
+            now = _utcnow().replace(tzinfo=None)
+            for row in source_health_updates:
+                health = SourceHealth.query.filter_by(source_id=row["source_id"]).first()
+                if not health:
+                    health = SourceHealth(source_id=row["source_id"])  # type: ignore[call-arg]
+                    db.session.add(health)
+                health.source_name = row["source_name"]
+                health.source_url = row["source_url"]
+                health.last_status = row["status"]
+                health.last_error = row["error"]
+                health.last_candidates = int(row["candidates"])
+                health.last_duration_seconds = float(row["duration"])
+                health.last_scan_at = now
+                if row["status"] == "failed":
+                    health.total_failure = int(health.total_failure or 0) + 1
+                else:
+                    health.total_success = int(health.total_success or 0) + 1
+            db.session.commit()
 
     # --- Phase 2b: Optional auto-discovery (web-wide via APIs) ---
     # Run with a hard timeout so slow API/no-key crawling does not block scans.

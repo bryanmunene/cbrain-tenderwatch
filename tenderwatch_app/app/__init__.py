@@ -105,6 +105,8 @@ def _initialize_database(app):
                 ai_migrations.append("ALTER TABLE app_settings ADD COLUMN include_global_in_default_shortlist BOOLEAN DEFAULT 0")
             if "secondary_review_queue_threshold" not in settings_columns:
                 ai_migrations.append("ALTER TABLE app_settings ADD COLUMN secondary_review_queue_threshold FLOAT DEFAULT 16.0")
+            if "retention_days" not in settings_columns:
+                ai_migrations.append("ALTER TABLE app_settings ADD COLUMN retention_days INTEGER DEFAULT 90")
 
             for migration_sql in ai_migrations:
                 db.session.execute(text(migration_sql))
@@ -146,6 +148,7 @@ def _initialize_database(app):
                 settings.google_api_key = ""
                 settings.google_cx = ""
                 settings.bing_api_key = ""
+                settings.retention_days = 90
                 settings.africa_priority_weight = 12.0
                 settings.global_relevance_threshold = 28.0
                 settings.donor_multilateral_boost = 8.0
@@ -161,6 +164,7 @@ def _initialize_database(app):
                 settings.global_relevance_threshold = float(settings.global_relevance_threshold or 28.0)
                 settings.donor_multilateral_boost = float(settings.donor_multilateral_boost or 8.0)
                 settings.secondary_review_queue_threshold = float(settings.secondary_review_queue_threshold or 16.0)
+                settings.retention_days = int(settings.retention_days or 90)
                 if settings.global_relevance_threshold == 60.0 and settings.secondary_review_queue_threshold == 45.0:
                     settings.global_relevance_threshold = 28.0
                     settings.secondary_review_queue_threshold = 16.0

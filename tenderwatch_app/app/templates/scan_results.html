@@ -14,7 +14,7 @@
             {% if collection_view %}
                 {{ results|length }} saved or favorited items ready for follow-up.
             {% else %}
-                {{ results|length }} result{% if results|length != 1 %}s{% endif %} in the {{ shortlist_mode|title }} shortlist
+                {{ total_count if total_count is defined else results|length }} result{% if (total_count if total_count is defined else results|length) != 1 %}s{% endif %} in the {{ shortlist_mode|title }} shortlist
                 {% if secondary_review_count %}
                     with {{ secondary_review_count }} item{% if secondary_review_count != 1 %}s{% endif %} in secondary review.
                 {% else %}
@@ -86,6 +86,14 @@
                         <select class="form-select" id="recent_days" name="recent_days">
                             {% for days in recent_window_options %}
                                 <option value="{{ days }}" {% if recent_days == days %}selected{% endif %}>Last {{ days }} days</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="per_page">Rows per page</label>
+                        <select class="form-select" id="per_page" name="per_page">
+                            {% for size in (per_page_options or [25, 50, 100]) %}
+                                <option value="{{ size }}" {% if per_page == size %}selected{% endif %}>{{ size }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -287,6 +295,52 @@
             </article>
         {% endfor %}
     </section>
+
+    {% if total_pages is defined and total_pages > 1 %}
+        <div class="action-row" style="margin-top: 18px; justify-content: space-between; align-items: center;">
+            <div class="muted">Page {{ page }} of {{ total_pages }}</div>
+            <div class="compact-list" style="gap: 10px;">
+                {% if has_prev %}
+                    <a class="btn btn-outline-secondary" href="{{ url_for('main.scan',
+                        sort=sort_by,
+                        category=category,
+                        min_score=min_score,
+                        search=search,
+                        recent_days=recent_days,
+                        shortlist_mode=shortlist_mode,
+                        geographic_scope=geographic_scope,
+                        africa_priority_flag=africa_priority_flag,
+                        donor_or_multilateral_flag=donor_or_multilateral_flag,
+                        implementation_region=implementation_region,
+                        buyer_region=buyer_region,
+                        recommendation=recommendation_filter,
+                        queue_bucket=queue_bucket,
+                        per_page=per_page,
+                        page=page-1
+                    ) }}">Previous</a>
+                {% endif %}
+                {% if has_next %}
+                    <a class="btn btn-outline-secondary" href="{{ url_for('main.scan',
+                        sort=sort_by,
+                        category=category,
+                        min_score=min_score,
+                        search=search,
+                        recent_days=recent_days,
+                        shortlist_mode=shortlist_mode,
+                        geographic_scope=geographic_scope,
+                        africa_priority_flag=africa_priority_flag,
+                        donor_or_multilateral_flag=donor_or_multilateral_flag,
+                        implementation_region=implementation_region,
+                        buyer_region=buyer_region,
+                        recommendation=recommendation_filter,
+                        queue_bucket=queue_bucket,
+                        per_page=per_page,
+                        page=page+1
+                    ) }}">Next</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
 {% else %}
     <section class="empty-state" style="margin-top: 18px;">
         <i class="fa-solid fa-magnifying-glass"></i>

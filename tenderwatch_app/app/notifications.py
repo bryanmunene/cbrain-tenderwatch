@@ -45,9 +45,9 @@ def send_email_notification(settings, tenders):
         logger.warning("Email settings not configured")
         return False
 
-    smtp_password = os.getenv("SMTP_PASSWORD") or settings.smtp_password
+    smtp_password = os.getenv("SMTP_PASSWORD", "")
     if not smtp_password:
-        logger.warning("SMTP password is not configured")
+        logger.warning("SMTP_PASSWORD is not configured")
         return False
 
     try:

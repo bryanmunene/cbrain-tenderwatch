@@ -1,17 +1,18 @@
 import csv
 import json
+import os
 from datetime import datetime, timedelta
 from io import StringIO
 from urllib.parse import urljoin, urlparse
 
 from flask import Blueprint, current_app, flash, jsonify, make_response, redirect, render_template, request, url_for
-from sqlalchemy import or_
+from sqlalchemy import and_, case, or_
 
 from app.extensions import db
-from app.models import TenderSource, TenderResult, AppSettings
+from app.models import TenderSource, TenderResult, AppSettings, DiscoveryLog, SourceHealth
 from app.scraper import run_scan
 from app.translator import translate_to_english, detect_language
-from app.geography import shortlist_mode_match, tender_sort_key
+from app.geography import tender_sort_key
 
 
 main = Blueprint("main", __name__)
@@ -25,6 +26,7 @@ SOURCE_GROUP_OPTIONS = [
     "aggregator",
     "experimental",
 ]
+PER_PAGE_OPTIONS = [25, 50, 100]
 
 
 def _get_settings() -> AppSettings:
@@ -69,8 +71,8 @@ def _apply_scan_filters(query, recent_days, category, min_score, search):
     if category:
         query = query.filter_by(category=category)
 
-    # STRICT FILTERING: minimum score threshold (20% for any result)
-    min_score_threshold = max(20, min_score) if min_score > 0 else 20
+    # Respect user-provided threshold directly (0-100).
+    min_score_threshold = max(0, float(min_score or 0))
     query = query.filter(TenderResult.score >= min_score_threshold)
 
     if search:
@@ -100,7 +102,16 @@ def _deduplicate_results(results):
     return deduped
 
 
-def _filtered_tenders_from_request(base_query, settings: AppSettings):
+def _deadline_sort_expr():
+    """Sort deadline safely when deadline is stored as string/empty value."""
+    return case(
+        (TenderResult.deadline.is_(None), "9999-12-31"),
+        (TenderResult.deadline == "", "9999-12-31"),
+        else_=TenderResult.deadline,
+    )
+
+
+def _filtered_tenders_from_request(base_query, settings: AppSettings, paginate: bool = True):
     sort_by = request.args.get("sort", "recommended")
     category = request.args.get("category", "")
     min_score = request.args.get("min_score", "0")
@@ -117,11 +128,25 @@ def _filtered_tenders_from_request(base_query, settings: AppSettings):
     buyer_region = request.args.get("buyer_region", "").strip()
     recommendation_filter = request.args.get("recommendation", "shortlist").strip().upper()
     queue_bucket = request.args.get("queue_bucket", "").strip()
+    page = request.args.get("page", "1")
+    per_page = request.args.get("per_page", "25")
 
     try:
         min_score = float(min_score)
     except (ValueError, TypeError):
         min_score = 0.0
+
+    try:
+        page = max(1, int(page))
+    except (TypeError, ValueError):
+        page = 1
+
+    try:
+        per_page = int(per_page)
+    except (TypeError, ValueError):
+        per_page = 25
+    if per_page not in PER_PAGE_OPTIONS:
+        per_page = 25
 
     query = _apply_scan_filters(base_query, recent_days, category, min_score, search)
 
@@ -152,30 +177,57 @@ def _filtered_tenders_from_request(base_query, settings: AppSettings):
         query = query.filter(TenderResult.africa_priority_flag.is_(True))
         shortlist_mode = "africa"
 
-    results = query.all()
-    results = [t for t in results if shortlist_mode_match(t, shortlist_mode)]
-    
-    # DEDUPLICATE: Remove duplicate tenders (same link)
-    results = _deduplicate_results(results)
-
-    if sort_by == "fit_score":
-        results = sorted(results, key=lambda x: x.score or 0, reverse=True)
-    elif sort_by == "deadline":
-        results = sorted(results, key=lambda x: x.deadline or "9999-12-31")
-    elif sort_by == "newest":
-        results = sorted(results, key=lambda x: x.created_at or datetime.min, reverse=True)
-    elif sort_by == "ranking":
-        results = sorted(results, key=lambda x: x.ranking_score or 0, reverse=True)
-    else:
-        # DEFAULT: Sort by relevance (score + deadline proximity)
-        results = sorted(
-            results,
-            key=lambda x: (
-                x.score or 0,
-                -(x.deadline <= datetime.utcnow().date() if x.deadline else 1)
-            ),
-            reverse=True,
+    if shortlist_mode == "africa":
+        query = query.filter(
+            or_(
+                TenderResult.africa_priority_flag.is_(True),
+                TenderResult.geographic_scope == "africa",
+            )
         )
+    elif shortlist_mode == "global":
+        query = query.filter(
+            or_(
+                TenderResult.geographic_scope.in_(["global", "other region"]),
+                and_(
+                    TenderResult.geographic_scope == "unknown",
+                    TenderResult.africa_priority_flag.is_(False),
+                ),
+            )
+        )
+
+    deadline_expr = _deadline_sort_expr()
+    recommendation_priority_expr = case(
+        (TenderResult.recommendation == "GO", 0),
+        (TenderResult.recommendation == "REVIEW", 1),
+        (TenderResult.recommendation == "NO-GO", 2),
+        else_=3,
+    )
+    if sort_by == "fit_score":
+        query = query.order_by(TenderResult.score.desc(), TenderResult.created_at.desc())
+    elif sort_by == "deadline":
+        query = query.order_by(deadline_expr.asc(), TenderResult.score.desc())
+    elif sort_by == "newest":
+        query = query.order_by(TenderResult.created_at.desc())
+    elif sort_by == "ranking":
+        query = query.order_by(TenderResult.ranking_score.desc(), TenderResult.score.desc())
+    else:
+        query = query.order_by(
+            recommendation_priority_expr.asc(),
+            TenderResult.score.desc(),
+            TenderResult.africa_priority_flag.desc(),
+            TenderResult.donor_or_multilateral_flag.desc(),
+            deadline_expr.asc(),
+            TenderResult.created_at.desc(),
+        )
+
+    total_count = query.count()
+    if paginate:
+        offset = (page - 1) * per_page
+        results = query.offset(offset).limit(per_page).all()
+    else:
+        results = query.limit(5000).all()
+
+    total_pages = max(1, (total_count + per_page - 1) // per_page) if paginate else 1
 
     return {
         "results": results,
@@ -192,6 +244,13 @@ def _filtered_tenders_from_request(base_query, settings: AppSettings):
         "buyer_region": buyer_region,
         "recommendation_filter": recommendation_filter,
         "queue_bucket": queue_bucket,
+        "page": page,
+        "per_page": per_page,
+        "per_page_options": PER_PAGE_OPTIONS,
+        "total_count": total_count,
+        "total_pages": total_pages,
+        "has_prev": page > 1,
+        "has_next": page < total_pages,
     }
 
 
@@ -461,6 +520,13 @@ def scan():
         settings=settings,
         shortlist_modes=SHORTLIST_MODES,
         secondary_review_count=secondary_review_count,
+        page=filter_state["page"],
+        per_page=filter_state["per_page"],
+        per_page_options=filter_state["per_page_options"],
+        total_count=filter_state["total_count"],
+        total_pages=filter_state["total_pages"],
+        has_prev=filter_state["has_prev"],
+        has_next=filter_state["has_next"],
     )
 
 
@@ -884,6 +950,14 @@ def settings():
             min_value=0.0,
             max_value=100.0,
         )
+        retention_days = _parse_int_field(
+            request.form.get("retention_days"),
+            default=90,
+            label="Retention window",
+            errors=errors,
+            min_value=7,
+            max_value=365,
+        )
 
         if errors:
             for error in errors:
@@ -900,6 +974,7 @@ def settings():
         settings.smtp_server = request.form.get("smtp_server", "smtp.gmail.com").strip() or "smtp.gmail.com"
         settings.smtp_port = smtp_port
         settings.smtp_username = request.form.get("smtp_username", "").strip()
+        settings.retention_days = retention_days
         settings.africa_priority_weight = africa_priority_weight
         settings.global_relevance_threshold = global_relevance_threshold
         settings.donor_multilateral_boost = donor_multilateral_boost
@@ -908,10 +983,8 @@ def settings():
         settings.include_global_in_default_shortlist = _parse_bool(request.form.get("include_global_in_default_shortlist"))
         settings.secondary_review_queue_threshold = secondary_review_queue_threshold
 
-        # Only update password if provided
-        smtp_password = request.form.get("smtp_password", "").strip()
-        if smtp_password:
-            settings.smtp_password = smtp_password
+        if request.form.get("smtp_password", "").strip():
+            flash("SMTP password is no longer stored in the database. Set SMTP_PASSWORD in environment variables.", "warning")
         
         db.session.commit()
         
@@ -930,12 +1003,33 @@ def settings():
     
     from app.scheduler import get_scheduler_status
     scheduler_status = get_scheduler_status()
+
+    discovery_health = {
+        "serpapi_configured": bool((os.getenv("SERPAPI_API_KEY", "") or "").strip()),
+        "google_configured": bool((os.getenv("GOOGLE_API_KEY", "") or "").strip() and (os.getenv("GOOGLE_CX", "") or "").strip()),
+        "bing_configured": bool((os.getenv("BING_API_KEY", "") or "").strip()),
+    }
+    latest_discovery_logs = (
+        DiscoveryLog.query
+        .order_by(DiscoveryLog.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    source_health_rows = (
+        SourceHealth.query
+        .order_by(SourceHealth.last_scan_at.desc())
+        .limit(50)
+        .all()
+    )
     
     return render_template(
         "settings.html",
         settings=settings,
         scheduler_status=scheduler_status,
         internal_scheduler_enabled=bool(current_app.config.get("ENABLE_INTERNAL_SCHEDULER")),
+        discovery_health=discovery_health,
+        latest_discovery_logs=latest_discovery_logs,
+        source_health_rows=source_health_rows,
     )
 
 
@@ -1006,7 +1100,7 @@ def ml_score_tender(rid):
 def export_csv():
     """Export tenders to CSV file"""
     settings = _get_settings()
-    filter_state = _filtered_tenders_from_request(TenderResult.query, settings)
+    filter_state = _filtered_tenders_from_request(TenderResult.query, settings, paginate=False)
     results = filter_state["results"]
 
     si = StringIO()
