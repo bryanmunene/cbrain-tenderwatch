@@ -150,6 +150,54 @@
     </article>
 </section>
 
+<section class="split-grid">
+    <article class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">Scan Reliability (14-day trend)</h2>
+            <span class="section-note">Success rate and saved opportunities per day</span>
+        </div>
+        {% if reliability_history %}
+            <div class="detail-list">
+                {% for item in reliability_history %}
+                    <div class="detail-block">
+                        <small class="metric-label" style="margin-bottom: 0;">{{ item.day }}</small>
+                        <p style="margin: 10px 0 8px;">Runs: {{ item.runs }} | Errors: {{ item.errors }} | Saved: {{ item.saved }}</p>
+                        <div style="height: 10px; background: rgba(24,24,24,0.08); border-radius: 999px; overflow: hidden;">
+                            <div style="height: 10px; width: {{ item.success_rate }}%; background: linear-gradient(90deg, #5b8bb5, #2f79b4);"></div>
+                        </div>
+                        <p class="muted" style="margin: 8px 0 0;">Success rate: {{ "%.1f"|format(item.success_rate) }}%</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No discovery log history yet.</p>
+        {% endif %}
+    </article>
+
+    <article class="section-card">
+        <div class="section-header">
+            <h2 class="section-title">Portal Parser Success Rates</h2>
+            <span class="section-note">Top tracked sources by scan history</span>
+        </div>
+        {% if reliability_rows %}
+            <div class="detail-list">
+                {% for row in reliability_rows %}
+                    <div class="detail-block">
+                        <small class="metric-label" style="margin-bottom: 0;">{{ row.name }}</small>
+                        <p style="margin: 10px 0 8px;">Runs: {{ row.runs }} | Success: {{ row.success }} | Failure: {{ row.failure }}</p>
+                        <div style="height: 10px; background: rgba(24,24,24,0.08); border-radius: 999px; overflow: hidden;">
+                            <div style="height: 10px; width: {{ row.success_rate }}%; background: linear-gradient(90deg, #6b8a56, #4f6d3a);"></div>
+                        </div>
+                        <p class="muted" style="margin: 8px 0 0;">Success rate: {{ "%.1f"|format(row.success_rate) }}%</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="muted">No source reliability data yet. Run scans to populate this chart.</p>
+        {% endif %}
+    </article>
+</section>
+
 <section class="section-card">
     <div class="section-header">
         <h2 class="section-title">Recent shortlisted tenders</h2>

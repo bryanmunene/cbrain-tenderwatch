@@ -441,6 +441,66 @@ def dashboard():
         .all()
     )
 
+    source_health_rows = SourceHealth.query.all()
+    reliability_rows = []
+    for row in source_health_rows:
+        total_runs = int((row.total_success or 0) + (row.total_failure or 0))
+        if total_runs <= 0:
+            success_rate = 0.0
+        else:
+            success_rate = (float(row.total_success or 0) / float(total_runs)) * 100.0
+        reliability_rows.append(
+            {
+                "name": row.source_name or "Unknown source",
+                "success": int(row.total_success or 0),
+                "failure": int(row.total_failure or 0),
+                "runs": total_runs,
+                "success_rate": round(success_rate, 1),
+            }
+        )
+    reliability_rows = sorted(
+        reliability_rows,
+        key=lambda x: (x["runs"], x["success_rate"]),
+        reverse=True,
+    )[:10]
+
+    fourteen_days_ago = datetime.utcnow() - timedelta(days=14)
+    discovery_logs = (
+        DiscoveryLog.query
+        .filter(DiscoveryLog.created_at >= fourteen_days_ago)
+        .order_by(DiscoveryLog.created_at.asc())
+        .all()
+    )
+    daily_map = {}
+    for log in discovery_logs:
+        day_key = (log.created_at.strftime("%Y-%m-%d") if log.created_at else "unknown")
+        bucket = daily_map.setdefault(
+            day_key,
+            {"runs": 0, "errors": 0, "saved": 0, "found": 0},
+        )
+        bucket["runs"] += 1
+        bucket["saved"] += int(log.results_saved or 0)
+        bucket["found"] += int(log.results_found or 0)
+        if (log.error_message or "").strip():
+            bucket["errors"] += 1
+
+    reliability_history = []
+    for day, data in sorted(daily_map.items()):
+        runs = int(data["runs"])
+        errors = int(data["errors"])
+        success_runs = max(0, runs - errors)
+        success_rate = (success_runs / runs * 100.0) if runs else 0.0
+        reliability_history.append(
+            {
+                "day": day,
+                "runs": runs,
+                "errors": errors,
+                "saved": int(data["saved"]),
+                "found": int(data["found"]),
+                "success_rate": round(success_rate, 1),
+            }
+        )
+
     return render_template(
         "dashboard.html",
         total_tenders=total_tenders,
@@ -461,6 +521,8 @@ def dashboard():
         top_african_countries=top_african_countries,
         top_global_source_types=top_global_source_types,
         source_mix=source_mix,
+        reliability_rows=reliability_rows,
+        reliability_history=reliability_history,
     )
 
 

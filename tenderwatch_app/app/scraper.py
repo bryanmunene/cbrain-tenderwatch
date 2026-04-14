@@ -327,6 +327,43 @@ class SourceInfo:
     favorite: bool = False
     source_group: str = "experimental"
     source_tags: str = "[]"
+    health_success: int = 0
+    health_failure: int = 0
+
+
+SOURCE_SCAN_TUNING: Dict[str, Dict[str, int | bool]] = {
+    "ICT Authority": {"max_anchors": 110, "detail_fetch_max": 6, "per_source_cap": 8},
+    "Kenya Railways": {"max_anchors": 120, "detail_fetch_max": 6, "per_source_cap": 8},
+    "CAK Tenders": {"max_anchors": 90, "detail_fetch_max": 5, "per_source_cap": 7},
+    "South Africa eTender": {"max_anchors": 240, "detail_fetch_max": 14, "per_source_cap": 14},
+    "Kenya PPIP": {"max_anchors": 220, "detail_fetch_max": 12, "per_source_cap": 12},
+    "Kenya Public Procurement Portal": {"max_anchors": 220, "detail_fetch_max": 12, "per_source_cap": 12},
+    "UNDP Procurement Notices": {"max_anchors": 260, "detail_fetch_max": 16, "per_source_cap": 14},
+}
+
+
+def _source_scan_tuning(source: SourceInfo) -> Dict[str, int | bool]:
+    tuning: Dict[str, int | bool] = {
+        "max_anchors": MAX_ANCHORS_PER_SOURCE,
+        "detail_fetch_max": DETAIL_FETCH_MAX_PER_SOURCE,
+        "per_source_cap": MAX_NEW_TENDERS_PER_SOURCE,
+        "allow_pdf": source.name in PDF_SOURCE_ALLOW,
+    }
+    tuning.update(SOURCE_SCAN_TUNING.get(source.name, {}))
+
+    # Reliability-aware dynamic tuning.
+    failures = int(source.health_failure or 0)
+    successes = int(source.health_success or 0)
+    if failures >= 8 and successes <= 1:
+        tuning["max_anchors"] = max(60, int(tuning["max_anchors"]) - 70)
+        tuning["detail_fetch_max"] = max(3, int(tuning["detail_fetch_max"]) - 5)
+        tuning["per_source_cap"] = max(4, int(tuning["per_source_cap"]) - 4)
+    elif successes >= 8 and failures <= 2:
+        tuning["max_anchors"] = min(320, int(tuning["max_anchors"]) + 40)
+        tuning["detail_fetch_max"] = min(20, int(tuning["detail_fetch_max"]) + 3)
+        tuning["per_source_cap"] = min(20, int(tuning["per_source_cap"]) + 2)
+
+    return tuning
 
 
 def _utcnow():
@@ -838,14 +875,18 @@ def scan_source(
     manual_like = (discovery_mode or "").strip().lower() == "manual_like"
     # PDF extraction is costly and can trigger repeated SSL retries on unstable hosts.
     # Keep it for known high-signal sources in strict mode; disable in manual-like mode for speed.
-    allow_pdf = (source.name in PDF_SOURCE_ALLOW) and (not manual_like)
+    tuning = _source_scan_tuning(source)
+    max_anchors = int(tuning.get("max_anchors", MAX_ANCHORS_PER_SOURCE) or MAX_ANCHORS_PER_SOURCE)
+    detail_fetch_limit = int(tuning.get("detail_fetch_max", DETAIL_FETCH_MAX_PER_SOURCE) or DETAIL_FETCH_MAX_PER_SOURCE)
+    tuned_cap = int(tuning.get("per_source_cap", max_new_per_source) or max_new_per_source)
+    allow_pdf = bool(tuning.get("allow_pdf", source.name in PDF_SOURCE_ALLOW)) and (not manual_like)
     seen_links: set[str] = set()
     seen_titles: set[str] = set()
     out: List[Dict] = []
     detail_fetch_count = 0
 
     for idx, a in enumerate(soup.find_all("a", href=True)):
-        if idx >= MAX_ANCHORS_PER_SOURCE:
+        if idx >= max_anchors:
             break
 
         try:
@@ -947,7 +988,7 @@ def scan_source(
             # Read-through pass for hidden deadlines:
             # if listing metadata lacks deadline, inspect detail page/PDF content.
             detail_text = ""
-            if not deadline and detail_fetch_count < DETAIL_FETCH_MAX_PER_SOURCE and (has_detail_url or is_pdf):
+            if not deadline and detail_fetch_count < detail_fetch_limit and (has_detail_url or is_pdf):
                 detail_fetch_count += 1
                 detail = _detail_context(link, session=session)
                 detail_text = (detail.get("text") or "")[:DETAIL_TEXT_MAX_CHARS]
@@ -1135,9 +1176,9 @@ def scan_source(
         reverse=True,
     )
     try:
-        per_source_cap = max(1, int(max_new_per_source or MAX_NEW_TENDERS_PER_SOURCE))
+        per_source_cap = max(1, int(tuned_cap or max_new_per_source or MAX_NEW_TENDERS_PER_SOURCE))
     except Exception:
-        per_source_cap = MAX_NEW_TENDERS_PER_SOURCE
+        per_source_cap = max(1, int(max_new_per_source or MAX_NEW_TENDERS_PER_SOURCE))
     out = out[:per_source_cap]
 
     logger.info("Source %s produced %d candidates in %.1fs", source.name, len(out), time.time() - t0)
@@ -1529,6 +1570,12 @@ def run_scan(
             print("  No active sources found. Add sources and mark them as active to start scanning.")
             return []
 
+        health_map: Dict[int, SourceHealth] = {
+            int(h.source_id): h
+            for h in SourceHealth.query.filter(SourceHealth.source_id.isnot(None)).all()
+            if h.source_id is not None
+        }
+
         sources_info: List[SourceInfo] = [
             SourceInfo(
                 id=s.id,
@@ -1542,6 +1589,8 @@ def run_scan(
                     explicit_tags=getattr(s, "source_tags", "") or "",
                 ),
                 source_tags=getattr(s, "source_tags", "") or "[]",
+                health_success=int((health_map.get(s.id).total_success if health_map.get(s.id) else 0) or 0),
+                health_failure=int((health_map.get(s.id).total_failure if health_map.get(s.id) else 0) or 0),
             )
             for s in sources
         ]

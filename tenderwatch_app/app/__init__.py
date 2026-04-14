@@ -13,6 +13,33 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _is_production_env() -> bool:
+    return (
+        (os.getenv("TW_ENV", "") or "").strip().lower() == "production"
+        or (os.getenv("FLASK_ENV", "") or "").strip().lower() == "production"
+        or (os.getenv("APP_ENV", "") or "").strip().lower() == "production"
+    )
+
+
+def _validate_runtime_env() -> None:
+    """Fail fast in production when required environment variables are missing."""
+    if not _is_production_env():
+        return
+
+    fail_fast = (os.getenv("TW_FAIL_FAST_ENV", "1") or "").strip().lower() in {"1", "true", "yes", "on"}
+    required = ["SECRET_KEY"]
+    custom_required = (os.getenv("TW_REQUIRED_ENV", "") or "").strip()
+    if custom_required:
+        required.extend([item.strip() for item in custom_required.split(",") if item.strip()])
+
+    missing = [name for name in dict.fromkeys(required) if not (os.getenv(name, "") or "").strip()]
+    if missing:
+        message = f"Missing required environment variables in production: {', '.join(missing)}"
+        if fail_fast:
+            raise RuntimeError(message)
+        logger.error(message)
+
+
 def _load_env_file():
     """Load .env values if python-dotenv is available."""
     try:
@@ -206,6 +233,7 @@ def _initialize_database(app):
 
 def create_app(start_scheduler=False, init_db=True):
     _load_env_file()
+    _validate_runtime_env()
 
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///tenderwatch.db")
