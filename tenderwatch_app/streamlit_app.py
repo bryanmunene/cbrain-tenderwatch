@@ -95,8 +95,8 @@ st.markdown(
 
     .block-container {
       max-width: 1240px;
-      padding-top: 1.2rem;
-      padding-bottom: 2rem;
+            padding-top: 1.35rem;
+            padding-bottom: 2.2rem;
     }
 
     .hero {
@@ -109,31 +109,36 @@ st.markdown(
 
     .hero-title {
       margin: 0;
-      font-size: 1.15rem;
+            font-size: 1.24rem;
+            line-height: 1.28;
+            letter-spacing: 0.01em;
       font-weight: 800;
       color: var(--text);
     }
 
     .hero-sub {
-      margin-top: 0.22rem;
+            margin-top: 0.28rem;
       color: var(--muted);
-      font-size: 0.87rem;
+            font-size: 0.9rem;
+            line-height: 1.45;
     }
 
     .pill {
       display: inline-block;
       border: 1px solid rgba(169, 195, 222, 0.35);
       border-radius: 999px;
-      padding: 0.2rem 0.55rem;
+            padding: 0.24rem 0.58rem;
       margin-right: 0.4rem;
       margin-top: 0.35rem;
-      font-size: 0.73rem;
+            font-size: 0.72rem;
+            letter-spacing: 0.01em;
       color: var(--text);
       background: rgba(16, 56, 88, 0.6);
       font-weight: 700;
     }
 
-    h1, h2, h3 { color: var(--text) !important; }
+        h1, h2, h3 { color: var(--text) !important; letter-spacing: 0.01em; }
+        h3 { margin-top: 0.45rem !important; margin-bottom: 0.45rem !important; }
     p, li, span { color: var(--text); }
 
     .stButton > button {
@@ -142,6 +147,7 @@ st.markdown(
       background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
       color: white;
       font-weight: 700;
+    letter-spacing: 0.01em;
       min-height: 2.45rem;
       transition: transform 0.12s ease, box-shadow 0.12s ease;
             box-shadow: 0 6px 14px rgba(0,0,0,0.16);
@@ -177,6 +183,7 @@ st.markdown(
       border: 1px solid var(--line) !important;
       background: rgba(13, 50, 80, 0.75) !important;
       color: var(--text) !important;
+            font-size: 0.93rem !important;
     }
 
     .stExpander {
@@ -193,7 +200,8 @@ st.markdown(
     }
 
     [data-testid="stMetricValue"] { color: var(--text); font-weight: 800; }
-    [data-testid="stMetricLabel"] { color: var(--muted); font-weight: 700; font-size: 0.76rem; }
+    [data-testid="stMetricValue"] { font-size: 1.6rem !important; letter-spacing: 0.01em; }
+    [data-testid="stMetricLabel"] { color: var(--muted); font-weight: 700; font-size: 0.78rem; letter-spacing: 0.01em; }
 
     .result-card {
       border: 1px solid var(--line);
@@ -205,16 +213,17 @@ st.markdown(
 
     .result-title {
       margin: 0;
-      font-size: 1rem;
+            font-size: 1.05rem;
       font-weight: 800;
-      line-height: 1.35;
+            line-height: 1.4;
       color: var(--text);
     }
 
     .result-meta {
-      margin-top: 0.34rem;
+            margin-top: 0.42rem;
       color: var(--muted);
-      font-size: 0.78rem;
+            font-size: 0.8rem;
+            line-height: 1.45;
     }
 
         .section-card {
@@ -228,14 +237,16 @@ st.markdown(
         .section-card-title {
             margin: 0;
             color: var(--text);
-            font-size: 0.95rem;
+            font-size: 0.98rem;
             font-weight: 800;
+            letter-spacing: 0.01em;
         }
 
         .section-card-sub {
             margin-top: 0.18rem;
             color: var(--muted);
-            font-size: 0.78rem;
+            font-size: 0.8rem;
+            line-height: 1.45;
         }
 
     .score-badge {
@@ -304,14 +315,16 @@ st.markdown(
         .scan-banner-title {
             margin: 0;
             font-weight: 800;
-            font-size: 0.95rem;
+            font-size: 0.98rem;
             color: var(--text);
+            line-height: 1.35;
         }
 
         .scan-banner-sub {
             margin-top: 0.2rem;
             color: var(--muted);
-            font-size: 0.8rem;
+            font-size: 0.82rem;
+            line-height: 1.45;
         }
 
         .insight-chip {
@@ -324,21 +337,34 @@ st.markdown(
 
         .insight-chip-k {
             color: var(--muted);
-            font-size: 0.72rem;
+            font-size: 0.73rem;
             font-weight: 700;
             margin: 0;
+            letter-spacing: 0.01em;
         }
 
         .insight-chip-v {
             color: var(--text);
-            font-size: 1rem;
+                        font-size: 1.03rem;
             font-weight: 800;
             margin: 0.06rem 0 0;
         }
 
     @media (max-width: 820px) {
-      .block-container { padding-left: 0.8rem; padding-right: 0.8rem; }
-      .hero-title { font-size: 1.02rem; }
+            .block-container {
+                padding-left: 0.7rem;
+                padding-right: 0.7rem;
+                padding-top: 1rem;
+            }
+            .hero { padding: 0.92rem 0.9rem; border-radius: 14px; }
+            .hero-title { font-size: 1.06rem; }
+            .hero-sub { font-size: 0.84rem; }
+            [data-testid="stMetric"] { padding: 0.78rem; border-radius: 12px; }
+            [data-testid="stMetricValue"] { font-size: 1.35rem !important; }
+            .result-card { padding: 0.84rem 0.88rem; border-radius: 12px; }
+            .result-title { font-size: 0.96rem; }
+            [role="radiogroup"] { gap: 0.25rem; padding: 0.24rem; border-radius: 12px; }
+            [role="radiogroup"] label { border-radius: 8px; }
     }
     </style>
     """,
@@ -388,12 +414,12 @@ if st.session_state.get("ui_theme") == "Clean White":
 
                 .stButton > button {
                     border-color: rgba(35, 93, 137, 0.36);
-                    box-shadow: 0 8px 16px rgba(27, 67, 98, 0.17);
+                    box-shadow: 0 6px 12px rgba(27, 67, 98, 0.13);
                 }
 
                 .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox select {
                     background: #fdfefe !important;
-                    color: #162535 !important;
+                    color: #1a2d3f !important;
                     border-color: #c2d2e3 !important;
                 }
 
