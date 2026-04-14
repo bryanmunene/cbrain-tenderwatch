@@ -62,15 +62,15 @@ st.markdown(
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
     :root {
-      --bg: #071b2f;
-      --bg-2: #0b2a47;
-      --card: #0f3353;
-      --card-2: #123c60;
-      --text: #f4f9ff;
-      --muted: #a9c3de;
-      --line: #2a5a84;
-            --accent: #2f79b4;
-            --accent-2: #235d89;
+        --bg: #081c2f;
+        --bg-2: #0d2b45;
+        --card: #103552;
+        --card-2: #133e61;
+        --text: #f2f7fd;
+        --muted: #aac0d6;
+        --line: #2b587f;
+            --accent: #2b7ab7;
+            --accent-2: #205f8f;
       --ok: #17b26a;
       --warn: #f1a532;
       --bad: #ef5a5a;
@@ -88,8 +88,8 @@ st.markdown(
 
     .stApp {
       background:
-        radial-gradient(900px 360px at 8% -12%, rgba(30, 167, 255, 0.22), transparent 60%),
-        radial-gradient(760px 320px at 92% -16%, rgba(80, 191, 255, 0.16), transparent 60%),
+                radial-gradient(900px 360px at 8% -12%, rgba(30, 167, 255, 0.16), transparent 60%),
+                radial-gradient(760px 320px at 92% -16%, rgba(80, 191, 255, 0.1), transparent 60%),
         linear-gradient(165deg, var(--bg) 0%, var(--bg-2) 100%);
     }
 
@@ -101,9 +101,9 @@ st.markdown(
 
     .hero {
       border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 1rem 1.1rem;
-      background: linear-gradient(145deg, rgba(18, 60, 96, 0.95) 0%, rgba(12, 44, 72, 0.95) 100%);
+            border-radius: 16px;
+            padding: 1.1rem 1.15rem;
+            background: linear-gradient(160deg, rgba(18, 60, 96, 0.88) 0%, rgba(12, 44, 72, 0.88) 100%);
       margin-bottom: 1rem;
     }
 
@@ -137,20 +137,40 @@ st.markdown(
     p, li, span { color: var(--text); }
 
     .stButton > button {
-      border-radius: 10px;
+            border-radius: 12px;
       border: 1px solid rgba(255,255,255,0.15);
       background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
       color: white;
       font-weight: 700;
       min-height: 2.45rem;
       transition: transform 0.12s ease, box-shadow 0.12s ease;
-      box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+            box-shadow: 0 6px 14px rgba(0,0,0,0.16);
     }
 
     .stButton > button:hover {
       transform: translateY(-1px);
-      box-shadow: 0 12px 22px rgba(0,0,0,0.22);
+            box-shadow: 0 9px 18px rgba(0,0,0,0.2);
     }
+
+        [role="radiogroup"] {
+            gap: 0.45rem;
+            background: rgba(12, 41, 66, 0.52);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 0.3rem;
+        }
+
+        [role="radiogroup"] label {
+            border-radius: 10px;
+            border: 1px solid transparent;
+            padding: 0.12rem 0.15rem;
+            transition: all 0.14s ease;
+        }
+
+        [role="radiogroup"] label:has(input:checked) {
+            background: linear-gradient(135deg, rgba(43, 122, 183, 0.22), rgba(32, 95, 143, 0.2));
+            border-color: rgba(169, 195, 222, 0.36);
+        }
 
     .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox select {
       border-radius: 10px !important;
@@ -167,9 +187,9 @@ st.markdown(
 
     [data-testid="stMetric"] {
       border: 1px solid var(--line);
-      border-radius: 12px;
+            border-radius: 14px;
       background: linear-gradient(145deg, var(--card) 0%, var(--card-2) 100%);
-      padding: 0.9rem;
+            padding: 0.95rem;
     }
 
     [data-testid="stMetricValue"] { color: var(--text); font-weight: 800; }
@@ -177,9 +197,9 @@ st.markdown(
 
     .result-card {
       border: 1px solid var(--line);
-      border-radius: 12px;
-      background: linear-gradient(150deg, rgba(17, 56, 90, 0.95) 0%, rgba(10, 38, 62, 0.95) 100%);
-      padding: 0.85rem 0.95rem;
+            border-radius: 14px;
+            background: linear-gradient(160deg, rgba(17, 56, 90, 0.9) 0%, rgba(10, 38, 62, 0.9) 100%);
+            padding: 0.95rem 1rem;
       margin-bottom: 0.75rem;
     }
 
@@ -199,8 +219,8 @@ st.markdown(
 
         .section-card {
             border: 1px solid var(--line);
-            border-radius: 12px;
-            background: linear-gradient(145deg, rgba(16, 54, 86, 0.9) 0%, rgba(12, 42, 68, 0.9) 100%);
+            border-radius: 14px;
+            background: linear-gradient(155deg, rgba(16, 54, 86, 0.86) 0%, rgba(12, 42, 68, 0.86) 100%);
             padding: 0.7rem 0.85rem;
             margin: 0.5rem 0 0.7rem;
         }
@@ -275,9 +295,9 @@ st.markdown(
 
         .scan-banner {
             border: 1px solid var(--line);
-            border-radius: 12px;
+            border-radius: 14px;
             padding: 0.75rem 0.9rem;
-            background: linear-gradient(145deg, color-mix(in srgb, var(--card) 82%, var(--accent) 18%), var(--card));
+            background: linear-gradient(155deg, color-mix(in srgb, var(--card) 88%, var(--accent) 12%), var(--card));
             margin: 0.35rem 0 0.9rem;
         }
 
@@ -296,9 +316,9 @@ st.markdown(
 
         .insight-chip {
             border: 1px solid var(--line);
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 0.55rem 0.65rem;
-            background: linear-gradient(150deg, var(--card) 0%, var(--card-2) 100%);
+            background: linear-gradient(155deg, var(--card) 0%, var(--card-2) 100%);
             margin-bottom: 0.45rem;
         }
 
@@ -330,13 +350,13 @@ if st.session_state.get("ui_theme") == "Clean White":
                 """
                 <style>
                 :root {
-                    --bg: #edf3f9;
-                    --bg-2: #e2ebf4;
-                    --card: #f9fcff;
-                    --card-2: #f1f7fd;
-                    --text: #162535;
-                    --muted: #5f7489;
-                    --line: #bccdde;
+                    --bg: #ecf3fa;
+                    --bg-2: #e3ecf6;
+                    --card: #fbfdff;
+                    --card-2: #f3f8fe;
+                    --text: #162536;
+                    --muted: #5c7389;
+                    --line: #c2d2e3;
                     --accent: #2f79b4;
                     --accent-2: #235d89;
                     --ok: #1d7f57;
@@ -361,9 +381,9 @@ if st.session_state.get("ui_theme") == "Clean White":
                 .section-card,
                 [data-testid="stMetric"],
                 .stExpander {
-                    background: linear-gradient(170deg, #fbfdff 0%, #f1f7fd 100%) !important;
-                    border-color: #bfcedf !important;
-                    box-shadow: 0 8px 18px rgba(18, 40, 61, 0.06);
+                    background: linear-gradient(170deg, #fdfefe 0%, #f4f8fd 100%) !important;
+                    border-color: #c4d3e3 !important;
+                    box-shadow: 0 6px 14px rgba(18, 40, 61, 0.055);
                 }
 
                 .stButton > button {
@@ -374,7 +394,17 @@ if st.session_state.get("ui_theme") == "Clean White":
                 .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox select {
                     background: #fdfefe !important;
                     color: #162535 !important;
-                    border-color: #bccdde !important;
+                    border-color: #c2d2e3 !important;
+                }
+
+                [role="radiogroup"] {
+                    background: rgba(233, 241, 249, 0.78);
+                    border-color: #c8d7e7;
+                }
+
+                [role="radiogroup"] label:has(input:checked) {
+                    background: linear-gradient(135deg, rgba(47, 121, 180, 0.12), rgba(35, 93, 137, 0.1));
+                    border-color: #9bb8d3;
                 }
 
                 .score-high {
@@ -746,12 +776,12 @@ nav_labels = {
 }
 
 nav_icons = {
-    "Dashboard": "📊",
-    "Scan & Results": "🔎",
-    "Sources": "🗂️",
-    "Favorites": "⭐",
-    "Saved": "💾",
-    "Settings": "⚙️",
+    "Dashboard": "",
+    "Scan & Results": "",
+    "Sources": "",
+    "Favorites": "",
+    "Saved": "",
+    "Settings": "",
 }
 
 try:
@@ -760,7 +790,7 @@ try:
         NAV_PAGES,
         key="page",
         horizontal=True,
-        format_func=lambda x: f"{nav_icons.get(x, '•')} {nav_labels.get(x, x)}",
+        format_func=lambda x: nav_labels.get(x, x),
         label_visibility="collapsed",
     )
 except TypeError:
@@ -768,7 +798,7 @@ except TypeError:
         "Navigation",
         NAV_PAGES,
         key="page",
-        format_func=lambda x: f"{nav_icons.get(x, '•')} {nav_labels.get(x, x)}",
+        format_func=lambda x: nav_labels.get(x, x),
         label_visibility="collapsed",
     )
 
@@ -818,15 +848,15 @@ elif page == "Scan & Results":
 
     render_hero(
         "Tender Radar",
-        "One command center for discovery, triage, and decision-ready opportunities.",
-        ["Live scan", "Strategic filtering", "Action-ready lanes"],
+        "A clear workspace for discovery, filtering, and shortlist decisions.",
+        ["Run Scan", "Apply Filters", "Review Lanes"],
     )
 
     st.markdown(
         """
         <div class='scan-banner'>
-            <p class='scan-banner-title'>Workflow: 1) Scan new data, 2) choose a mode, 3) review lanes by urgency.</p>
-            <div class='scan-banner-sub'>Use Scout for broad discovery, Qualified for shortlist building, and Decision Desk for immediate action.</div>
+            <p class='scan-banner-title'>Workflow: 1) run a scan, 2) set your filters, 3) review prioritized lanes.</p>
+            <div class='scan-banner-sub'>Use Broad for discovery, Shortlist for qualified options, and Priority for immediate opportunities.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -835,7 +865,7 @@ elif page == "Scan & Results":
     left, right = st.columns([2.25, 1])
 
     with left:
-        render_section_card("Mission Controls", "Trigger scans, set tactical mode, and tune precision filters.")
+        render_section_card("Controls", "Run scans, choose a mode, and adjust precision filters.")
         s1, s2, s3 = st.columns([1.1, 1.1, 2.1])
         with s1:
             scan_depth = st.selectbox("Scan Depth", ["Fast", "Balanced", "Full"], index=1, key="scan_depth_v4")
@@ -851,24 +881,24 @@ elif page == "Scan & Results":
         with s3:
             st.caption("Balanced is recommended for daily use. Full is best for end-of-day deep discovery.")
 
-        st.markdown("##### Tactical Modes")
+        st.markdown("##### Quick Modes")
         m1, m2, m3, m4 = st.columns(4)
         with m1:
-            if st.button("Scout", key="mode_scout_v4", use_container_width=True):
+            if st.button("Broad", key="mode_scout_v4", use_container_width=True):
                 st.session_state["scan_min_score_v4"] = 0
                 st.session_state["scan_scope_v4"] = "All statuses"
                 st.session_state["scan_period_v4"] = "7 days"
                 st.session_state["scan_sort_v4"] = "date"
                 st.rerun()
         with m2:
-            if st.button("Qualified", key="mode_qualified_v4", use_container_width=True):
+            if st.button("Shortlist", key="mode_qualified_v4", use_container_width=True):
                 st.session_state["scan_min_score_v4"] = 40
                 st.session_state["scan_scope_v4"] = "Active pipeline"
                 st.session_state["scan_period_v4"] = "30 days"
                 st.session_state["scan_sort_v4"] = "score"
                 st.rerun()
         with m3:
-            if st.button("Decision Desk", key="mode_decision_v4", use_container_width=True):
+            if st.button("Priority", key="mode_decision_v4", use_container_width=True):
                 st.session_state["scan_min_score_v4"] = 70
                 st.session_state["scan_scope_v4"] = "Active pipeline"
                 st.session_state["scan_period_v4"] = "90 days"
@@ -913,7 +943,7 @@ elif page == "Scan & Results":
                 period = st.selectbox("Time Window", ["7 days", "30 days", "90 days", "All"], key="scan_period_v4")
 
     with right:
-        render_section_card("Live Insights", "Current command posture at a glance.")
+        render_section_card("Live Insights", "Current filter posture at a glance.")
         st.markdown(
             f"""
             <div class='insight-chip'>
@@ -974,7 +1004,7 @@ elif page == "Scan & Results":
     )
 
     if not tenders:
-        st.warning("No tenders match this command posture. Try Scout mode or reduce Min Score.")
+        st.warning("No tenders match these filters. Try Broad mode or reduce Min Score.")
     else:
         lane_priority, lane_qualified, lane_explore = st.tabs(
             [
