@@ -830,6 +830,7 @@ elif page == "Scan & Results":
         with s1:
             scan_depth = st.selectbox("Scan Depth", ["Fast", "Balanced", "Full"], index=1, key="scan_depth_v4")
         with s2:
+            st.markdown("<div style='height:1.6rem'></div>", unsafe_allow_html=True)
             if st.button("Launch Scan", key="launch_scan_v4", use_container_width=True):
                 with st.spinner("Running scan and ranking tenders..."):
                     started = time.time()
