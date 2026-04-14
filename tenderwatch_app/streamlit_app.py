@@ -68,11 +68,16 @@ st.markdown(
       --text: #f4f9ff;
       --muted: #a9c3de;
       --line: #2a5a84;
-      --accent: #1ea7ff;
-      --accent-2: #0f86d5;
+            --accent: #2f79b4;
+            --accent-2: #235d89;
       --ok: #17b26a;
       --warn: #f1a532;
       --bad: #ef5a5a;
+            --panel-bg: rgba(14, 52, 84, 0.6);
+            --panel-line: #2a5a84;
+            --panel-title: #f4f9ff;
+            --panel-sub: #a9c3de;
+            --btn-text: #ffffff;
     }
 
     html, body, .stApp, [class*="css"] {
@@ -225,6 +230,91 @@ st.markdown(
     .score-mid  { background: rgba(241,165,50,0.2); color: #ffefcf; border-color: rgba(241,165,50,0.45); }
     .score-low  { background: rgba(239,90,90,0.2); color: #ffdede; border-color: rgba(239,90,90,0.45); }
 
+        .experience-panel {
+            padding: 1rem 1.25rem;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-line);
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .experience-title {
+            color: var(--panel-title);
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+
+        .experience-sub {
+            color: var(--panel-sub);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .pwa-action-wrap {
+            text-align: center;
+            margin: 0.8rem 0 1rem;
+        }
+
+        .pwa-action-btn {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+            color: var(--btn-text);
+            border: 1px solid color-mix(in srgb, var(--accent) 60%, #ffffff 40%);
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        .pwa-action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 22px rgba(0, 0, 0, 0.22);
+        }
+
+        .scan-banner {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 0.75rem 0.9rem;
+            background: linear-gradient(145deg, color-mix(in srgb, var(--card) 82%, var(--accent) 18%), var(--card));
+            margin: 0.35rem 0 0.9rem;
+        }
+
+        .scan-banner-title {
+            margin: 0;
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: var(--text);
+        }
+
+        .scan-banner-sub {
+            margin-top: 0.2rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+
+        .insight-chip {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 0.55rem 0.65rem;
+            background: linear-gradient(150deg, var(--card) 0%, var(--card-2) 100%);
+            margin-bottom: 0.45rem;
+        }
+
+        .insight-chip-k {
+            color: var(--muted);
+            font-size: 0.72rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .insight-chip-v {
+            color: var(--text);
+            font-size: 1rem;
+            font-weight: 800;
+            margin: 0.06rem 0 0;
+        }
+
     @media (max-width: 820px) {
       .block-container { padding-left: 0.8rem; padding-right: 0.8rem; }
       .hero-title { font-size: 1.02rem; }
@@ -239,22 +329,30 @@ if st.session_state.get("ui_theme") == "Clean White":
                 """
                 <style>
                 :root {
-                    --bg: #ffffff;
-                    --bg-2: #f6f9fc;
-                    --card: #ffffff;
-                    --card-2: #f8fbff;
-                    --text: #0f172a;
-                    --muted: #5b7088;
-                    --line: #d4e1ef;
-                    --accent: #0f86d5;
-                    --accent-2: #0a6fb3;
+                    --bg: #edf3f9;
+                    --bg-2: #e2ebf4;
+                    --card: #f9fcff;
+                    --card-2: #f1f7fd;
+                    --text: #162535;
+                    --muted: #5f7489;
+                    --line: #bccdde;
+                    --accent: #2f79b4;
+                    --accent-2: #235d89;
+                    --ok: #1d7f57;
+                    --warn: #926116;
+                    --bad: #a54444;
+                    --panel-bg: #f4f9fe;
+                    --panel-line: #c4d5e6;
+                    --panel-title: #162535;
+                    --panel-sub: #566b80;
+                    --btn-text: #ffffff;
                 }
 
                 .stApp {
                     background:
-                        radial-gradient(900px 360px at 8% -12%, rgba(15, 134, 213, 0.08), transparent 60%),
-                        radial-gradient(760px 320px at 92% -16%, rgba(30, 167, 255, 0.06), transparent 60%),
-                        linear-gradient(165deg, #ffffff 0%, #f6f9fc 100%);
+                        radial-gradient(920px 360px at 10% -12%, rgba(47, 121, 180, 0.09), transparent 62%),
+                        radial-gradient(760px 340px at 92% -16%, rgba(35, 93, 137, 0.07), transparent 62%),
+                        linear-gradient(165deg, #f1f6fb 0%, #e6eef7 100%);
                 }
 
                 .hero,
@@ -262,13 +360,38 @@ if st.session_state.get("ui_theme") == "Clean White":
                 .section-card,
                 [data-testid="stMetric"],
                 .stExpander {
-                    background: #ffffff !important;
-                    border-color: #d4e1ef !important;
-                    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
+                    background: linear-gradient(170deg, #fbfdff 0%, #f1f7fd 100%) !important;
+                    border-color: #bfcedf !important;
+                    box-shadow: 0 8px 18px rgba(18, 40, 61, 0.06);
                 }
 
                 .stButton > button {
-                    border-color: rgba(15, 134, 213, 0.25);
+                    border-color: rgba(35, 93, 137, 0.36);
+                    box-shadow: 0 8px 16px rgba(27, 67, 98, 0.17);
+                }
+
+                .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox select {
+                    background: #fdfefe !important;
+                    color: #162535 !important;
+                    border-color: #bccdde !important;
+                }
+
+                .score-high {
+                    background: rgba(29, 127, 87, 0.14);
+                    color: #14553a;
+                    border-color: rgba(29, 127, 87, 0.36);
+                }
+
+                .score-mid {
+                    background: rgba(146, 97, 22, 0.14);
+                    color: #6e4a10;
+                    border-color: rgba(146, 97, 22, 0.34);
+                }
+
+                .score-low {
+                    background: rgba(165, 68, 68, 0.14);
+                    color: #7a3131;
+                    border-color: rgba(165, 68, 68, 0.34);
                 }
                 </style>
                 """,
@@ -346,7 +469,7 @@ def get_stats() -> dict:
 
 def get_tenders(
     search: str = "",
-    min_score: float = 20,
+    min_score: float = 0,
     status: str = "All",
     favorites_only: bool = False,
     saved_only: bool = False,
@@ -673,65 +796,192 @@ if page == "Dashboard":
             render_tender_card(t)
 
 elif page == "Scan & Results":
+    if "scan_ux_bootstrap_v4" not in st.session_state:
+        st.session_state["scan_query_v4"] = ""
+        st.session_state["scan_min_score_v4"] = 0
+        st.session_state["scan_scope_v4"] = "Active pipeline"
+        st.session_state["scan_sort_v4"] = "score"
+        st.session_state["scan_period_v4"] = "30 days"
+        st.session_state["scan_favorites_only_v4"] = False
+        st.session_state["scan_saved_only_v4"] = False
+        st.session_state["scan_ux_bootstrap_v4"] = True
+
     render_hero(
-        "Scan & Results",
-        "Run scans quickly, then refine with simple filters. Advanced controls are tucked away.",
-        ["Fast decision view", "Deduplicated results"],
+        "Tender Radar",
+        "One command center for discovery, triage, and decision-ready opportunities.",
+        ["Live scan", "Strategic filtering", "Action-ready lanes"],
     )
 
-    render_section_card("Scan Controls", "Choose scan depth and trigger a new scan.")
-    top1, top2, top3 = st.columns([1.2, 1.2, 2.6])
-    with top1:
-        scan_depth = st.selectbox("Scan Depth", ["Fast", "Balanced", "Full"], index=0)
-    with top2:
-        if st.button("Run Scan Now", use_container_width=True):
-            with st.spinner("Scanning sources..."):
-                started = time.time()
-                new_count = run_scan_now(scan_depth)
-                elapsed = time.time() - started
-            st.success(f"Scan complete. New tenders: {new_count} | Duration: {elapsed:.1f}s")
-            st.rerun()
-    with top3:
-        st.caption("Tip: use Fast for frequent checks; use Full for deeper daily review.")
+    st.markdown(
+        """
+        <div class='scan-banner'>
+            <p class='scan-banner-title'>Workflow: 1) Scan new data, 2) choose a mode, 3) review lanes by urgency.</p>
+            <div class='scan-banner-sub'>Use Scout for broad discovery, Qualified for shortlist building, and Decision Desk for immediate action.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    render_section_card("Filters", "Use quick filters first, then open advanced options if needed.")
-    f1, f2, f3, f4 = st.columns([2, 1, 1, 1])
-    with f1:
-        search = st.text_input("Search", placeholder="keyword, buyer, or country")
-    with f2:
-        min_score = st.slider("Min Score", 20, 100, 40)
-    with f3:
-        status = st.selectbox("Status", ["All", "Open", "Locked"], index=0)
-    with f4:
-        sort_by = st.selectbox("Sort", ["score", "date"], index=0)
+    left, right = st.columns([2.25, 1])
 
-    with st.expander("Advanced Filters", expanded=False):
-        a1, a2, a3 = st.columns(3)
-        with a1:
-            favorites_only = st.checkbox("Favorites only", value=False)
-        with a2:
-            saved_only = st.checkbox("Saved only", value=False)
-        with a3:
-            period = st.selectbox("Time Window", ["7 days", "30 days", "90 days", "All"], index=1)
+    with left:
+        render_section_card("Mission Controls", "Trigger scans, set tactical mode, and tune precision filters.")
+        s1, s2, s3 = st.columns([1.1, 1.1, 2.1])
+        with s1:
+            scan_depth = st.selectbox("Scan Depth", ["Fast", "Balanced", "Full"], index=1, key="scan_depth_v4")
+        with s2:
+            if st.button("Launch Scan", key="launch_scan_v4", use_container_width=True):
+                with st.spinner("Running scan and ranking tenders..."):
+                    started = time.time()
+                    new_count = run_scan_now(scan_depth)
+                    elapsed = time.time() - started
+                st.success(f"Scan complete. New tenders: {new_count} | Duration: {elapsed:.1f}s")
+                st.rerun()
+        with s3:
+            st.caption("Balanced is recommended for daily use. Full is best for end-of-day deep discovery.")
+
+        st.markdown("##### Tactical Modes")
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
+            if st.button("Scout", key="mode_scout_v4", use_container_width=True):
+                st.session_state["scan_min_score_v4"] = 0
+                st.session_state["scan_scope_v4"] = "All statuses"
+                st.session_state["scan_period_v4"] = "7 days"
+                st.session_state["scan_sort_v4"] = "date"
+                st.rerun()
+        with m2:
+            if st.button("Qualified", key="mode_qualified_v4", use_container_width=True):
+                st.session_state["scan_min_score_v4"] = 40
+                st.session_state["scan_scope_v4"] = "Active pipeline"
+                st.session_state["scan_period_v4"] = "30 days"
+                st.session_state["scan_sort_v4"] = "score"
+                st.rerun()
+        with m3:
+            if st.button("Decision Desk", key="mode_decision_v4", use_container_width=True):
+                st.session_state["scan_min_score_v4"] = 70
+                st.session_state["scan_scope_v4"] = "Active pipeline"
+                st.session_state["scan_period_v4"] = "90 days"
+                st.session_state["scan_sort_v4"] = "score"
+                st.rerun()
+        with m4:
+            if st.button("Clear", key="mode_clear_v4", use_container_width=True):
+                st.session_state["scan_query_v4"] = ""
+                st.session_state["scan_min_score_v4"] = 0
+                st.session_state["scan_scope_v4"] = "Active pipeline"
+                st.session_state["scan_sort_v4"] = "score"
+                st.session_state["scan_period_v4"] = "30 days"
+                st.session_state["scan_favorites_only_v4"] = False
+                st.session_state["scan_saved_only_v4"] = False
+                st.rerun()
+
+        f1, f2, f3, f4 = st.columns([2.1, 1, 1.1, 1])
+        with f1:
+            search = st.text_input(
+                "Search Intent",
+                placeholder="Try: records management, justice, donor-funded, cloud migration",
+                key="scan_query_v4",
+            )
+        with f2:
+            min_score = st.slider("Min Score", 0, 100, 0, key="scan_min_score_v4")
+        with f3:
+            scope = st.selectbox(
+                "Scope",
+                ["Active pipeline", "All statuses", "Locked only"],
+                key="scan_scope_v4",
+            )
+        with f4:
+            sort_by = st.selectbox("Rank by", ["score", "date"], key="scan_sort_v4")
+
+        with st.expander("Precision Filters", expanded=False):
+            p1, p2, p3 = st.columns(3)
+            with p1:
+                favorites_only = st.checkbox("Favorites only", key="scan_favorites_only_v4")
+            with p2:
+                saved_only = st.checkbox("Saved only", key="scan_saved_only_v4")
+            with p3:
+                period = st.selectbox("Time Window", ["7 days", "30 days", "90 days", "All"], key="scan_period_v4")
+
+    with right:
+        render_section_card("Live Insights", "Current command posture at a glance.")
+        st.markdown(
+            f"""
+            <div class='insight-chip'>
+                <p class='insight-chip-k'>Mode signal</p>
+                <p class='insight-chip-v'>{scope}</p>
+            </div>
+            <div class='insight-chip'>
+                <p class='insight-chip-k'>Minimum fit threshold</p>
+                <p class='insight-chip-v'>{min_score}%</p>
+            </div>
+            <div class='insight-chip'>
+                <p class='insight-chip-k'>Window + sorting</p>
+                <p class='insight-chip-v'>{period} | {sort_by}</p>
+            </div>
+            <div class='insight-chip'>
+                <p class='insight-chip-k'>Current query</p>
+                <p class='insight-chip-v'>{(search.strip()[:34] + '...') if len(search.strip()) > 34 else (search.strip() or 'None')}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    status_map = {
+        "Active pipeline": "Open",
+        "All statuses": "All",
+        "Locked only": "Locked",
+    }
 
     window_map = {"7 days": 7, "30 days": 30, "90 days": 90, "All": None}
     tenders = get_tenders(
         search=search,
         min_score=float(min_score),
-        status=status,
-        favorites_only=favorites_only if "favorites_only" in locals() else False,
-        saved_only=saved_only if "saved_only" in locals() else False,
-        days_window=window_map.get(period if "period" in locals() else "30 days"),
+        status=status_map.get(scope, "Open"),
+        favorites_only=favorites_only,
+        saved_only=saved_only,
+        days_window=window_map.get(period, 30),
         sort_by=sort_by,
     )
 
-    render_section_card("Results", f"Showing {len(tenders)} matching opportunity(ies).")
-    st.caption(f"Showing {len(tenders)} result(s)")
+    high_lane = [t for t in tenders if float(t.score or 0) >= 70]
+    mid_lane = [t for t in tenders if 40 <= float(t.score or 0) < 70]
+    low_lane = [t for t in tenders if float(t.score or 0) < 40]
+
+    render_section_card(
+        "Action Lanes",
+        f"{len(tenders)} matches | Priority {len(high_lane)} | Qualified {len(mid_lane)} | Explore {len(low_lane)}",
+    )
+
     if not tenders:
-        st.warning("No tenders match your filters. Try lowering Min Score or widening Time Window.")
+        st.warning("No tenders match this command posture. Try Scout mode or reduce Min Score.")
     else:
-        for t in tenders[:150]:
-            render_tender_card(t)
+        lane_priority, lane_qualified, lane_explore = st.tabs(
+            [
+                f"Priority ({len(high_lane)})",
+                f"Qualified ({len(mid_lane)})",
+                f"Explore ({len(low_lane)})",
+            ]
+        )
+
+        with lane_priority:
+            if not high_lane:
+                st.info("No high-fit tenders yet. Try lowering threshold or running a broader scan.")
+            else:
+                for t in high_lane[:80]:
+                    render_tender_card(t)
+
+        with lane_qualified:
+            if not mid_lane:
+                st.info("No qualified tenders in this lane.")
+            else:
+                for t in mid_lane[:80]:
+                    render_tender_card(t)
+
+        with lane_explore:
+            if not low_lane:
+                st.info("No exploratory tenders in this lane.")
+            else:
+                for t in low_lane[:80]:
+                    render_tender_card(t)
 
 elif page == "Sources":
     render_hero(
@@ -819,7 +1069,7 @@ elif page == "Sources":
 elif page == "Favorites":
     render_hero("Favorites", "Quick access to your starred opportunities.")
     render_section_card("Favorite Opportunities", "Your starred shortlist for rapid review.")
-    favs = get_tenders(favorites_only=True, min_score=20, days_window=None, sort_by="score")
+    favs = get_tenders(favorites_only=True, min_score=0, days_window=None, sort_by="score")
     st.caption(f"{len(favs)} favorite tender(s)")
     if not favs:
         st.info("No favorites yet. Mark items from Scan & Results.")
@@ -830,7 +1080,7 @@ elif page == "Favorites":
 elif page == "Saved":
     render_hero("Saved", "Your working shortlist for follow-up actions.")
     render_section_card("Saved Opportunities", "Operational queue for next actions and submissions.")
-    saved = get_tenders(saved_only=True, min_score=20, days_window=None, sort_by="score")
+    saved = get_tenders(saved_only=True, min_score=0, days_window=None, sort_by="score")
     st.caption(f"{len(saved)} saved tender(s)")
     if not saved:
         st.info("No saved tenders yet. Save items from Scan & Results.")
@@ -942,9 +1192,9 @@ elif page == "Settings":
     with tab_experience:
         st.markdown(
             """
-            <div style='padding: 1rem 1.25rem; background: rgba(14,52,84,0.6); border: 1px solid #2a5a84; border-radius: 10px; margin-bottom: 1rem;'>
-                <div style='color: #f4f9ff; font-weight: 700; font-size: 1.05rem;'>Install TenderWatch</div>
-                <div style='color: #a9c3de; font-size: 0.9rem; margin-top: 0.25rem;'>Add to your home screen for quick access.</div>
+            <div class='experience-panel'>
+                <div class='experience-title'>Install TenderWatch</div>
+                <div class='experience-sub'>Add to your home screen for quick access.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -975,9 +1225,9 @@ elif page == "Settings":
 
         st.markdown(
             """
-            <div style='text-align:center; margin:0.8rem 0 1rem;'>
+                        <div class='pwa-action-wrap'>
               <button onclick="window.TenderWatchPWA && window.TenderWatchPWA.promptInstall && window.TenderWatchPWA.promptInstall()"
-                      style='background:#1ea7ff;color:white;border:none;padding:10px 24px;border-radius:10px;font-weight:700;cursor:pointer;'>
+                                            class='pwa-action-btn'>
                   Install TenderWatch
               </button>
             </div>
@@ -988,9 +1238,9 @@ elif page == "Settings":
         st.markdown("---")
         st.markdown(
             """
-            <div style='padding: 1rem 1.25rem; background: rgba(14,52,84,0.6); border: 1px solid #2a5a84; border-radius: 10px; margin-bottom: 1rem;'>
-                <div style='color: #f4f9ff; font-weight: 700; font-size: 1.05rem;'>Daily Scan Reminders</div>
-                <div style='color: #a9c3de; font-size: 0.9rem; margin-top: 0.25rem;'>Configure a daily reminder to review new tenders.</div>
+            <div class='experience-panel'>
+                <div class='experience-title'>Daily Scan Reminders</div>
+                <div class='experience-sub'>Configure a daily reminder to review new tenders.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1013,9 +1263,9 @@ elif page == "Settings":
 
         st.markdown(
             """
-            <div style='text-align:center; margin:0.8rem 0;'>
+                        <div class='pwa-action-wrap'>
               <button onclick="window.TenderWatchPWA && window.TenderWatchPWA.setupNotifications && window.TenderWatchPWA.setupNotifications()"
-                      style='background:#0f86d5;color:white;border:none;padding:10px 24px;border-radius:10px;font-weight:700;cursor:pointer;'>
+                                            class='pwa-action-btn'>
                   Set Up Daily Notifications
               </button>
             </div>
