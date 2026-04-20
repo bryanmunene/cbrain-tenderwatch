@@ -66,16 +66,20 @@ st.markdown(
         --bg-2: #0d2b45;
         --card: #103552;
         --card-2: #133e61;
+        --surface-soft: rgba(11, 38, 61, 0.82);
+        --surface-mid: rgba(16, 56, 88, 0.9);
+        --surface-strong: rgba(8, 31, 50, 0.96);
         --text: #f2f7fd;
         --muted: #aac0d6;
         --line: #2b587f;
+        --line-strong: #4e88b7;
             --accent: #2b7ab7;
             --accent-2: #205f8f;
       --ok: #17b26a;
       --warn: #f1a532;
       --bad: #ef5a5a;
-            --panel-bg: rgba(14, 52, 84, 0.6);
-            --panel-line: #2a5a84;
+            --panel-bg: rgba(14, 52, 84, 0.72);
+            --panel-line: #3771a2;
             --panel-title: #f4f9ff;
             --panel-sub: #a9c3de;
             --btn-text: #ffffff;
@@ -100,8 +104,9 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] {
-      background: linear-gradient(180deg, color-mix(in srgb, var(--card) 88%, var(--bg) 12%) 0%, color-mix(in srgb, var(--card-2) 92%, var(--bg) 8%) 100%);
-      border-right: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(8, 28, 47, 0.98) 0%, rgba(12, 40, 63, 0.98) 100%);
+      border-right: 1px solid var(--line-strong);
+      box-shadow: inset -1px 0 0 rgba(120, 180, 230, 0.16);
     }
 
     [data-testid="stSidebar"] .block-container {
@@ -110,11 +115,12 @@ st.markdown(
     }
 
     .sidebar-brand {
-      border: 1px solid var(--line);
+      border: 1px solid var(--line-strong);
       border-radius: 14px;
       padding: 0.85rem 0.9rem;
       margin-bottom: 0.8rem;
-      background: linear-gradient(160deg, rgba(18, 60, 96, 0.88) 0%, rgba(12, 44, 72, 0.88) 100%);
+      background: linear-gradient(160deg, rgba(22, 73, 115, 0.94) 0%, rgba(12, 44, 72, 0.96) 100%);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
     }
 
     .sidebar-brand-title {
@@ -220,28 +226,55 @@ st.markdown(
     }
 
     .stExpander {
-      border: 1px solid var(--line);
+      border: 1px solid var(--line-strong);
       border-radius: 12px;
-      background: rgba(14, 52, 84, 0.6);
+      background: linear-gradient(160deg, var(--surface-soft) 0%, rgba(14, 52, 84, 0.78) 100%);
+      box-shadow: 0 8px 18px rgba(4, 18, 30, 0.18);
+    }
+
+    div[data-baseweb="tab-list"] {
+      gap: 0.35rem;
+      background: linear-gradient(160deg, rgba(10, 38, 62, 0.92) 0%, rgba(14, 52, 84, 0.84) 100%);
+      border: 1px solid var(--line-strong);
+      border-radius: 13px;
+      padding: 0.28rem;
+      margin-bottom: 0.65rem;
+    }
+
+    button[data-baseweb="tab"] {
+      border-radius: 10px !important;
+      color: var(--muted) !important;
+      background: transparent !important;
+      border: 1px solid transparent !important;
+      font-weight: 700 !important;
+    }
+
+    button[data-baseweb="tab"][aria-selected="true"] {
+      background: linear-gradient(135deg, rgba(43, 122, 183, 0.28), rgba(32, 95, 143, 0.24)) !important;
+      border-color: rgba(120, 180, 230, 0.38) !important;
+      color: var(--text) !important;
     }
 
     [data-testid="stMetric"] {
-      border: 1px solid var(--line);
-            border-radius: 14px;
-      background: linear-gradient(145deg, var(--card) 0%, var(--card-2) 100%);
-            padding: 0.95rem;
+      border: 1px solid var(--line-strong);
+      border-radius: 14px;
+      background: linear-gradient(155deg, rgba(26, 82, 126, 0.96) 0%, rgba(16, 56, 88, 0.96) 100%);
+      padding: 0.95rem;
+      box-shadow: 0 10px 20px rgba(6, 23, 37, 0.18);
     }
 
     [data-testid="stMetricValue"] { color: var(--text); font-weight: 800; }
     [data-testid="stMetricValue"] { font-size: 1.6rem !important; letter-spacing: 0.01em; }
-    [data-testid="stMetricLabel"] { color: var(--muted); font-weight: 700; font-size: 0.78rem; letter-spacing: 0.01em; }
+    [data-testid="stMetricLabel"] { color: #d6e8f7; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.01em; }
 
     .result-card {
-      border: 1px solid var(--line);
-            border-radius: 14px;
-            background: linear-gradient(160deg, rgba(17, 56, 90, 0.9) 0%, rgba(10, 38, 62, 0.9) 100%);
-            padding: 0.95rem 1rem;
+      border: 1px solid rgba(108, 168, 218, 0.34);
+      border-left: 4px solid #66b3ee;
+      border-radius: 14px;
+      background: linear-gradient(160deg, rgba(12, 46, 72, 0.96) 0%, rgba(17, 56, 90, 0.9) 100%);
+      padding: 0.95rem 1rem;
       margin-bottom: 0.75rem;
+      box-shadow: 0 8px 20px rgba(4, 18, 30, 0.16);
     }
 
     .result-title {
@@ -260,11 +293,12 @@ st.markdown(
     }
 
         .section-card {
-            border: 1px solid var(--line);
+            border: 1px solid rgba(104, 166, 218, 0.34);
             border-radius: 14px;
-            background: linear-gradient(155deg, rgba(16, 54, 86, 0.86) 0%, rgba(12, 42, 68, 0.86) 100%);
+            background: linear-gradient(155deg, rgba(10, 38, 61, 0.98) 0%, rgba(16, 54, 86, 0.88) 100%);
             padding: 0.7rem 0.85rem;
             margin: 0.5rem 0 0.7rem;
+            box-shadow: 0 8px 18px rgba(4, 18, 30, 0.14);
         }
 
         .section-card-title {
@@ -413,9 +447,13 @@ if st.session_state.get("ui_theme") == "Clean White":
                     --bg-2: #e3ecf6;
                     --card: #fbfdff;
                     --card-2: #f3f8fe;
+                    --surface-soft: #eef5fb;
+                    --surface-mid: #e7f0f8;
+                    --surface-strong: #ddeaf6;
                     --text: #162536;
                     --muted: #5c7389;
                     --line: #c2d2e3;
+                    --line-strong: #93b4d1;
                     --accent: #2f79b4;
                     --accent-2: #235d89;
                     --ok: #1d7f57;
@@ -435,14 +473,42 @@ if st.session_state.get("ui_theme") == "Clean White":
                         linear-gradient(165deg, #f1f6fb 0%, #e6eef7 100%);
                 }
 
-                .hero,
-                .result-card,
+                [data-testid="stSidebar"] {
+                    background: linear-gradient(180deg, #dfeaf5 0%, #d7e6f2 100%);
+                    border-right-color: #a8c0d7;
+                    box-shadow: inset -1px 0 0 rgba(88, 129, 164, 0.12);
+                }
+
+                .sidebar-brand {
+                    background: linear-gradient(155deg, #edf5fc 0%, #deebf7 100%);
+                    border-color: #99b8d4;
+                    box-shadow: 0 8px 16px rgba(27, 67, 98, 0.08);
+                }
+
+                .hero {
+                    background: linear-gradient(160deg, #f8fbff 0%, #e9f2fa 100%) !important;
+                    border-color: #aac1d7 !important;
+                    box-shadow: 0 8px 18px rgba(18, 40, 61, 0.055);
+                }
+
+                .result-card {
+                    background: linear-gradient(170deg, #ffffff 0%, #f3f8fd 100%) !important;
+                    border-color: #bfd3e6 !important;
+                    border-left-color: #4a93ce !important;
+                    box-shadow: 0 8px 16px rgba(18, 40, 61, 0.05);
+                }
+
                 .section-card,
-                [data-testid="stMetric"],
                 .stExpander {
-                    background: linear-gradient(170deg, #fdfefe 0%, #f4f8fd 100%) !important;
-                    border-color: #c4d3e3 !important;
-                    box-shadow: 0 6px 14px rgba(18, 40, 61, 0.055);
+                    background: linear-gradient(170deg, #f7fbff 0%, #eef5fb 100%) !important;
+                    border-color: #bfd1e2 !important;
+                    box-shadow: 0 6px 14px rgba(18, 40, 61, 0.045);
+                }
+
+                [data-testid="stMetric"] {
+                    background: linear-gradient(155deg, #ebf5fe 0%, #dcecfb 100%) !important;
+                    border-color: #99b8d4 !important;
+                    box-shadow: 0 8px 16px rgba(27, 67, 98, 0.07);
                 }
 
                 .stButton > button {
@@ -451,13 +517,28 @@ if st.session_state.get("ui_theme") == "Clean White":
                 }
 
                 .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox select {
-                    background: #fdfefe !important;
+                    background: #ffffff !important;
                     color: #1a2d3f !important;
-                    border-color: #c2d2e3 !important;
+                    border-color: #bed1e3 !important;
+                }
+
+                div[data-baseweb="tab-list"] {
+                    background: #e8f1f9;
+                    border-color: #b7cde0;
+                }
+
+                button[data-baseweb="tab"] {
+                    color: #5d7387 !important;
+                }
+
+                button[data-baseweb="tab"][aria-selected="true"] {
+                    background: linear-gradient(135deg, rgba(47, 121, 180, 0.14), rgba(35, 93, 137, 0.1)) !important;
+                    border-color: #9fbdd8 !important;
+                    color: #173148 !important;
                 }
 
                 [role="radiogroup"] {
-                    background: rgba(233, 241, 249, 0.78);
+                    background: rgba(233, 241, 249, 0.9);
                     border-color: #c8d7e7;
                 }
 
