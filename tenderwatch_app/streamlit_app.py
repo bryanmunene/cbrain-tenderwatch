@@ -62,26 +62,26 @@ st.markdown(
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
     :root {
-        --bg: #f6f9fc;
-        --bg-2: #edf3f9;
+        --bg: #f8fafc;
+        --bg-2: #f0f4f8;
         --card: #ffffff;
-        --card-2: #f5f9fd;
-        --surface-soft: #fafcff;
-        --surface-mid: #f2f7fc;
-        --surface-strong: #e9f1f8;
-        --text: #173149;
-        --muted: #667d93;
-        --line: #cbd9e7;
-        --line-strong: #a7c2d9;
-            --accent: #2b7ab7;
-            --accent-2: #205f8f;
+        --card-2: #f8fbfd;
+        --surface-soft: #fcfdff;
+        --surface-mid: #f5f8fb;
+        --surface-strong: #edf3f8;
+        --text: #213547;
+        --muted: #6b7f91;
+        --line: #d5e0ea;
+        --line-strong: #b8cad9;
+            --accent: #7898b6;
+            --accent-2: #6283a3;
       --ok: #17b26a;
       --warn: #f1a532;
       --bad: #ef5a5a;
-            --panel-bg: #f3f8fc;
-            --panel-line: #bdd1e2;
-            --panel-title: #173149;
-            --panel-sub: #667d93;
+            --panel-bg: #f7fafc;
+            --panel-line: #c8d7e3;
+            --panel-title: #213547;
+            --panel-sub: #6b7f91;
             --btn-text: #ffffff;
     }
 
@@ -193,24 +193,29 @@ st.markdown(
 
     .stButton > button {
             border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.15);
+      border: 1px solid #a6bdd1;
       background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
       color: white;
       font-weight: 700;
-    letter-spacing: 0.01em;
+      letter-spacing: 0.01em;
       min-height: 2.45rem;
       transition: transform 0.12s ease, box-shadow 0.12s ease;
-            box-shadow: 0 6px 14px rgba(0,0,0,0.16);
+      box-shadow: 0 4px 10px rgba(67, 98, 125, 0.12);
+    }
+
+    .stButton > button p,
+    .stButton > button span {
+      color: #ffffff !important;
     }
 
     .stButton > button:hover {
       transform: translateY(-1px);
-            box-shadow: 0 9px 18px rgba(0,0,0,0.2);
+      box-shadow: 0 6px 14px rgba(67, 98, 125, 0.16);
     }
 
         [role="radiogroup"] {
             gap: 0.45rem;
-            background: #f4f8fc;
+            background: #f7fafc;
             border: 1px solid var(--line-strong);
             border-radius: 14px;
             padding: 0.3rem;
@@ -224,8 +229,8 @@ st.markdown(
         }
 
         [role="radiogroup"] label:has(input:checked) {
-            background: linear-gradient(135deg, rgba(43, 122, 183, 0.10), rgba(32, 95, 143, 0.08));
-            border-color: rgba(149, 183, 212, 0.55);
+            background: linear-gradient(135deg, rgba(120, 152, 182, 0.12), rgba(98, 131, 163, 0.10));
+            border-color: rgba(184, 202, 217, 0.85);
         }
 
     .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox select {
@@ -233,7 +238,19 @@ st.markdown(
       border: 1px solid var(--line) !important;
       background: #ffffff !important;
       color: var(--text) !important;
-            font-size: 0.93rem !important;
+      font-size: 0.93rem !important;
+    }
+
+    div[data-baseweb="base-input"],
+    div[data-baseweb="select"] > div {
+      background: #ffffff !important;
+      border-color: var(--line-strong) !important;
+      color: var(--text) !important;
+      box-shadow: none !important;
+    }
+
+    div[data-baseweb="select"] * {
+      color: var(--text) !important;
     }
 
     .stExpander {
@@ -269,14 +286,14 @@ st.markdown(
     [data-testid="stMetric"] {
       border: 1px solid var(--line-strong);
       border-radius: 14px;
-      background: linear-gradient(155deg, #ffffff 0%, #f1f7fc 100%);
+      background: linear-gradient(155deg, #ffffff 0%, #f7fafc 100%);
       padding: 0.95rem;
       box-shadow: 0 4px 10px rgba(18, 40, 61, 0.04);
     }
 
     [data-testid="stMetricValue"] { color: var(--text); font-weight: 800; }
     [data-testid="stMetricValue"] { font-size: 1.6rem !important; letter-spacing: 0.01em; }
-    [data-testid="stMetricLabel"] { color: #d6e8f7; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.01em; }
+    [data-testid="stMetricLabel"] { color: #6d8192; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.01em; }
 
     .result-card {
       border: 1px solid rgba(149, 183, 212, 0.5);
@@ -454,26 +471,26 @@ if st.session_state.get("ui_theme") == "Clean White":
                 """
                 <style>
                 :root {
-                    --bg: #ecf3fa;
-                    --bg-2: #e3ecf6;
-                    --card: #fbfdff;
-                    --card-2: #f3f8fe;
-                    --surface-soft: #eef5fb;
-                    --surface-mid: #e7f0f8;
-                    --surface-strong: #ddeaf6;
-                    --text: #162536;
-                    --muted: #5c7389;
-                    --line: #c2d2e3;
-                    --line-strong: #93b4d1;
-                    --accent: #2f79b4;
-                    --accent-2: #235d89;
+                    --bg: #fbfcfe;
+                    --bg-2: #f3f7fb;
+                    --card: #ffffff;
+                    --card-2: #f8fbfd;
+                    --surface-soft: #fcfdff;
+                    --surface-mid: #f6f9fc;
+                    --surface-strong: #eef3f8;
+                    --text: #1d3245;
+                    --muted: #6d8192;
+                    --line: #d6e0e9;
+                    --line-strong: #bccdde;
+                    --accent: #7898b6;
+                    --accent-2: #6283a3;
                     --ok: #1d7f57;
                     --warn: #926116;
                     --bad: #a54444;
-                    --panel-bg: #f4f9fe;
-                    --panel-line: #c4d5e6;
-                    --panel-title: #162535;
-                    --panel-sub: #566b80;
+                    --panel-bg: #f7fafc;
+                    --panel-line: #d0dce7;
+                    --panel-title: #1d3245;
+                    --panel-sub: #64798c;
                     --btn-text: #ffffff;
                 }
 
@@ -523,8 +540,8 @@ if st.session_state.get("ui_theme") == "Clean White":
                 }
 
                 .stButton > button {
-                    border-color: rgba(35, 93, 137, 0.36);
-                    box-shadow: 0 6px 12px rgba(27, 67, 98, 0.13);
+                    border-color: #a9bfd1;
+                    box-shadow: 0 4px 10px rgba(27, 67, 98, 0.09);
                 }
 
                 .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox select {
