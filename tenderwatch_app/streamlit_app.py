@@ -35,7 +35,7 @@ st.set_page_config(
     page_title="TenderWatch - cBrain F2",
     page_icon="TW",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 if "ui_theme" not in st.session_state:
@@ -95,8 +95,41 @@ st.markdown(
 
     .block-container {
       max-width: 1240px;
-            padding-top: 1.35rem;
+            padding-top: 1.1rem;
             padding-bottom: 2.2rem;
+    }
+
+    [data-testid="stSidebar"] {
+      background: linear-gradient(180deg, color-mix(in srgb, var(--card) 88%, var(--bg) 12%) 0%, color-mix(in srgb, var(--card-2) 92%, var(--bg) 8%) 100%);
+      border-right: 1px solid var(--line);
+    }
+
+    [data-testid="stSidebar"] .block-container {
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+    }
+
+    .sidebar-brand {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 0.85rem 0.9rem;
+      margin-bottom: 0.8rem;
+      background: linear-gradient(160deg, rgba(18, 60, 96, 0.88) 0%, rgba(12, 44, 72, 0.88) 100%);
+    }
+
+    .sidebar-brand-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: 0.01em;
+    }
+
+    .sidebar-brand-sub {
+      margin: 0.22rem 0 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+      line-height: 1.4;
     }
 
     .hero {
@@ -810,25 +843,34 @@ nav_icons = {
     "Settings": "",
 }
 
-try:
-    page = st.radio(
-        "Navigation",
-        NAV_PAGES,
-        key="page",
-        horizontal=True,
-        format_func=lambda x: nav_labels.get(x, x),
-        label_visibility="collapsed",
-    )
-except TypeError:
-    page = st.radio(
-        "Navigation",
-        NAV_PAGES,
-        key="page",
-        format_func=lambda x: nav_labels.get(x, x),
-        label_visibility="collapsed",
+with st.sidebar:
+    st.markdown(
+        """
+        <div class='sidebar-brand'>
+            <p class='sidebar-brand-title'>TenderWatch</p>
+            <div class='sidebar-brand-sub'>Navigation and workspace controls</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-st.markdown("<div style='height:0.2rem'></div>", unsafe_allow_html=True)
+    try:
+        page = st.radio(
+            "Navigation",
+            NAV_PAGES,
+            key="page",
+            format_func=lambda x: nav_labels.get(x, x),
+            label_visibility="visible",
+        )
+    except TypeError:
+        page = st.radio(
+            "Navigation",
+            NAV_PAGES,
+            key="page",
+            format_func=lambda x: nav_labels.get(x, x),
+        )
+
+st.markdown("<div style='height:0.1rem'></div>", unsafe_allow_html=True)
 
 
 if page == "Dashboard":
