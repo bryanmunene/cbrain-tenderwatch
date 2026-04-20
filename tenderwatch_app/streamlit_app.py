@@ -62,26 +62,26 @@ st.markdown(
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
     :root {
-        --bg: #eef4fa;
-        --bg-2: #e2ecf6;
-        --card: #f8fbff;
-        --card-2: #eef5fb;
-        --surface-soft: #f4f8fd;
-        --surface-mid: #eaf2fa;
-        --surface-strong: #ddeaf7;
+        --bg: #f6f9fc;
+        --bg-2: #edf3f9;
+        --card: #ffffff;
+        --card-2: #f5f9fd;
+        --surface-soft: #fafcff;
+        --surface-mid: #f2f7fc;
+        --surface-strong: #e9f1f8;
         --text: #173149;
-        --muted: #61778d;
-        --line: #c1d3e4;
-        --line-strong: #95b7d4;
+        --muted: #667d93;
+        --line: #cbd9e7;
+        --line-strong: #a7c2d9;
             --accent: #2b7ab7;
             --accent-2: #205f8f;
       --ok: #17b26a;
       --warn: #f1a532;
       --bad: #ef5a5a;
-            --panel-bg: #eef5fb;
-            --panel-line: #a8c3da;
+            --panel-bg: #f3f8fc;
+            --panel-line: #bdd1e2;
             --panel-title: #173149;
-            --panel-sub: #61778d;
+            --panel-sub: #667d93;
             --btn-text: #ffffff;
     }
 
@@ -92,9 +92,19 @@ st.markdown(
 
     .stApp {
       background:
-                radial-gradient(900px 360px at 8% -12%, rgba(43, 122, 183, 0.10), transparent 60%),
-                radial-gradient(760px 320px at 92% -16%, rgba(104, 169, 218, 0.08), transparent 60%),
+                radial-gradient(900px 360px at 8% -12%, rgba(43, 122, 183, 0.06), transparent 60%),
+                radial-gradient(760px 320px at 92% -16%, rgba(104, 169, 218, 0.05), transparent 60%),
         linear-gradient(165deg, var(--bg) 0%, var(--bg-2) 100%);
+    }
+
+    [data-testid="stHeader"] {
+      background: rgba(248, 251, 255, 0.94) !important;
+      border-bottom: 1px solid var(--line);
+    }
+
+    [data-testid="stToolbar"],
+    [data-testid="stDecoration"] {
+      background: transparent !important;
     }
 
     .block-container {
@@ -104,9 +114,9 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] {
-      background: linear-gradient(180deg, #edf4fb 0%, #e1edf7 100%);
+      background: linear-gradient(180deg, #f7fbff 0%, #edf4fa 100%);
       border-right: 1px solid var(--line-strong);
-      box-shadow: inset -1px 0 0 rgba(88, 129, 164, 0.08);
+      box-shadow: inset -1px 0 0 rgba(88, 129, 164, 0.05);
     }
 
     [data-testid="stSidebar"] .block-container {
@@ -119,8 +129,8 @@ st.markdown(
       border-radius: 14px;
       padding: 0.85rem 0.9rem;
       margin-bottom: 0.8rem;
-      background: linear-gradient(160deg, #f8fbff 0%, #e8f1f9 100%);
-      box-shadow: 0 6px 14px rgba(27, 67, 98, 0.08);
+      background: linear-gradient(160deg, #ffffff 0%, #f1f7fc 100%);
+      box-shadow: 0 4px 10px rgba(27, 67, 98, 0.05);
     }
 
     .sidebar-brand-title {
@@ -142,9 +152,9 @@ st.markdown(
       border: 1px solid var(--line-strong);
             border-radius: 16px;
             padding: 1.1rem 1.15rem;
-            background: linear-gradient(160deg, #f9fcff 0%, #e9f2fa 100%);
+            background: linear-gradient(160deg, #ffffff 0%, #f3f8fc 100%);
       margin-bottom: 1rem;
-      box-shadow: 0 8px 18px rgba(18, 40, 61, 0.05);
+      box-shadow: 0 6px 14px rgba(18, 40, 61, 0.04);
     }
 
     .hero-title {
@@ -200,7 +210,7 @@ st.markdown(
 
         [role="radiogroup"] {
             gap: 0.45rem;
-            background: #edf4fb;
+            background: #f4f8fc;
             border: 1px solid var(--line-strong);
             border-radius: 14px;
             padding: 0.3rem;
@@ -214,8 +224,8 @@ st.markdown(
         }
 
         [role="radiogroup"] label:has(input:checked) {
-            background: linear-gradient(135deg, rgba(43, 122, 183, 0.12), rgba(32, 95, 143, 0.10));
-            border-color: rgba(149, 183, 212, 0.7);
+            background: linear-gradient(135deg, rgba(43, 122, 183, 0.10), rgba(32, 95, 143, 0.08));
+            border-color: rgba(149, 183, 212, 0.55);
         }
 
     .stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox select {
@@ -229,13 +239,13 @@ st.markdown(
     .stExpander {
       border: 1px solid var(--line-strong);
       border-radius: 12px;
-      background: linear-gradient(160deg, #f8fbff 0%, var(--surface-mid) 100%);
-      box-shadow: 0 6px 14px rgba(18, 40, 61, 0.05);
+      background: linear-gradient(160deg, #ffffff 0%, #f4f8fc 100%);
+      box-shadow: 0 4px 10px rgba(18, 40, 61, 0.04);
     }
 
     div[data-baseweb="tab-list"] {
       gap: 0.35rem;
-      background: linear-gradient(160deg, #eef5fb 0%, #e4eef7 100%);
+      background: linear-gradient(160deg, #f5f9fd 0%, #edf4fa 100%);
       border: 1px solid var(--line-strong);
       border-radius: 13px;
       padding: 0.28rem;
@@ -259,9 +269,9 @@ st.markdown(
     [data-testid="stMetric"] {
       border: 1px solid var(--line-strong);
       border-radius: 14px;
-      background: linear-gradient(155deg, #f8fbff 0%, #e9f2fa 100%);
+      background: linear-gradient(155deg, #ffffff 0%, #f1f7fc 100%);
       padding: 0.95rem;
-      box-shadow: 0 8px 16px rgba(18, 40, 61, 0.05);
+      box-shadow: 0 4px 10px rgba(18, 40, 61, 0.04);
     }
 
     [data-testid="stMetricValue"] { color: var(--text); font-weight: 800; }
@@ -269,13 +279,13 @@ st.markdown(
     [data-testid="stMetricLabel"] { color: #d6e8f7; font-weight: 700; font-size: 0.78rem; letter-spacing: 0.01em; }
 
     .result-card {
-      border: 1px solid rgba(149, 183, 212, 0.55);
+      border: 1px solid rgba(149, 183, 212, 0.5);
       border-left: 4px solid #66b3ee;
       border-radius: 14px;
-      background: linear-gradient(160deg, #ffffff 0%, #eef5fb 100%);
+      background: linear-gradient(160deg, #ffffff 0%, #f6f9fc 100%);
       padding: 0.95rem 1rem;
       margin-bottom: 0.75rem;
-      box-shadow: 0 6px 14px rgba(18, 40, 61, 0.045);
+      box-shadow: 0 4px 10px rgba(18, 40, 61, 0.035);
     }
 
     .result-title {
@@ -294,12 +304,12 @@ st.markdown(
     }
 
         .section-card {
-            border: 1px solid rgba(149, 183, 212, 0.55);
+            border: 1px solid rgba(149, 183, 212, 0.5);
             border-radius: 14px;
-            background: linear-gradient(155deg, #f9fcff 0%, #edf4fb 100%);
+            background: linear-gradient(155deg, #ffffff 0%, #f3f8fc 100%);
             padding: 0.7rem 0.85rem;
             margin: 0.5rem 0 0.7rem;
-            box-shadow: 0 6px 14px rgba(18, 40, 61, 0.045);
+            box-shadow: 0 4px 10px rgba(18, 40, 61, 0.035);
         }
 
         .section-card-title {
@@ -376,7 +386,7 @@ st.markdown(
             border: 1px solid var(--line-strong);
             border-radius: 14px;
             padding: 0.75rem 0.9rem;
-            background: linear-gradient(155deg, #f8fbff 0%, #e8f1f9 100%);
+            background: linear-gradient(155deg, #ffffff 0%, #f2f7fc 100%);
             margin: 0.35rem 0 0.9rem;
         }
 
@@ -399,7 +409,7 @@ st.markdown(
             border: 1px solid var(--line-strong);
             border-radius: 12px;
             padding: 0.55rem 0.65rem;
-            background: linear-gradient(155deg, #ffffff 0%, #edf4fb 100%);
+            background: linear-gradient(155deg, #ffffff 0%, #f5f9fd 100%);
             margin-bottom: 0.45rem;
         }
 
@@ -1506,12 +1516,12 @@ elif page == "Settings":
 
         st.markdown("---")
         st.subheader("UI Options")
-        theme_idx = 0 if st.session_state.get("ui_theme") in {"Deep Blue", "Soft Blue"} else 1
+        theme_idx = 0 if st.session_state.get("ui_theme") in {"Light Blue", "Soft Blue", "Deep Blue"} else 1
         selected_theme = st.selectbox(
             "Theme",
-            ["Soft Blue", "Clean White"],
+            ["Light Blue", "Clean White"],
             index=theme_idx,
-            help="Choose a soft-blue or white visual theme.",
+            help="Choose a light-blue or white visual theme.",
         )
         st.session_state["ui_theme"] = selected_theme
         compact_mode = st.checkbox("Compact result cards", value=bool(st.session_state.get("compact_mode", False)))
