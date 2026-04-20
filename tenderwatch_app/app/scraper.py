@@ -68,7 +68,7 @@ MAX_NEW_TENDERS_PER_SOURCE = 12
 DETAIL_FETCH_MAX_PER_SOURCE = 16
 DETAIL_TEXT_MAX_CHARS = 8000
 DETAIL_PDF_LINK_LIMIT = 2
-STALE_NOTICE_MAX_AGE_DAYS = int(os.getenv("STALE_NOTICE_MAX_AGE_DAYS", "120"))
+STALE_NOTICE_MAX_AGE_DAYS = int(os.getenv("STALE_NOTICE_MAX_AGE_DAYS", "90"))
 
 # Default scan parallelism (safe for SQLite because we avoid DB writes in threads)
 DEFAULT_SCAN_WORKERS = 15
@@ -1042,6 +1042,8 @@ def scan_source(
                 source_tags=parse_source_tags(source.source_tags),
                 pipeline_mode=pipeline_mode,
                 settings=geo_settings,
+                publication_date="",
+                deadline=deadline or "",
             )
 
             try:
@@ -1373,6 +1375,8 @@ def _discover_rows(
                 source_tags=[source_group],
                 pipeline_mode=pipeline_mode,
                 settings=geo_settings,
+                publication_date=item.get("publication_date", ""),
+                deadline=item.get("deadline", ""),
             )
             try:
                 breakdown = json_lib.loads(scoring_breakdown)

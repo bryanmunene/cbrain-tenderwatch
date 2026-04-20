@@ -1,615 +1,335 @@
-"""
-TenderWatch Scoring — F2-Optimized (STRICT)
-=============================================
-Strict, high-precision scoring for actual cBrain F2 tender opportunities.
+"""Prompt-driven scoring for cBrain F2 tender discovery."""
 
-Scoring Logic:
-- +3 per PRIMARY domain hit (EDMS, Case, Workflow, Records)
-- +2 per SECONDARY domain hit (Gov, ECM, Forms, ServiceDelivery)
-- MINIMUM 2 domain hits required for score > 0
-- BONUS +5 for Pipeline phrases (explicit RFP + F2 keyword)
-- BONUS +4 for multi-domain combinations in same section
-- -3 each irrelevant signal (construction, hardware, etc.)
-- HARD DISCARD if score < 10 (too generic)
-
-Result: ACTUAL F2 opportunities only
-- No random "digital government" without domain specificity
-- No construction/hardware/medical tenders
-- No authentication/security-only solutions
-- Higher recall = better, but ONLY if relevant
-"""
+from __future__ import annotations
 
 import json
-import re
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional
+
 import app.keywords as kw
 from app.geography import enrich_scoring_with_geography
 
-# Compatibility bridge
 ALL_KEYWORDS = getattr(kw, "ALL_KEYWORDS", [])
 KEYWORD_DOMAINS = getattr(kw, "KEYWORD_DOMAINS", {})
-KEYWORD_TO_DOMAIN = getattr(kw, "KEYWORD_TO_DOMAIN", {})
 NEGATIVE_SIGNALS = getattr(kw, "NEGATIVE_SIGNALS", [])
-GENERIC_STANDALONE_KEYWORDS = getattr(kw, "GENERIC_STANDALONE_KEYWORDS", [])
+IRRELEVANT_SIGNALS = getattr(kw, "IRRELEVANT_SIGNALS", [])
+PRIORITY_COMBINATIONS = getattr(kw, "PRIORITY_COMBINATIONS", [])
+PRIORITY_PHRASES = getattr(kw, "PRIORITY_PHRASES", [])
+MICROSOFT_HARD_LOCK_SIGNALS = getattr(kw, "MICROSOFT_HARD_LOCK_SIGNALS", [])
+MICROSOFT_SOFT_LOCK_SIGNALS = getattr(kw, "MICROSOFT_SOFT_LOCK_SIGNALS", [])
+OPENNESS_SIGNALS = getattr(kw, "OPENNESS_SIGNALS", [])
+OPEN_PROCUREMENT_SIGNALS = getattr(kw, "OPEN_PROCUREMENT_SIGNALS", [])
+QUALIFICATION_QUESTIONS = getattr(kw, "QUALIFICATION_QUESTIONS", [])
 
-# Primary domains = core to F2
-PRIMARY_DOMAINS = {"EDMS", "Case", "Workflow", "Records", "ECM"}
-# Secondary domains = supporting/contextual
-SECONDARY_DOMAINS = {"Gov", "Forms", "ServiceDelivery"}
-
-IRRELEVANT_SIGNALS = getattr(
-    kw,
-    "IRRELEVANT_SIGNALS",
-    list(
-        dict.fromkeys(
-            getattr(kw, "CONSTRUCTION_SIGNALS", [])
-            + getattr(kw, "HARDWARE_SIGNALS", [])
-            + getattr(kw, "MEDICAL_SIGNALS", [])
-            + [
-                "email security",
-                "vpn",
-                "network security",
-                "firewall",
-                "antivirus",
-                "password manager",
-                "authentication system",
-                "two factor auth",
-                "hotel booking",
-                "travel booking",
-                "airlines",
-                "aviation",
-                "construction materials",
-                "civil works",
-                "building materials",
-            ]
-        )
-    ),
-)
-
-PIPELINE_PHRASES = getattr(
-    kw,
-    "PRIORITY_PHRASES",
-    [
-        "document management rfp",
-        "records management rfp",
-        "workflow automation rfp",
-        "case management rfp",
-        "enterprise content management rfp",
-        "document management system tender",
-        "records management system tender",
-        "digital transformation platform",
-        "citizen services platform",
-    ],
-)
+PRIMARY_DOMAINS = {
+    "EDMS",
+    "Records",
+    "Workflow",
+    "Case",
+    "ECM",
+    "ServiceDelivery",
+    "Licensing",
+    "ProcurementRecords",
+}
+SUPPORTING_DOMAINS = {"Gov", "Forms", "Integration", "Pipeline"}
 
 
 def _normalize(text: str) -> str:
-    """Normalize text for matching."""
-    _norm = getattr(kw, "_normalize", None)
-    if callable(_norm):
-        result = _norm(text)
-        return str(result) if result else ""
-    return text.lower() if text else ""
+    fn = getattr(kw, "_normalize", None)
+    if callable(fn):
+        return str(fn(text) or "")
+    return (text or "").lower().strip()
 
 
-def _phrase_in_text(phrase: str, text: str) -> bool:
-    """Check if phrase appears in text (case-insensitive, word boundary)."""
-    if not phrase or not text:
-        return False
-    norm_phrase = _normalize(phrase)
-    norm_text = _normalize(text)
-    pattern = r"\b" + re.escape(norm_phrase) + r"\b"
-    return bool(re.search(pattern, norm_text))
+def _collect_hits(text: str, phrases: List[str], max_hits: Optional[int] = None) -> List[str]:
+    fn = getattr(kw, "_collect_hits", None)
+    if callable(fn):
+        return list(fn(text, phrases, max_hits=max_hits) or [])
+
+    hits: List[str] = []
+    hay = _normalize(text)
+    for phrase in phrases:
+        p = _normalize(phrase)
+        if p and p in hay and p not in hits:
+            hits.append(p)
+            if max_hits is not None and len(hits) >= max_hits:
+                break
+    return hits
 
 
-def score_text(title: str, text: str = ""):
-    """
-    Score text with STRICT F2 relevance logic.
-    
-    Returns: (score, matched_keywords_str, breakdown_json)
-    
-    HARD FILTER: score < 10 = NOT relevant
-    Score 10-40 = weak relevance
-    Score 40-70 = moderate relevance  
-    Score 70+ = strong relevance
-    """
-    combined = f"{title} {text}"
-    combined_norm = _normalize(combined)
-    
-    breakdown = {
-        "primary_hits": [],
-        "secondary_hits": [],
-        "pipeline_hits": [],
-        "irrelevant_signals": [],
-        "total_score": 0,
-        "relevance_level": "LOW",
-    }
-    
-    # Check irrelevant signals first
-    for signal in IRRELEVANT_SIGNALS:
-        if _phrase_in_text(signal, combined):
-            breakdown["irrelevant_signals"].append(signal)
-    
-    # Hard discard if irrelevant signals found
-    if breakdown["irrelevant_signals"]:
-        return 0, "", json.dumps(breakdown)
-    
-    # Score primary domains
-    primary_score = 0
-    for domain in PRIMARY_DOMAINS:
-        keywords = KEYWORD_DOMAINS.get(domain, [])
-        for kw in keywords:
-            if _phrase_in_text(kw, combined):
-                primary_score += 3
-                if kw not in breakdown["primary_hits"]:
-                    breakdown["primary_hits"].append(kw)
-    
-    # Score secondary domains
-    secondary_score = 0
-    for domain in SECONDARY_DOMAINS:
-        keywords = KEYWORD_DOMAINS.get(domain, [])
-        for kw in keywords:
-            if _phrase_in_text(kw, combined):
-                secondary_score += 2
-                if kw not in breakdown["secondary_hits"]:
-                    breakdown["secondary_hits"].append(kw)
-    
-    # Check pipeline phrases (explicit procurement intent)
-    pipeline_score = 0
-    for phrase in PIPELINE_PHRASES:
-        if _phrase_in_text(phrase, combined):
-            pipeline_score += 5
-            if phrase not in breakdown["pipeline_hits"]:
-                breakdown["pipeline_hits"].append(phrase)
-    
-    # Multi-domain bonus
-    domain_combo_bonus = 0
-    num_primary = len(breakdown["primary_hits"])
-    num_secondary = len(breakdown["secondary_hits"])
-    if num_primary >= 2:
-        domain_combo_bonus = 4
-    elif num_primary >= 1 and num_secondary >= 1:
-        domain_combo_bonus = 3
-    
-    # Calculate total
-    total_score = primary_score + secondary_score + pipeline_score + domain_combo_bonus
-    
-    # HARD FILTER: require at least primary domain hit
-    if num_primary == 0:
-        return 0, "", json.dumps(breakdown)
-    
-    # Determine relevance level
-    if total_score >= 70:
-        relevance_level = "HIGH"
-    elif total_score >= 40:
-        relevance_level = "MEDIUM"
-    else:
-        relevance_level = "LOW"
-    
-    breakdown["total_score"] = total_score
-    breakdown["relevance_level"] = relevance_level
-    
-    # Format matched keywords string
-    all_matched = (
-        breakdown["primary_hits"] + breakdown["secondary_hits"] + breakdown["pipeline_hits"]
-    )
-    matched_str = ", ".join(all_matched[:5])  # Top 5
-    
-    # Normalize to 0-100 range
-    normalized = min(100, max(10, total_score * 1.5))
-    
-    return int(normalized), matched_str, json.dumps(breakdown)
-
-    irrelevant_found = []
-    for signal in IRRELEVANT_SIGNALS:
-        sig = (signal or "").strip()
-        if not sig:
-            continue
-        needle = sig.lower()
-        if callable(_norm_phrase):
-            try:
-                needle = _norm_phrase(sig)
-            except Exception:
-                needle = sig.lower()
-        if needle and needle in combined:
-            irrelevant_found.append(signal)
-    
-    # If irrelevant signals found AND no core F2 keywords, return 0
-    # Core F2 keywords that override irrelevant signals
-    core_f2_terms = [
-        # EDMS & Records
-        "document management", "records management", "edms", "edrms", "ecm",
-        "electronic document", "electronic records", "digital records",
-        "document repository", "file registry", "archives management",
-        # Case & Workflow
-        "case management", "case handling", "case tracking",
-        "workflow", "workflow automation", "process automation", "bpm",
-        "complaint management", "grievance", "docket",
-        # Digitalization & Government
-        "paperless", "paperless office", "paperless government",
-        "digital transformation", "digitalization", "digitalisation",
-        "e-government", "egovernment", "e-governance", "digital government",
-        "government modernization", "public sector reform",
-        # Service Delivery
-        "citizen portal", "e-services", "service delivery platform",
-        "one-stop-shop", "citizen services",
-    ]
-    def _needle(s: str) -> str:
-        s = (s or "").strip()
-        if not s:
-            return ""
-        if callable(_norm_phrase):
-            try:
-                return _norm_phrase(s)
-            except Exception:
-                return s.lower()
-        return s.lower()
-
-    has_core_f2_term = any(_needle(term) in combined for term in core_f2_terms)
-    
-    # If irrelevant signals found AND no core F2 terms, hard-exclude.
-    if irrelevant_found and not has_core_f2_term:
-        return 0, "", json.dumps({
-            "keywords_found": 0,
-            "domains_matched": [],
-            "irrelevant_signals": irrelevant_found,
-            "excluded": True,
-            "exclusion_reason": f"Irrelevant tender: {irrelevant_found[0]}",
-            "priority": "EXCLUDED",
-            "likely_fit_for_F2": "excluded",
-            "procurement_status": "excluded",
-        })
-    
-    # ==========================================================================
-    # STEP 1: Find all keyword matches
-    # ==========================================================================
-    # ======================================================================
-    # STEP 1: Find all keyword/domain matches
-    # ======================================================================
-    matched_keywords = []
-    matched_domains = set()
-
-    # Prefer the more robust matcher from app.keywords (handles boundaries + normalization).
-    _domain_hits = getattr(kw, "_domain_hits", None)
-    if callable(_domain_hits):
+def _parse_date(value: Any) -> Optional[date]:
+    if not value:
+        return None
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    if isinstance(value, datetime):
+        return value.date()
+    text = str(value).strip()[:10]
+    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
         try:
-            matched_kw, domains, phrases = _domain_hits(combined)
-            matched_domains.update(domains or [])
-            # phrases are normalized; keep a short list for display
-            matched_keywords = list(phrases or [])
+            return datetime.strptime(text, fmt).date()
         except Exception:
-            matched_keywords = []
-            matched_domains = set()
-    else:
-        # Fallback (legacy): simple substring matching.
-        for k in ALL_KEYWORDS:
-            if k and k in combined:
-                matched_keywords.append(k)
-                key = k
-                # KEYWORD_TO_DOMAIN keys are typically normalized; try both.
-                if hasattr(kw, "_normalize_phrase"):
-                    try:
-                        key = kw._normalize_phrase(k)
-                    except Exception:
-                        key = k
-                for domain in (KEYWORD_TO_DOMAIN.get(key) or KEYWORD_TO_DOMAIN.get(k) or []):
-                    matched_domains.add(domain)
-    
-    # No matches = still include but with minimal score (downstream gates may filter out)
-    if not matched_keywords:
-        return 5, "", json.dumps({
-            "keywords_found": 0,
-            "domains_matched": [],
-            "base_score": 0,
-            "domain_bonus": 0,
-            "negative_penalty": 0,
-            "final_score": 5,
-            "priority": "LOW",
-            "likely_fit_for_F2": "uncertain"
-        })
-    
-    # ==========================================================================
-    # STEP 2: Base score (+1 per keyword hit)
-    # ==========================================================================
-    # De-dupe while keeping order
-    seen = set()
-    unique_keywords = []
-    for k in matched_keywords:
-        if k not in seen:
-            seen.add(k)
-            unique_keywords.append(k)
+            continue
+    return None
 
-    base_score = len(unique_keywords)
-    
-    # ==========================================================================
-    # STEP 3: Domain combination bonuses
-    # ==========================================================================
-    domain_bonus = 0
-    priority_level = "LOW"
-    
-    for combo in PRIORITY_COMBINATIONS:
-        # Backward-compatible parsing:
-        # - (domains, bonus, priority)
-        # - (domains, priority)
-        combo_domains = []
-        bonus = 0
-        priority = "LOW"
-        if isinstance(combo, (list, tuple)):
-            if len(combo) == 3:
-                combo_domains, bonus, priority = combo
-            elif len(combo) == 2:
-                combo_domains, priority = combo
-                bonus = 6 if priority == "HIGH" else 3 if priority == "MEDIUM" else 1
-            else:
-                continue
+
+def _timing_breakdown(publication_date: Any = None, deadline: Any = None) -> Dict[str, Any]:
+    today = date.today()
+    pub = _parse_date(publication_date)
+    due = _parse_date(deadline)
+    out = {
+        "days_to_deadline": None,
+        "days_since_publication": None,
+        "missing_deadline": due is None,
+        "missing_publication_date": pub is None,
+        "excluded_by_timing": False,
+        "timing_reason": "",
+    }
+    reasons: List[str] = []
+
+    if due is not None:
+        out["days_to_deadline"] = (due - today).days
+        if out["days_to_deadline"] < 7:
+            out["excluded_by_timing"] = True
+            reasons.append("Submission deadline is under 7 days away")
+
+    if pub is not None:
+        out["days_since_publication"] = (today - pub).days
+        if out["days_since_publication"] > 90:
+            out["excluded_by_timing"] = True
+            reasons.append("Notice is older than 3 months")
+
+    if reasons:
+        out["timing_reason"] = "; ".join(reasons)
+    elif due is None or pub is None:
+        out["timing_reason"] = "Date uncertainty"
+
+    return out
+
+
+def score_text(
+    title: str,
+    text: str = "",
+    *,
+    publication_date: Any = None,
+    deadline: Any = None,
+):
+    """Return prompt-driven F2 fit score, matched keywords string, and JSON breakdown."""
+    combined_raw = f"{title or ''} {text or ''}".strip()
+    combined = _normalize(combined_raw)
+
+    domain_hits: Dict[str, List[str]] = {}
+    for domain, phrases in KEYWORD_DOMAINS.items():
+        hits = _collect_hits(combined, phrases, max_hits=12)
+        if hits:
+            domain_hits[domain] = hits
+
+    matched_domains = set(domain_hits.keys())
+    primary_hits: List[str] = []
+    secondary_hits: List[str] = []
+    for domain, hits in domain_hits.items():
+        if domain in PRIMARY_DOMAINS:
+            primary_hits.extend(hits)
         else:
-            continue
+            secondary_hits.extend(hits)
 
-        if all(d in matched_domains for d in combo_domains):
-            domain_bonus = max(domain_bonus, bonus)
+    primary_hits = list(dict.fromkeys(primary_hits))
+    secondary_hits = list(dict.fromkeys(secondary_hits))
+    matched_keywords = primary_hits + secondary_hits
+
+    negative_hits = _collect_hits(combined, list(dict.fromkeys(IRRELEVANT_SIGNALS + NEGATIVE_SIGNALS)), max_hits=10)
+    hard_lock_hits = _collect_hits(combined, MICROSOFT_HARD_LOCK_SIGNALS, max_hits=6)
+    soft_lock_hits = _collect_hits(combined, MICROSOFT_SOFT_LOCK_SIGNALS, max_hits=6)
+    openness_hits = _collect_hits(combined, OPENNESS_SIGNALS, max_hits=4)
+    procurement_hits = _collect_hits(combined, OPEN_PROCUREMENT_SIGNALS, max_hits=5)
+    timing = _timing_breakdown(publication_date=publication_date, deadline=deadline)
+
+    primary_domain_count = len(matched_domains & PRIMARY_DOMAINS)
+    supporting_domain_count = len(matched_domains & SUPPORTING_DOMAINS)
+    government_context = 1 if "Gov" in matched_domains else 0
+
+    combo_bonus = 0
+    strong_fit_combinations: List[str] = []
+    combo_priority = "LOW"
+    for combo in PRIORITY_COMBINATIONS:
+        try:
+            combo_domains, bonus, priority = combo
+        except ValueError:
+            continue
+        if all(domain in matched_domains for domain in combo_domains):
+            combo_bonus = max(combo_bonus, int(bonus))
+            strong_fit_combinations.append(" + ".join(combo_domains))
             if priority == "HIGH":
-                priority_level = "HIGH"
-            elif priority == "MEDIUM" and priority_level != "HIGH":
-                priority_level = "MEDIUM"
-    
-    # Additional +2 if multiple domains in same text
-    if len(matched_domains) >= 2:
-        domain_bonus += 2
-    
-    # Additional +2 for government/public-sector context
-    if "Gov" in matched_domains:
-        domain_bonus += 2
-    
-    # ==========================================================================
-    # STEP 4: Priority phrase bonus
-    # ==========================================================================
-    priority_bonus = 0
-    priority_phrases_found = []
-    
-    for phrase in PRIORITY_PHRASES:
-        p = (phrase or "").strip()
-        if not p:
-            continue
-        needle = p.lower()
-        if callable(_norm_phrase):
-            try:
-                needle = _norm_phrase(p)
-            except Exception:
-                needle = p.lower()
-        if needle and needle in combined:
-            priority_phrases_found.append(phrase)
-            word_count = len(phrase.split())
-            if word_count >= 5:
-                priority_bonus += 5
-            elif word_count >= 4:
-                priority_bonus += 3
-            else:
-                priority_bonus += 2
-    
-    # ==========================================================================
-    # STEP 5: Negative signals (-2 if purely storage/hosting/website)
-    # ==========================================================================
-    negative_penalty = 0
-    negative_signals_found = []
-    
-    for neg in NEGATIVE_SIGNALS:
-        n = (neg or "").strip()
-        if not n:
-            continue
-        needle = n.lower()
-        if callable(_norm_phrase):
-            try:
-                needle = _norm_phrase(n)
-            except Exception:
-                needle = n.lower()
-        if needle and needle in combined:
-            negative_signals_found.append(neg)
-    
-    # Only penalize if ONLY negative signals (no positive workflow/case/records)
-    core_domains = {"EDMS", "Records", "Workflow", "Case", "ECM", "Forms", "ServiceDelivery"}
-    has_core_match = bool(matched_domains & core_domains)
-    
-    if negative_signals_found and not has_core_match:
-        negative_penalty = -2 * len(negative_signals_found)
-    
-    # ==========================================================================
-    # STEP 5b: Platform commitment detection (Microsoft-mandated = SI-only)
-    # ==========================================================================
-    # General platform lock-in signals
-    platform_lockin_found = []
-    for signal in PLATFORM_LOCKIN_SIGNALS:
-        s = (signal or "").strip()
-        if not s:
-            continue
-        needle = s.lower()
-        if callable(_norm_phrase):
-            try:
-                needle = _norm_phrase(s)
-            except Exception:
-                needle = s.lower()
-        if needle and needle in combined:
-            platform_lockin_found.append(signal)
-    
-    # STRONGER: Microsoft platform commitment signals (SI-only engagement)
-    microsoft_commitment_found = []
-    for signal in MICROSOFT_COMMITMENT_SIGNALS:
-        s = (signal or "").strip()
-        if not s:
-            continue
-        needle = s.lower()
-        if callable(_norm_phrase):
-            try:
-                needle = _norm_phrase(s)
-            except Exception:
-                needle = s.lower()
-        if needle and needle in combined:
-            microsoft_commitment_found.append(signal)
-    
-    # Open procurement signals
-    open_procurement_found = []
-    for signal in OPEN_PROCUREMENT_SIGNALS:
-        s = (signal or "").strip()
-        if not s:
-            continue
-        needle = s.lower()
-        if callable(_norm_phrase):
-            try:
-                needle = _norm_phrase(s)
-            except Exception:
-                needle = s.lower()
-        if needle and needle in combined:
-            open_procurement_found.append(signal)
-    
-    # Platform openness signals (buyer may consider alternatives)
-    platform_openness_found = []
-    for signal in PLATFORM_OPENNESS_SIGNALS:
-        s = (signal or "").strip()
-        if not s:
-            continue
-        needle = s.lower()
-        if callable(_norm_phrase):
-            try:
-                needle = _norm_phrase(s)
-            except Exception:
-                needle = s.lower()
-        if needle and needle in combined:
-            platform_openness_found.append(signal)
-    
-    # ==========================================================================
-    # STEP 5c: Determine procurement status and classification
-    # ==========================================================================
-    procurement_status = "open"  # Default: assume open procurement
+                combo_priority = "HIGH"
+            elif priority == "MEDIUM" and combo_priority != "HIGH":
+                combo_priority = "MEDIUM"
+
+    if primary_domain_count == 0:
+        breakdown = {
+            "keywords_found": 0,
+            "matched_keywords": [],
+            "domains_matched": sorted(matched_domains),
+            "primary_hits": [],
+            "secondary_hits": secondary_hits,
+            "irrelevant_signals": negative_hits,
+            "priority": "LOW",
+            "fit_classification": "NO-GO",
+            "likely_fit_for_F2": "no-go",
+            "procurement_status": "open",
+            "requires_qualification": False,
+            "qualification_reason": "No core F2 workflow/records/case/platform signals found",
+            "qualification_questions": [],
+            "timing": timing,
+            "recommendation": "NO-GO",
+            "queue_bucket": "no_go",
+            "final_score": 0,
+            "excluded": True,
+        }
+        return 0, "", json.dumps(breakdown)
+
+    if negative_hits and primary_domain_count < 2:
+        breakdown = {
+            "keywords_found": len(matched_keywords),
+            "matched_keywords": matched_keywords[:20],
+            "domains_matched": sorted(matched_domains),
+            "primary_hits": primary_hits,
+            "secondary_hits": secondary_hits,
+            "irrelevant_signals": negative_hits,
+            "priority": "LOW",
+            "fit_classification": "NO-GO",
+            "likely_fit_for_F2": "no-go",
+            "procurement_status": "open",
+            "requires_qualification": False,
+            "qualification_reason": "Scope is dominated by excluded hardware/infrastructure/construction signals",
+            "qualification_questions": [],
+            "timing": timing,
+            "recommendation": "NO-GO",
+            "queue_bucket": "no_go",
+            "final_score": 0,
+            "excluded": True,
+        }
+        return 0, ", ".join(primary_hits[:5]), json.dumps(breakdown)
+
+    raw_score = 0
+    raw_score += min(42, len(primary_hits) * 6 + primary_domain_count * 8)
+    raw_score += min(18, len(secondary_hits) * 2 + supporting_domain_count * 3)
+    raw_score += combo_bonus
+    raw_score += 6 if government_context else 0
+    raw_score += 5 if procurement_hits else 0
+    raw_score += 4 if len(domain_hits.get("Integration", [])) >= 2 else 0
+    raw_score += 4 if primary_domain_count >= 3 else 0
+    raw_score -= min(36, len(negative_hits) * 12)
+
+    procurement_status = "open"
     requires_qualification = False
     qualification_reason = ""
-    
-    # Combined openness signals (either open procurement OR platform openness)
-    has_openness_signals = bool(open_procurement_found or platform_openness_found)
-    
-    # Check for Microsoft platform commitment (STRONGEST lock-in)
-    if microsoft_commitment_found:
+
+    if hard_lock_hits and (
+        "no alternative platform accepted" in hard_lock_hits or not openness_hits
+    ):
+        procurement_status = "conditional_nogo"
         requires_qualification = True
-        
-        if platform_openness_found:
-            # Microsoft mandated BUT buyer signals openness to alternatives
-            # This is HIGH STRATEGIC VALUE - position F2 as alternative
-            procurement_status = "conditional_strategic"
-            qualification_reason = "Microsoft mandated but buyer may be open to alternatives - HIGH STRATEGIC VALUE"
-            negative_penalty -= 5  # Moderate penalty, but worth pursuing
-        elif open_procurement_found:
-            # Microsoft mentioned but this is clearly an open tender (provision of, RFP, etc.)
-            # Worth discussing - may just be integration requirement
-            procurement_status = "conditional_discuss"
-            qualification_reason = "Microsoft environment mentioned in open tender - clarify if platform is mandated"
-            negative_penalty -= 3  # Slight penalty
-            requires_qualification = False  # Don't require full qualification for open tenders
-        else:
-            # Microsoft mandated, no openness signals
-            # CONDITIONAL / NO-GO - require qualification before pursuit
-            procurement_status = "conditional_nogo"
-            qualification_reason = "Microsoft platform mandated - SI-only engagement unless buyer is open to alternatives"
-            negative_penalty -= 15  # Strong penalty
-    
-    # Check for general platform lock-in (weaker than Microsoft commitment)
-    elif platform_lockin_found:
-        if has_openness_signals:
-            # Mixed signals - client may be open to alternatives
-            procurement_status = "locked_but_open"
-            qualification_reason = "Platform mentioned but procurement appears open"
-            negative_penalty -= 3  # Slight penalty but still viable
-        else:
-            # Strong lock-in signal - F2 unlikely to compete
-            procurement_status = "locked"
-            qualification_reason = "Vendor/platform already chosen"
-            negative_penalty -= 10  # Significant penalty
-    
-    # Check if explicitly open procurement
-    elif has_openness_signals:
-        procurement_status = "open"
-        qualification_reason = ""
-    
-    # ==========================================================================
-    # STEP 6: Calculate final score
-    # ==========================================================================
-    raw_score = base_score + domain_bonus + priority_bonus + negative_penalty
-    raw_score = max(5, raw_score)  # Minimum score of 5 (never hard-reject)
-    
-    # Normalize to 5-100 scale (for UI display)
-    # Expected range: 1-30 points → 5-100%
-    normalized_score = ((raw_score - 1) / 29) * 95 + 5
-    normalized_score = min(100, max(5, round(normalized_score, 1)))
-    
-    # ==========================================================================
-    # STEP 7: Determine F2 fit likelihood and priority
-    # ==========================================================================
-    # Consider platform commitment when determining F2 fit
-    
-    if procurement_status == "conditional_nogo":
-        # Microsoft mandated, no openness signals → CONDITIONAL / NO-GO
-        likely_fit = "conditional"
-        priority_level = "CONDITIONAL"
-    elif procurement_status == "conditional_strategic":
-        # Microsoft mandated BUT buyer may be open → HIGH STRATEGIC VALUE
-        likely_fit = "strategic"
-        priority_level = "STRATEGIC"
-    elif procurement_status == "conditional_discuss":
-        # Microsoft mentioned in open tender → clarify but proceed
-        likely_fit = "discuss"
-        # Keep original priority_level, don't override
-    elif procurement_status == "locked":
-        # Other vendor locked in → NO-GO
+        qualification_reason = "Microsoft or SharePoint stack appears mandatory with no clear alternative platform allowance"
+        raw_score -= 35
+    elif hard_lock_hits:
+        procurement_status = "conditional_discuss"
+        requires_qualification = True
+        qualification_reason = "Microsoft stack is referenced, but the notice may still allow an alternative approach"
+        raw_score -= 15
+    elif soft_lock_hits and not openness_hits:
+        procurement_status = "locked_but_open"
+        requires_qualification = True
+        qualification_reason = "Existing Microsoft environment may constrain platform choice"
+        raw_score -= 10
+    elif soft_lock_hits:
+        procurement_status = "conditional"
+        requires_qualification = True
+        qualification_reason = "Microsoft environment exists; clarify openness to F2 as an alternative"
+        raw_score -= 5
+
+    score = max(0, min(100, int(round(raw_score))))
+
+    if timing.get("excluded_by_timing"):
+        score = min(score, 25)
+
+    fit_classification = "NO-GO"
+    priority = combo_priority if combo_priority != "LOW" else "LOW"
+    likely_fit = "no-go"
+    recommendation = "NO-GO"
+    queue_bucket = "no_go"
+
+    if timing.get("excluded_by_timing"):
+        fit_classification = "NO-GO"
+        priority = "LOW"
         likely_fit = "no-go"
-        priority_level = "LOCKED"
-    elif procurement_status == "locked_but_open":
-        # Platform mentioned but open procurement → DISCUSS
-        likely_fit = "discuss"
-    elif priority_level == "HIGH" or normalized_score >= 60:
+        recommendation = "NO-GO"
+    elif procurement_status == "conditional_nogo":
+        fit_classification = "NO-GO"
+        priority = "LOCKED"
+        likely_fit = "no-go"
+        recommendation = "NO-GO"
+    elif requires_qualification:
+        fit_classification = "CONDITIONAL"
+        priority = "CONDITIONAL"
+        likely_fit = "conditional"
+        recommendation = "REVIEW"
+        queue_bucket = "conditional_watchlist"
+    elif score >= 80 and primary_domain_count >= 2 and government_context:
+        fit_classification = "HIGH PRIORITY"
+        priority = "HIGH"
         likely_fit = "true"
-    elif priority_level == "MEDIUM" or normalized_score >= 30:
-        likely_fit = "uncertain"
-    else:
-        likely_fit = "uncertain"  # Never false - let humans decide
-    
-    # ==========================================================================
-    # BUILD OUTPUT
-    # ==========================================================================
-    # Keep user-facing keywords stable: keep order from matching rather than alpha sort.
-    unique_keywords = unique_keywords
-    
+        recommendation = "PURSUE"
+        queue_bucket = "today_shortlist"
+    elif score >= 70:
+        fit_classification = "GOOD FIT"
+        priority = "HIGH" if priority == "HIGH" else "MEDIUM"
+        likely_fit = "true"
+        recommendation = "PURSUE"
+        queue_bucket = "main_shortlist"
+    elif score >= 45:
+        fit_classification = "CONDITIONAL"
+        priority = "CONDITIONAL"
+        likely_fit = "conditional"
+        recommendation = "REVIEW"
+        queue_bucket = "conditional_watchlist"
+
     breakdown = {
-        "keywords_found": len(unique_keywords),
-        "total_keywords_in_system": len(ALL_KEYWORDS),
-        "matched_keywords": unique_keywords[:20],  # Limit for display
+        "keywords_found": len(matched_keywords),
+        "matched_keywords": matched_keywords[:20],
+        "primary_hits": primary_hits,
+        "secondary_hits": secondary_hits,
         "domains_matched": sorted(matched_domains),
-        "priority_phrases_matched": priority_phrases_found,
-        "negative_signals_found": negative_signals_found,
-        # Platform commitment analysis
-        "platform_lockin_signals": platform_lockin_found,
-        "microsoft_commitment_signals": microsoft_commitment_found,
-        "open_procurement_signals": open_procurement_found,
-        "platform_openness_signals": platform_openness_found,
+        "strong_fit_combinations": strong_fit_combinations,
+        "priority_phrases_matched": _collect_hits(combined, PRIORITY_PHRASES, max_hits=8),
+        "negative_signals_found": negative_hits,
+        "irrelevant_signals": negative_hits,
+        "platform_lockin_signals": list(dict.fromkeys(hard_lock_hits + soft_lock_hits)),
+        "microsoft_commitment_signals": list(dict.fromkeys(hard_lock_hits + soft_lock_hits)),
+        "open_procurement_signals": procurement_hits,
+        "platform_openness_signals": openness_hits,
         "procurement_status": procurement_status,
         "requires_qualification": requires_qualification,
         "qualification_reason": qualification_reason,
-        # Qualification questions (only if requires_qualification)
         "qualification_questions": QUALIFICATION_QUESTIONS if requires_qualification else [],
-        # Scoring
-        "base_score": base_score,
-        "domain_bonus": domain_bonus,
-        "priority_bonus": priority_bonus,
-        "negative_penalty": negative_penalty,
+        "timing": timing,
+        "base_score": raw_score,
+        "domain_bonus": combo_bonus,
+        "priority_bonus": 0,
+        "negative_penalty": -min(36, len(negative_hits) * 12),
         "raw_score": raw_score,
-        "normalized_score": normalized_score,
-        "match_percentage": normalized_score,
-        "final_score": normalized_score,
-        "priority": priority_level,
+        "normalized_score": score,
+        "match_percentage": score,
+        "final_score": score,
+        "priority": priority,
+        "fit_classification": fit_classification,
         "likely_fit_for_F2": likely_fit,
+        "recommendation": recommendation,
+        "queue_bucket": queue_bucket,
+        "excluded": recommendation == "NO-GO",
     }
-    
-    # Format matched keywords for display
-    keywords_display = ", ".join(unique_keywords[:15])
-    if len(unique_keywords) > 15:
-        keywords_display += f" (+{len(unique_keywords) - 15} more)"
-    
-    return normalized_score, keywords_display, json.dumps(breakdown)
+
+    matched_str = ", ".join((primary_hits + secondary_hits)[:8])
+    return score, matched_str, json.dumps(breakdown)
 
 
 def score_tender(
@@ -624,8 +344,15 @@ def score_tender(
     source_tags=None,
     pipeline_mode: str = "africa_priority",
     settings=None,
+    publication_date: Any = None,
+    deadline: Any = None,
 ):
-    base_score, matched_str, breakdown_json = score_text(title, text)
+    base_score, matched_str, breakdown_json = score_text(
+        title,
+        text,
+        publication_date=publication_date,
+        deadline=deadline,
+    )
     try:
         breakdown = json.loads(breakdown_json)
     except Exception:
@@ -645,24 +372,22 @@ def score_tender(
         pipeline_mode=pipeline_mode,
         settings=settings,
     )
+
+    if breakdown.get("recommendation") == "NO-GO":
+        ranking_score = min(float(ranking_score or 0), float(base_score or 0))
+
     breakdown["final_score"] = ranking_score
     return base_score, matched_str, json.dumps(breakdown), ranking_score
 
 
-def classify_tender(title: str, text: str = ""):
-    """
-    Classify a tender with full F2 alignment output.
-    
-    Returns dict with:
-    - matched_keywords
-    - relevance_score (loose)
-    - inferred_domains (EDMS, Workflow, Case, Gov)
-    - likely_fit_for_F2 = true/false/uncertain
-    - priority = HIGH/MEDIUM/LOW
-    """
-    score, matched_str, breakdown_json = score_text(title, text)
+def classify_tender(title: str, text: str = "", **kwargs):
+    score, _, breakdown_json = score_text(
+        title,
+        text,
+        publication_date=kwargs.get("publication_date"),
+        deadline=kwargs.get("deadline"),
+    )
     breakdown = json.loads(breakdown_json)
-    
     return {
         "relevance_score": score,
         "matched_keywords": breakdown.get("matched_keywords", []),

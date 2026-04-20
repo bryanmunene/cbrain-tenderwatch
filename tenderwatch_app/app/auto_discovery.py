@@ -527,31 +527,24 @@ class SearchAPIManager:
 class TenderDiscovery:
     """Main auto-discovery engine that coordinates searches and processes results."""
     
-    # Default search queries targeting tender opportunities
+    # Default search queries targeting official F2-fit public-sector opportunities
     DEFAULT_QUERIES = [
-        # General tender keywords
-        'government tender procurement',
-        'RFP document management system',
-        'RFQ case management software',
-        'tender EDMS records management',
-        'bid opportunity workflow automation',
-        
-        # Regional variations
-        'tender Kenya government',
-        'procurement opportunity Africa',
-        'RFP international development',
-        
-        # Specific categories
-        'tender electronic document management',
-        'RFP complaint handling system',
-        'procurement business process automation',
-        'tender ICT infrastructure',
-        
-        # Source-specific
-        'UNDP procurement notice',
-        'World Bank tender',
-        'African Development Bank RFP',
-        'UN agencies procurement'
+        'official procurement portal records management system tender',
+        'official government document management system tender',
+        'electronic records management public sector tender',
+        'case management system ministry tender',
+        'workflow automation government rfp',
+        'business process management public administration tender',
+        'citizen services portal workflow tender',
+        'grievance complaints handling system tender',
+        'licensing permit management system tender',
+        'registry correspondence management tender',
+        'digitization and archiving records tender',
+        'procurement records management system tender',
+        'configurable process platform public sector tender',
+        'UNDP records workflow tender',
+        'African Development Bank digital government tender',
+        'EU funding records workflow platform tender'
     ]
     
     def __init__(self, search_manager):
@@ -627,22 +620,30 @@ class TenderDiscovery:
             'solicitation', 'notice', 'opportunity', 'contract',
             'expression of interest', 'eoi', 'request for'
         ]
+
+        fit_keywords = [
+            'records management', 'document management', 'edms', 'edrms', 'ecm',
+            'workflow', 'case management', 'grievance', 'complaint',
+            'citizen services', 'service delivery portal', 'licensing system',
+            'permit management', 'digitization', 'archiving', 'registry',
+            'public administration', 'digital government'
+        ]
         
         # Negative indicators (exclude these)
         negative_keywords = [
             'news', 'article', 'blog', 'tutorial', 'definition',
             'wikipedia', 'linkedin', 'facebook', 'twitter',
-            'youtube', 'video', 'course', 'training'
+            'youtube', 'video', 'course', 'training',
+            'laptop', 'printer', 'server', 'router', 'switch', 'vehicle',
+            'construction', 'civil works', 'road works', 'fuel', 'furniture',
+            'hosting only', 'bandwidth only', 'website redesign only'
         ]
         
-        # Check positive indicators
         has_positive = any(keyword in text or keyword in url for keyword in positive_keywords)
-        
-        # Check negative indicators
+        has_fit = any(keyword in text for keyword in fit_keywords)
         has_negative = any(keyword in text or keyword in url for keyword in negative_keywords)
         
-        # Must have positive indicators and no negative indicators
-        return has_positive and not has_negative
+        return has_positive and has_fit and not has_negative
     
     def fetch_page_details(self, url: str) -> Optional[Dict]:
         """
