@@ -353,9 +353,13 @@ st.markdown(
       border: 1px solid rgba(255,255,255,0.2);
     }
 
-    .score-high { background: rgba(23,178,106,0.2); color: #d5ffe9; border-color: rgba(23,178,106,0.45); }
-    .score-mid  { background: rgba(241,165,50,0.2); color: #ffefcf; border-color: rgba(241,165,50,0.45); }
-    .score-low  { background: rgba(239,90,90,0.2); color: #ffdede; border-color: rgba(239,90,90,0.45); }
+    .score-high { background: rgba(23,178,106,0.2); color: #14553a; border-color: rgba(23,178,106,0.32); }
+    .score-mid  { background: rgba(241,165,50,0.18); color: #7b5616; border-color: rgba(241,165,50,0.3); }
+    .score-low  { background: rgba(239,90,90,0.16); color: #8a3d3d; border-color: rgba(239,90,90,0.3); }
+    .lane-high { background: rgba(24, 132, 89, 0.16); color: #16523b; border-color: rgba(24, 132, 89, 0.3); }
+    .lane-good { background: rgba(83, 132, 184, 0.16); color: #254b72; border-color: rgba(83, 132, 184, 0.3); }
+    .lane-watch { background: rgba(204, 149, 58, 0.16); color: #785316; border-color: rgba(204, 149, 58, 0.3); }
+    .lane-nogo { background: rgba(181, 88, 88, 0.14); color: #7b3a3a; border-color: rgba(181, 88, 88, 0.28); }
 
         .experience-panel {
             padding: 1rem 1.25rem;
@@ -862,27 +866,51 @@ def render_section_card(title: str, subtitle: str) -> None:
         )
 
 
+def classify_tender_lane(t: TenderResult) -> tuple[str, str]:
+    priority = (getattr(t, "priority_level", "") or "").upper()
+    likely_fit = (getattr(t, "likely_fit_for_f2", "") or "").lower()
+    recommendation = (getattr(t, "recommendation", "") or "").upper()
+    status = (getattr(t, "procurement_status", "") or "").lower()
+    requires_qualification = bool(getattr(t, "requires_qualification", False))
+
+    if recommendation == "NO-GO" or likely_fit in {"no-go", "false", "excluded"} or status in {"locked", "conditional_nogo", "excluded"}:
+        return "NO-GO", "lane-nogo"
+    if priority == "HIGH" or (recommendation == "PURSUE" and likely_fit in {"true", "yes"}):
+        return "HIGH PRIORITY", "lane-high"
+    if requires_qualification or priority in {"CONDITIONAL", "STRATEGIC", "MEDIUM"} or likely_fit in {"conditional", "uncertain", "discuss", "strategic"}:
+        return "CONDITIONAL", "lane-watch"
+    if likely_fit in {"true", "yes"}:
+        return "GOOD FIT", "lane-good"
+    return "REVIEW", "lane-watch"
+
+
 def render_tender_card(t: TenderResult) -> None:
     score = float(t.score or 0)
     score_class = "score-high" if score >= 70 else "score-mid" if score >= 45 else "score-low"
+    lane_label, lane_class = classify_tender_lane(t)
     created = t.created_at.strftime("%Y-%m-%d") if t.created_at else "N/A"
     status = t.procurement_status or "open"
     country = t.country or "Unknown"
     category = t.category or "Unclassified"
+    qualification_flag = "Needs qualification" if bool(getattr(t, "requires_qualification", False)) else ""
     desc = (t.description_translated or t.description or "").strip()
     compact_mode = bool(st.session_state.get("compact_mode", False))
     desc_limit = 120 if compact_mode else 220
     if len(desc) > desc_limit:
         desc = desc[:desc_limit].rstrip() + "..."
 
+    extra_badge = f"<span class='score-badge lane-watch'>{qualification_flag}</span>" if qualification_flag else ""
+
     st.markdown(
         f"""
         <div class='result-card'>
           <p class='result-title'>{t.title}</p>
           <div class='result-meta'>
+            <span class='score-badge {lane_class}'>{lane_label}</span>
             <span class='score-badge {score_class}'>Score {score:.1f}%</span>
-            &nbsp;&nbsp;{country} | {category} | {status} | {created}
+            {extra_badge}
           </div>
+          <div class='result-meta'>{country} | {category} | {status} | {created}</div>
           <div class='result-meta' style='margin-top:0.45rem'>{desc}</div>
         </div>
         """,
@@ -1004,10 +1032,11 @@ if page == "Dashboard":
     k4.metric("Saved Pipeline", stats["saved"])
     k5.metric("Favorites", stats["favorites"])
 
-    st.markdown("### Latest Opportunities")
-    recent = get_tenders(min_score=25, days_window=30, sort_by="date")[:6]
+    st.markdown("### Today's Shortlist")
+    recent_all = get_tenders(min_score=0, days_window=30, sort_by="score")
+    recent = [t for t in recent_all if classify_tender_lane(t)[0] in {"HIGH PRIORITY", "GOOD FIT"}][:6]
     if not recent:
-        st.info("No opportunities yet. Run a scan from Scan & Results.")
+        st.info("No shortlist items yet. Run a scan or review the Conditional lane from Scan & Results.")
     else:
         for t in recent:
             render_tender_card(t)
@@ -1171,45 +1200,45 @@ elif page == "Scan & Results":
         sort_by=sort_by,
     )
 
-    high_lane = [t for t in tenders if float(t.score or 0) >= 70]
-    mid_lane = [t for t in tenders if 40 <= float(t.score or 0) < 70]
-    low_lane = [t for t in tenders if float(t.score or 0) < 40]
+    shortlist_lane = [t for t in tenders if classify_tender_lane(t)[0] in {"HIGH PRIORITY", "GOOD FIT"}]
+    watchlist_lane = [t for t in tenders if classify_tender_lane(t)[0] in {"CONDITIONAL", "REVIEW"}]
+    nogo_lane = [t for t in tenders if classify_tender_lane(t)[0] == "NO-GO"]
 
     render_section_card(
-        "Action Lanes",
-        f"{len(tenders)} matches | Priority {len(high_lane)} | Qualified {len(mid_lane)} | Explore {len(low_lane)}",
+        "Decision Lanes",
+        f"{len(tenders)} matches | Today's shortlist {len(shortlist_lane)} | Watchlist {len(watchlist_lane)} | No-go {len(nogo_lane)}",
     )
 
     if not tenders:
         st.warning("No tenders match these filters. Try Broad mode or reduce Min Score.")
     else:
-        lane_priority, lane_qualified, lane_explore = st.tabs(
+        lane_shortlist, lane_watchlist, lane_nogo = st.tabs(
             [
-                f"Priority ({len(high_lane)})",
-                f"Qualified ({len(mid_lane)})",
-                f"Explore ({len(low_lane)})",
+                f"Today's Shortlist ({len(shortlist_lane)})",
+                f"Conditional / Watchlist ({len(watchlist_lane)})",
+                f"No-Go ({len(nogo_lane)})",
             ]
         )
 
-        with lane_priority:
-            if not high_lane:
-                st.info("No high-fit tenders yet. Try lowering threshold or running a broader scan.")
+        with lane_shortlist:
+            if not shortlist_lane:
+                st.info("No strong-fit F2 opportunities yet. Run a broader scan or review the watchlist.")
             else:
-                for t in high_lane[:80]:
+                for t in shortlist_lane[:80]:
                     render_tender_card(t)
 
-        with lane_qualified:
-            if not mid_lane:
-                st.info("No qualified tenders in this lane.")
+        with lane_watchlist:
+            if not watchlist_lane:
+                st.info("No conditional items right now.")
             else:
-                for t in mid_lane[:80]:
+                for t in watchlist_lane[:80]:
                     render_tender_card(t)
 
-        with lane_explore:
-            if not low_lane:
-                st.info("No exploratory tenders in this lane.")
+        with lane_nogo:
+            if not nogo_lane:
+                st.info("No notable no-go items in this filtered set.")
             else:
-                for t in low_lane[:80]:
+                for t in nogo_lane[:50]:
                     render_tender_card(t)
 
 elif page == "Sources":
