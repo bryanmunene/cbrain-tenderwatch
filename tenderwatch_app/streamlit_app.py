@@ -697,7 +697,10 @@ def get_tenders(
             )
 
         if status == "Open":
-            q = q.filter(~TenderResult.procurement_status.in_(["locked", "conditional_nogo"]))
+            q = q.filter(
+                (TenderResult.procurement_status.is_(None))
+                | (~TenderResult.procurement_status.in_(["locked", "conditional_nogo"]))
+            )
         elif status == "Locked":
             q = q.filter(TenderResult.procurement_status.in_(["locked", "conditional_nogo"]))
 
