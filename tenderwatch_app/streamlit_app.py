@@ -609,11 +609,36 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _seed_sources() -> None:
+    """Seed default sources if the table is empty (e.g. fresh Streamlit Cloud deploy)."""
+    import json as _json
+    from app.models import TenderSource as _TS
+    if _TS.query.count() > 0:
+        return
+    try:
+        from init_sources import DEFAULT_SOURCES  # type: ignore[import]
+    except Exception:
+        return
+    for name, url, source_group in DEFAULT_SOURCES:
+        db.session.add(
+            _TS(  # type: ignore[call-arg]
+                name=name,
+                url=url,
+                active=True,
+                favorite=False,
+                source_group=source_group,
+                source_tags=_json.dumps([source_group]),
+            )
+        )
+    db.session.commit()
+
+
 def bootstrap_once() -> None:
     if st.session_state.get("_bootstrapped"):
         return
     with app.app_context():
         db.create_all()
+        _seed_sources()
         settings = AppSettings.query.first()
         if not settings:
             settings = AppSettings()  # type: ignore[call-arg]
