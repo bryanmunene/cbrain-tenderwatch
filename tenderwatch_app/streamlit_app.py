@@ -790,6 +790,15 @@ def run_scan_now(depth: str) -> int:
     return len(new_items or [])
 
 
+def get_results_summary() -> tuple[int, int]:
+    with app.app_context():
+        total = TenderResult.query.count()
+        reviewable = TenderResult.query.filter(
+            TenderResult.recommendation.in_(["REVIEW", "PURSUE"])
+        ).count()
+    return int(total), int(reviewable)
+
+
 def toggle_favorite(tender_id: int) -> None:
     with app.app_context():
         t = TenderResult.query.get(tender_id)
@@ -1115,7 +1124,15 @@ elif page == "Scan":
                 started = time.time()
                 new_count = run_scan_now(scan_depth)
                 elapsed = time.time() - started
-            st.success(f"{new_count} new tenders found in {elapsed:.1f}s — go to **Results** to review.")
+            total_results, reviewable_results = get_results_summary()
+            if new_count > 0:
+                st.success(
+                    f"{new_count} new tenders found in {elapsed:.1f}s. Results now has {reviewable_results} reviewable items."
+                )
+            else:
+                st.info(
+                    f"No newly-added tenders in {elapsed:.1f}s. Results still has {reviewable_results} reviewable items ({total_results} total saved)."
+                )
 
 elif page == "Results":
     if "scan_ux_bootstrap_v4" not in st.session_state:
@@ -1554,4 +1571,3 @@ elif page == "Settings":
             st.caption("Comfort mode is enabled for easier readability.")
 
 
-st.caption("cBrain TenderWatch | redesigned UI")
