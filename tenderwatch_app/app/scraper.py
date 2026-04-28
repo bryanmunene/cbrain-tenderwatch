@@ -1100,9 +1100,9 @@ def scan_source(
             if likely_fit == "uncertain" and fit_score < 10 and not manual_like:
                 continue
             strict_no_deadline = (not bool(source.favorite)) and (not manual_like)
-            if strict_no_deadline and not deadline and likely_fit in {"uncertain", "discuss"} and fit_score < 24 and not has_tender_term:
+            if strict_no_deadline and not deadline and likely_fit in {"uncertain", "discuss"} and fit_score < 12 and not has_tender_term:
                 continue
-            if strict_no_deadline and not deadline and keywords_found < 2 and fit_score < 30 and not has_tender_term:
+            if strict_no_deadline and not deadline and keywords_found < 2 and fit_score < 18 and not has_tender_term:
                 continue
             if (
                 (not manual_like)

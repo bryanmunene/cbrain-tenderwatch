@@ -619,13 +619,24 @@ def _seed_sources() -> None:
         from init_sources import DEFAULT_SOURCES  # type: ignore[import]
     except Exception:
         return
+    # Mark high-quality multilateral and key Africa-priority sources as favorites
+    # so the scraper's strict no-deadline filter doesn't drop their results.
+    FAVORITE_SOURCES = {
+        "UNDP Procurement Notices", "UN Global Marketplace", "UNOPS Opportunities",
+        "World Bank Procurement", "World Bank Contracts", "DevBusiness (World Bank)",
+        "AfDB Procurement", "TED Europa Tenders", "UK Find a Tender",
+        "ICT Authority", "Kenya PPIP", "TradeMark Africa Procurement",
+        "WHO Procurement", "WFP Procurement", "FAO Procurement",
+        "Commonwealth Secretariat Procurement", "African Union Commission",
+        "AIIB Project Procurement", "AsDB Procurement", "EIB Procurement Calls",
+    }
     for name, url, source_group in DEFAULT_SOURCES:
         db.session.add(
             _TS(  # type: ignore[call-arg]
                 name=name,
                 url=url,
                 active=True,
-                favorite=False,
+                favorite=name in FAVORITE_SOURCES,
                 source_group=source_group,
                 source_tags=_json.dumps([source_group]),
             )
