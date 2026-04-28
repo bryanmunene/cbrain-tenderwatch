@@ -930,7 +930,10 @@ def classify_tender_lane(t: TenderResult) -> tuple[str, str]:
     status = (getattr(t, "procurement_status", "") or "").lower()
     requires_qualification = bool(getattr(t, "requires_qualification", False))
 
-    if recommendation == "NO-GO" or likely_fit in {"no-go", "false", "excluded"} or status in {"locked", "conditional_nogo", "excluded"}:
+    # Trust the persisted recommendation/status over older likely-fit flags.
+    # Some exploratory captures are intentionally saved as REVIEW even when the
+    # original scoring breakdown still says "no-go".
+    if recommendation == "NO-GO" or status in {"locked", "conditional_nogo", "excluded"}:
         return "NO-GO", "lane-nogo"
     if priority == "HIGH" or (recommendation == "PURSUE" and likely_fit in {"true", "yes"}):
         return "HIGH PRIORITY", "lane-high"
