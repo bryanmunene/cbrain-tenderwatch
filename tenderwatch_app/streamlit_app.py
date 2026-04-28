@@ -785,16 +785,16 @@ def run_scan_now(depth: str) -> int:
             flask_app=app,
             max_sources=cfg["max_sources"],
             scan_timeout_seconds=cfg["timeout"],
-            discovery_mode="f2_ranked",
+            discovery_mode="manual_like",
         )
-    return len(new_items or [])
+    return int(len(new_items or []))
 
 
 def get_results_summary() -> tuple[int, int]:
     with app.app_context():
         total = TenderResult.query.count()
         reviewable = TenderResult.query.filter(
-            TenderResult.recommendation.in_(["REVIEW", "PURSUE"])
+            TenderResult.recommendation.in_(["GO", "REVIEW", "PURSUE"])
         ).count()
     return int(total), int(reviewable)
 
@@ -935,7 +935,7 @@ def classify_tender_lane(t: TenderResult) -> tuple[str, str]:
     # original scoring breakdown still says "no-go".
     if recommendation == "NO-GO" or status in {"locked", "conditional_nogo", "excluded"}:
         return "NO-GO", "lane-nogo"
-    if priority == "HIGH" or (recommendation == "PURSUE" and likely_fit in {"true", "yes"}):
+    if priority == "HIGH" or (recommendation in {"GO", "PURSUE"} and likely_fit in {"true", "yes"}):
         return "HIGH PRIORITY", "lane-high"
     if requires_qualification or priority in {"CONDITIONAL", "STRATEGIC", "MEDIUM"} or likely_fit in {"conditional", "uncertain", "discuss", "strategic"}:
         return "CONDITIONAL", "lane-watch"
@@ -1572,5 +1572,4 @@ elif page == "Settings":
             st.caption("Compact mode is enabled for tighter lists in Scan & Results.")
         else:
             st.caption("Comfort mode is enabled for easier readability.")
-
 
