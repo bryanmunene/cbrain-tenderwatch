@@ -610,17 +610,10 @@ def _utcnow() -> datetime:
 
 
 def _seed_sources() -> None:
-    """Seed default sources if the table is empty (e.g. fresh Streamlit Cloud deploy)."""
+    """Seed default sources if the table is empty, or patch favorite flags if already seeded."""
     import json as _json
     from app.models import TenderSource as _TS
-    if _TS.query.count() > 0:
-        return
-    try:
-        from init_sources import DEFAULT_SOURCES  # type: ignore[import]
-    except Exception:
-        return
-    # Mark high-quality multilateral and key Africa-priority sources as favorites
-    # so the scraper's strict no-deadline filter doesn't drop their results.
+
     FAVORITE_SOURCES = {
         "UNDP Procurement Notices", "UN Global Marketplace", "UNOPS Opportunities",
         "World Bank Procurement", "World Bank Contracts", "DevBusiness (World Bank)",
@@ -630,6 +623,22 @@ def _seed_sources() -> None:
         "Commonwealth Secretariat Procurement", "African Union Commission",
         "AIIB Project Procurement", "AsDB Procurement", "EIB Procurement Calls",
     }
+
+    if _TS.query.count() > 0:
+        # Already seeded — just ensure favorite flags are set on key sources.
+        updated = 0
+        for src in _TS.query.filter_by(favorite=False).all():
+            if src.name in FAVORITE_SOURCES:
+                src.favorite = True
+                updated += 1
+        if updated:
+            db.session.commit()
+        return
+
+    try:
+        from init_sources import DEFAULT_SOURCES  # type: ignore[import]
+    except Exception:
+        return
     for name, url, source_group in DEFAULT_SOURCES:
         db.session.add(
             _TS(  # type: ignore[call-arg]
