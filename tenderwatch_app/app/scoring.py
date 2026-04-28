@@ -30,8 +30,9 @@ PRIMARY_DOMAINS = {
     "ServiceDelivery",
     "Licensing",
     "ProcurementRecords",
+    "Integration",
 }
-SUPPORTING_DOMAINS = {"Gov", "Forms", "Integration", "Pipeline"}
+SUPPORTING_DOMAINS = {"Gov", "Forms", "Pipeline"}
 
 
 def _normalize(text: str) -> str:
@@ -89,9 +90,9 @@ def _timing_breakdown(publication_date: Any = None, deadline: Any = None) -> Dic
 
     if due is not None:
         out["days_to_deadline"] = (due - today).days
-        if out["days_to_deadline"] < 7:
+        if out["days_to_deadline"] < 3:
             out["excluded_by_timing"] = True
-            reasons.append("Submission deadline is under 7 days away")
+            reasons.append("Submission deadline is under 3 days away")
 
     if pub is not None:
         out["days_since_publication"] = (today - pub).days
@@ -187,7 +188,7 @@ def score_text(
         }
         return 0, "", json.dumps(breakdown)
 
-    if negative_hits and primary_domain_count < 2:
+    if negative_hits and primary_domain_count < 1:
         breakdown = {
             "keywords_found": len(matched_keywords),
             "matched_keywords": matched_keywords[:20],
@@ -200,7 +201,7 @@ def score_text(
             "likely_fit_for_F2": "no-go",
             "procurement_status": "open",
             "requires_qualification": False,
-            "qualification_reason": "Scope is dominated by excluded hardware/infrastructure/construction signals",
+            "qualification_reason": "Scope is dominated by excluded hardware/infrastructure/construction signals with no core F2 signals",
             "qualification_questions": [],
             "timing": timing,
             "recommendation": "NO-GO",
@@ -218,7 +219,7 @@ def score_text(
     raw_score += 5 if procurement_hits else 0
     raw_score += 4 if len(domain_hits.get("Integration", [])) >= 2 else 0
     raw_score += 4 if primary_domain_count >= 3 else 0
-    raw_score -= min(36, len(negative_hits) * 12)
+    raw_score -= min(24, len(negative_hits) * 8)
 
     procurement_status = "open"
     requires_qualification = False
@@ -250,7 +251,7 @@ def score_text(
     score = max(0, min(100, int(round(raw_score))))
 
     if timing.get("excluded_by_timing"):
-        score = min(score, 25)
+        score = min(score, 35)
 
     fit_classification = "NO-GO"
     priority = combo_priority if combo_priority != "LOW" else "LOW"
@@ -286,12 +287,24 @@ def score_text(
         likely_fit = "true"
         recommendation = "PURSUE"
         queue_bucket = "main_shortlist"
-    elif score >= 45:
+    elif score >= 35:
         fit_classification = "CONDITIONAL"
         priority = "CONDITIONAL"
         likely_fit = "conditional"
         recommendation = "REVIEW"
         queue_bucket = "conditional_watchlist"
+    elif score >= 10 and primary_domain_count >= 1:
+        fit_classification = "WATCH"
+        priority = "LOW"
+        likely_fit = "discuss"
+        recommendation = "REVIEW"
+        queue_bucket = "secondary_review"
+    elif score >= 10:
+        fit_classification = "WATCH"
+        priority = "LOW"
+        likely_fit = "discuss"
+        recommendation = "REVIEW"
+        queue_bucket = "secondary_review"
 
     breakdown = {
         "keywords_found": len(matched_keywords),

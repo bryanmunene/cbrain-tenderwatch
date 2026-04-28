@@ -54,19 +54,19 @@ warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 # keeping connect fast. This improves recall without materially hurting scan speed
 # thanks to parallelism.
 HTTP_CONNECT_TIMEOUT = int(3)
-HTTP_READ_TIMEOUT = int(10)
+HTTP_READ_TIMEOUT = int(7)
 HTTP_TIMEOUT = (HTTP_CONNECT_TIMEOUT, HTTP_READ_TIMEOUT)
-AUTO_DISCOVERY_TIMEOUT_SECONDS = int(os.getenv("AUTO_DISCOVERY_TIMEOUT_SECONDS", "25"))
-AUTO_DISCOVERY_MAX_QUERIES = int(os.getenv("AUTO_DISCOVERY_MAX_QUERIES", "4"))
+AUTO_DISCOVERY_TIMEOUT_SECONDS = int(os.getenv("AUTO_DISCOVERY_TIMEOUT_SECONDS", "12"))
+AUTO_DISCOVERY_MAX_QUERIES = int(os.getenv("AUTO_DISCOVERY_MAX_QUERIES", "2"))
 ALLOW_INSECURE_TLS = (os.getenv("ALLOW_INSECURE_TLS", "") or "").strip().lower() in {"1", "true", "yes", "on"}
 
 # PDF limits (adaptive parsing uses up to PDF_MAX_PAGES pages)
 PDF_MAX_BYTES = 2_000_000  # 2 MB
 PDF_MAX_PAGES = 2
-MAX_ANCHORS_PER_SOURCE = 180
+MAX_ANCHORS_PER_SOURCE = 120
 MAX_NEW_TENDERS_PER_SOURCE = 12
-DETAIL_FETCH_MAX_PER_SOURCE = 16
-DETAIL_TEXT_MAX_CHARS = 8000
+DETAIL_FETCH_MAX_PER_SOURCE = 8
+DETAIL_TEXT_MAX_CHARS = 4500
 DETAIL_PDF_LINK_LIMIT = 2
 STALE_NOTICE_MAX_AGE_DAYS = int(os.getenv("STALE_NOTICE_MAX_AGE_DAYS", "90"))
 
@@ -219,7 +219,7 @@ F2_INTENT_TERMS = [
     "citizen portal", "service delivery platform",
 ]
 
-MIN_RELEVANCE_SCORE = 12
+MIN_RELEVANCE_SCORE = 8
 
 # Broader discovery terms for high-signal favorite sources.
 # These are intentionally narrower than generic gov words to avoid noisy capture.
@@ -332,13 +332,13 @@ class SourceInfo:
 
 
 SOURCE_SCAN_TUNING: Dict[str, Dict[str, int | bool]] = {
-    "ICT Authority": {"max_anchors": 110, "detail_fetch_max": 6, "per_source_cap": 8},
-    "Kenya Railways": {"max_anchors": 120, "detail_fetch_max": 6, "per_source_cap": 8},
-    "CAK Tenders": {"max_anchors": 90, "detail_fetch_max": 5, "per_source_cap": 7},
-    "South Africa eTender": {"max_anchors": 240, "detail_fetch_max": 14, "per_source_cap": 14},
-    "Kenya PPIP": {"max_anchors": 220, "detail_fetch_max": 12, "per_source_cap": 12},
-    "Kenya Public Procurement Portal": {"max_anchors": 220, "detail_fetch_max": 12, "per_source_cap": 12},
-    "UNDP Procurement Notices": {"max_anchors": 260, "detail_fetch_max": 16, "per_source_cap": 14},
+    "ICT Authority": {"max_anchors": 90, "detail_fetch_max": 4, "per_source_cap": 8},
+    "Kenya Railways": {"max_anchors": 100, "detail_fetch_max": 4, "per_source_cap": 8},
+    "CAK Tenders": {"max_anchors": 80, "detail_fetch_max": 4, "per_source_cap": 7},
+    "South Africa eTender": {"max_anchors": 160, "detail_fetch_max": 8, "per_source_cap": 14},
+    "Kenya PPIP": {"max_anchors": 150, "detail_fetch_max": 7, "per_source_cap": 12},
+    "Kenya Public Procurement Portal": {"max_anchors": 150, "detail_fetch_max": 7, "per_source_cap": 12},
+    "UNDP Procurement Notices": {"max_anchors": 180, "detail_fetch_max": 8, "per_source_cap": 14},
 }
 
 
@@ -455,6 +455,10 @@ def _clean_title(raw: str) -> str:
     title = (raw or "").strip()
     if not title:
         return ""
+    # Strip common table-column artefacts that get prepended on listing cards.
+    title = re.sub(r"^(?:title|subject|description|tender\s+title|lot\s+title)\s*[:\-]?\s+", "", title, flags=re.IGNORECASE)
+    # Strip common table-column artefacts that get prepended on listing cards.
+    title = re.sub(r"^(?:title|subject|description|tender\s+title|lot\s+title)\s*[:\-]?\s+", "", title, flags=re.IGNORECASE)
     # Remove metadata tails commonly concatenated on listing cards.
     title = re.split(
         r"\b(?:ref(?:erence)?(?:\s*no\.?)?|deadline|posted|country|office|process)\b",
@@ -1014,7 +1018,7 @@ def scan_source(
                 if not (manual_like and keyword_hint):
                     continue
             if not deadline and not has_ref_code and not has_detail_url and not (has_ref_hint and has_date_hint):
-                if not (manual_like and (has_tender_term or keyword_hint)):
+                if not (has_tender_term or (manual_like and keyword_hint)):
                     continue
 
             full_context = f"{base_combined} {detail_text} {pdf_text} {link}".strip()
@@ -1061,12 +1065,12 @@ def scan_source(
             if fit_score <= 0 or keywords_found == 0:
                 # Do not resurrect tenders explicitly excluded by keyword scoring.
                 # Example: construction/civil works notices with incidental "ict" text.
-                if bool(breakdown.get("excluded", False)) or (breakdown.get("irrelevant_signals") or []):
+                if bool(breakdown.get("excluded", False)) and not (has_tender_term or has_ref_code or has_detail_url or (manual_like and keyword_hint)):
                     continue
                 # Controlled fallback: keep digital/ICT-adjacent leads from favorite sources.
                 broad_hits = _broad_discovery_hits(base_combined)
-                allow_broad_capture = has_tender_term or has_ref_code or has_detail_url
-                broad_quality_ok = _broad_hits_pass_quality(broad_hits) or (has_tender_term and len(broad_hits) >= 1)
+                allow_broad_capture = has_tender_term or has_ref_code or has_detail_url or (manual_like and keyword_hint)
+                broad_quality_ok = _broad_hits_pass_quality(broad_hits) or (has_tender_term and len(broad_hits) >= 1) or (manual_like and keyword_hint and len(broad_hits) >= 1)
                 if allow_broad_capture and broad_quality_ok:
                     fit_score = max(float(fit_score or 0), 18.0 if manual_like else 16.0)
                     keywords_found = len(broad_hits)
@@ -1093,14 +1097,20 @@ def scan_source(
             if procurement_status in {"locked", "conditional_nogo"} and (not source.favorite) and (not manual_like):
                 continue
             # Keep more exploratory matches in F2-ranked mode; final quality is handled in UI filters.
-            if likely_fit == "uncertain" and fit_score < 14 and not manual_like:
+            if likely_fit == "uncertain" and fit_score < 10 and not manual_like:
                 continue
             strict_no_deadline = (not bool(source.favorite)) and (not manual_like)
             if strict_no_deadline and not deadline and likely_fit in {"uncertain", "discuss"} and fit_score < 24 and not has_tender_term:
                 continue
             if strict_no_deadline and not deadline and keywords_found < 2 and fit_score < 30 and not has_tender_term:
                 continue
-            if (not manual_like) and (not _has_f2_intent(base_combined)) and len(domains_matched) < 2 and fit_score < MIN_RELEVANCE_SCORE:
+            if (
+                (not manual_like)
+                and (not _has_f2_intent(base_combined))
+                and len(domains_matched) < 2
+                and fit_score < MIN_RELEVANCE_SCORE
+                and not (has_tender_term and (has_ref_code or has_detail_url or has_url_term))
+            ):
                 continue
 
             bonus = _source_bias_bonus(source.name, link)
@@ -1234,10 +1244,13 @@ def _discover_rows(
         geo_settings = settings_from_model(settings)
 
         auto_enabled = bool(getattr(settings, "auto_discovery_enabled", False))
-        google_api_key = (os.getenv("GOOGLE_API_KEY", "") or "").strip()
-        google_cx = (os.getenv("GOOGLE_CX", "") or "").strip()
-        serpapi_api_key = (os.getenv("SERPAPI_API_KEY", "") or "").strip()
-        bing_api_key = (os.getenv("BING_API_KEY", "") or "").strip()
+        google_api_key = (getattr(settings, "google_api_key", "") or "").strip() or (os.getenv("GOOGLE_API_KEY", "") or "").strip()
+        google_cx = (getattr(settings, "google_cx", "") or "").strip() or (os.getenv("GOOGLE_CX", "") or "").strip()
+        bing_api_key = (getattr(settings, "bing_api_key", "") or "").strip() or (os.getenv("BING_API_KEY", "") or "").strip()
+
+        # SerpAPI is optional and can cause repeated 401 delays when stale keys linger in env.
+        serpapi_enabled = str(os.getenv("ENABLE_SERPAPI_DISCOVERY", "0")).strip().lower() in {"1", "true", "yes", "on"}
+        serpapi_api_key = ((os.getenv("SERPAPI_API_KEY", "") or "").strip() if serpapi_enabled else "")
 
         # Require explicit enable. Credentials are optional (no-key crawling fallback is supported).
         if not auto_enabled:
@@ -1283,8 +1296,13 @@ def _discover_rows(
             # No-key crawler ignores query semantics; run a compact pass for speed.
             effective_queries = [queries[0]] if queries else ["tender procurement"]
             effective_results_per_query = min(results_per_query, 8)
-        elif effective_queries:
-            # Bound API discovery breadth to keep scan runtime predictable.
+        else:
+            # Always keep API discovery bounded, even when default query sets are used.
+            if not effective_queries:
+                effective_queries = [
+                    "government procurement records management tender",
+                    "public sector workflow automation tender",
+                ]
             effective_queries = effective_queries[:max(1, AUTO_DISCOVERY_MAX_QUERIES)]
             effective_results_per_query = min(effective_results_per_query, 8)
 
@@ -1293,15 +1311,18 @@ def _discover_rows(
             results_per_query=effective_results_per_query,
         )
         if not discovered and has_api_credentials:
-            # API mode may fail (quota/config issues). Fall back to no-key crawl mode.
-            init_discovery()
-            engine = get_discovery_engine()
-            if engine:
-                fallback_queries = [queries[0]] if queries else ["tender procurement"]
-                discovered = engine.discover_tenders(
-                    queries=fallback_queries,
-                    results_per_query=min(results_per_query, 8),
-                )
+            # API mode may fail due to invalid credentials or quota. No-key fallback can
+            # be very slow, so keep it opt-in for interactive scans.
+            allow_no_key_fallback = str(os.getenv("ALLOW_NO_KEY_DISCOVERY_FALLBACK", "0")).strip().lower() in {"1", "true", "yes", "on"}
+            if allow_no_key_fallback:
+                init_discovery()
+                engine = get_discovery_engine()
+                if engine:
+                    fallback_queries = [queries[0]] if queries else ["tender procurement"]
+                    discovered = engine.discover_tenders(
+                        queries=fallback_queries,
+                        results_per_query=min(results_per_query, 8),
+                    )
         if not discovered:
             return []
 
@@ -1488,9 +1509,9 @@ def _discover_rows(
 
 def run_scan(
     flask_app=None,
-    max_sources=15,
+    max_sources=35,
     scan_timeout_seconds=None,
-    discovery_mode: str = "f2_ranked",
+    discovery_mode: str = "manual_like",
     max_new_per_source: int = MAX_NEW_TENDERS_PER_SOURCE,
 ):
     """Scan sources for tenders and return newly added TenderResult objects.
@@ -1515,7 +1536,10 @@ def run_scan(
         app_settings = AppSettings.query.first()
         retention_days = int(getattr(app_settings, "retention_days", 90) or 90) if app_settings else 90
         cleanup_old_tenders(retention_days=retention_days)
-        cleanup_irrelevant_tenders()
+        # Optional expensive cleanup pass; disabled by default for faster interactive scans.
+        run_cleanup = str(os.getenv("RUN_IRRELEVANT_CLEANUP_ON_SCAN", "0")).strip().lower() in {"1", "true", "yes", "on"}
+        if run_cleanup:
+            cleanup_irrelevant_tenders()
 
         sources = TenderSource.query.filter_by(active=True).all()
         geo_settings = settings_from_model(app_settings)
@@ -1534,6 +1558,12 @@ def run_scan(
                 source.source_tags = expected_tags
         db.session.commit()
 
+        health_map: Dict[int, SourceHealth] = {
+            int(h.source_id): h
+            for h in SourceHealth.query.filter(SourceHealth.source_id.isnot(None)).all()
+            if h.source_id is not None
+        }
+
         if geo_settings.africa_only_mode or not geo_settings.include_global_sources:
             allowed_groups = {"africa_priority", "africa_regional"}
             sources = [
@@ -1546,9 +1576,12 @@ def run_scan(
                 ) in allowed_groups
             ]
 
-        sources = sorted(
-            sources,
-            key=lambda s: (
+        def _source_rank(s):
+            health = health_map.get(s.id)
+            success = int((health.total_success if health else 0) or 0)
+            failure = int((health.total_failure if health else 0) or 0)
+            recent_good = 0 if (success > 0 and success >= failure) else 1
+            return (
                 source_pipeline(
                     infer_source_group(
                         source_name=s.name,
@@ -1558,27 +1591,25 @@ def run_scan(
                     )
                 ) != "africa_priority",
                 not bool(s.favorite),
+                recent_good,
+                -success,
+                failure,
                 (s.name or "").lower(),
-            ),
-        )
+            )
+
+        sources = sorted(sources, key=_source_rank)
 
         if max_sources is not None:
             try:
                 max_sources_int = int(max_sources)
             except Exception:
-                max_sources_int = 15
+                max_sources_int = 10
             if max_sources_int > 0:
                 sources = sources[:max_sources_int]
 
         if not sources:
             print("  No active sources found. Add sources and mark them as active to start scanning.")
             return []
-
-        health_map: Dict[int, SourceHealth] = {
-            int(h.source_id): h
-            for h in SourceHealth.query.filter(SourceHealth.source_id.isnot(None)).all()
-            if h.source_id is not None
-        }
 
         sources_info: List[SourceInfo] = [
             SourceInfo(
@@ -1608,12 +1639,12 @@ def run_scan(
     if scan_timeout_seconds is None:
         # Keep old behavior but base on number of sources; allow enough time for slow portals.
         if max_sources is None:
-            scan_timeout_seconds = 120
+            scan_timeout_seconds = 90
         else:
             try:
-                scan_timeout_seconds = max(30, min(120, int(max_sources) * 5))
+                scan_timeout_seconds = max(25, min(90, int(max_sources) * 3))
             except Exception:
-                scan_timeout_seconds = 60
+                scan_timeout_seconds = 45
 
     print(f"\n FAST PARALLEL scan: {len(sources_info)} sources with {workers} workers...")
 
@@ -1676,11 +1707,23 @@ def run_scan(
                         }
                     )
                     print(f" [{completed}/{len(sources_info)}] {src.name}: {str(e)[:60]}")
-        except Exception:
-            # Timeout reached - return completed results immediately.
+        except BaseException:
+            # Catches TimeoutError AND KeyboardInterrupt — commit whatever was collected.
             for fut in future_to_source:
                 if not fut.done():
                     fut.cancel()
+            # Collect results from any futures that finished before the interrupt.
+            for fut, src in future_to_source.items():
+                if fut.done() and fut not in {future_to_source.keys()} and not fut.cancelled():
+                    try:
+                        extra = fut.result() or []
+                        if extra:
+                            existing_extra = {r.get("link") for r in candidate_rows if isinstance(r, dict)}
+                            for row in extra:
+                                if isinstance(row, dict) and row.get("link") not in existing_extra:
+                                    candidate_rows.append(row)
+                    except Exception:
+                        pass
             print(f" Scan timeout reached after {scan_timeout_seconds}s; committing partial results.")
     finally:
         # Critical: do not wait for hung workers after timeout.

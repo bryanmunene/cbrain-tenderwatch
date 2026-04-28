@@ -955,7 +955,8 @@ bootstrap_once()
 
 NAV_PAGES = [
     "Dashboard",
-    "Scan & Results",
+    "Scan",
+    "Results",
     "Sources",
     "Favorites",
     "Saved",
@@ -967,7 +968,8 @@ if "page" not in st.session_state:
 
 nav_labels = {
     "Dashboard": "Dashboard",
-    "Scan & Results": "Scan",
+    "Scan": "Scan",
+    "Results": "Results",
     "Sources": "Sources",
     "Favorites": "Favorites",
     "Saved": "Saved",
@@ -976,7 +978,8 @@ nav_labels = {
 
 nav_icons = {
     "Dashboard": "",
-    "Scan & Results": "",
+    "Scan": "",
+    "Results": "",
     "Sources": "",
     "Favorites": "",
     "Saved": "",
@@ -1039,12 +1042,12 @@ if page == "Dashboard":
     recent_all = get_tenders(min_score=0, days_window=30, sort_by="score")
     recent = [t for t in recent_all if classify_tender_lane(t)[0] in {"HIGH PRIORITY", "GOOD FIT"}][:6]
     if not recent:
-        st.info("No shortlist items yet. Run a scan or review the Conditional lane from Scan & Results.")
+        st.info("No shortlist items yet. Go to Scan to run a scan, then review Results.")
     else:
         for t in recent:
             render_tender_card(t)
 
-elif page == "Scan & Results":
+elif page == "Scan":
     if "scan_ux_bootstrap_v4" not in st.session_state:
         st.session_state["scan_query_v4"] = ""
         st.session_state["scan_min_score_v4"] = 0
@@ -1055,143 +1058,82 @@ elif page == "Scan & Results":
         st.session_state["scan_saved_only_v4"] = False
         st.session_state["scan_ux_bootstrap_v4"] = True
 
-    render_hero(
-        "Tender Radar",
-        "A clear workspace for discovery, filtering, and shortlist decisions.",
-        ["Run Scan", "Apply Filters", "Review Lanes"],
-    )
+    st.markdown("## Run Scan")
+    s1, s2 = st.columns([1, 1])
+    with s1:
+        scan_depth = st.selectbox("Depth", ["Fast", "Balanced", "Full"], index=1, key="scan_depth_v4",
+                                   help="Fast: 10 sources ~10s | Balanced: 35 sources ~25s | Full: all sources")
+    with s2:
+        st.markdown("<div style='height:1.6rem'></div>", unsafe_allow_html=True)
+        if st.button("Run Scan", key="launch_scan_v4", use_container_width=True, type="primary"):
+            with st.spinner("Scanning..."):
+                started = time.time()
+                new_count = run_scan_now(scan_depth)
+                elapsed = time.time() - started
+            st.success(f"{new_count} new tenders found in {elapsed:.1f}s — go to **Results** to review.")
 
-    st.markdown(
-        """
-        <div class='scan-banner'>
-            <p class='scan-banner-title'>Workflow: 1) run a scan, 2) set your filters, 3) review prioritized lanes.</p>
-            <div class='scan-banner-sub'>Use Broad for discovery, Shortlist for qualified options, and Priority for immediate opportunities.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+elif page == "Results":
+    if "scan_ux_bootstrap_v4" not in st.session_state:
+        st.session_state["scan_query_v4"] = ""
+        st.session_state["scan_min_score_v4"] = 0
+        st.session_state["scan_scope_v4"] = "Active pipeline"
+        st.session_state["scan_sort_v4"] = "score"
+        st.session_state["scan_period_v4"] = "30 days"
+        st.session_state["scan_favorites_only_v4"] = False
+        st.session_state["scan_saved_only_v4"] = False
+        st.session_state["scan_ux_bootstrap_v4"] = True
 
-    left, right = st.columns([2.25, 1])
+    st.markdown("## Results")
 
-    with left:
-        render_section_card("Controls", "Run scans, choose a mode, and adjust precision filters.")
-        s1, s2, s3 = st.columns([1.1, 1.1, 2.1])
-        with s1:
-            scan_depth = st.selectbox("Scan Depth", ["Fast", "Balanced", "Full"], index=1, key="scan_depth_v4")
-        with s2:
-            st.markdown("<div style='height:1.6rem'></div>", unsafe_allow_html=True)
-            if st.button("Launch Scan", key="launch_scan_v4", use_container_width=True):
-                with st.spinner("Running scan and ranking tenders..."):
-                    started = time.time()
-                    new_count = run_scan_now(scan_depth)
-                    elapsed = time.time() - started
-                st.success(f"Scan complete. New tenders: {new_count} | Duration: {elapsed:.1f}s")
-                st.rerun()
-        with s3:
-            st.caption("Balanced is recommended for daily use. Full is best for end-of-day deep discovery.")
+    # --- Core filters (always visible) ---
+    f1, f2 = st.columns([3, 1])
+    with f1:
+        search = st.text_input(
+            "Search",
+            placeholder="records management, justice, cloud migration",
+            key="scan_query_v4",
+            label_visibility="collapsed",
+        )
+    with f2:
+        min_score = st.slider("Min Score", 0, 100, 0, key="scan_min_score_v4")
 
-        st.markdown("##### Quick Modes")
-        m1, m2, m3, m4 = st.columns(4)
-        with m1:
-            if st.button("Broad", key="mode_scout_v4", use_container_width=True):
-                st.session_state["scan_min_score_v4"] = 0
-                st.session_state["scan_scope_v4"] = "All statuses"
-                st.session_state["scan_period_v4"] = "7 days"
-                st.session_state["scan_sort_v4"] = "date"
-                st.rerun()
-        with m2:
-            if st.button("Shortlist", key="mode_qualified_v4", use_container_width=True):
+    # --- Advanced filters (collapsed) ---
+    with st.expander("Filters", expanded=False):
+        a1, a2, a3 = st.columns(3)
+        with a1:
+            scope = st.selectbox("Scope", ["Active pipeline", "All statuses", "Locked only"], key="scan_scope_v4")
+        with a2:
+            sort_by = st.selectbox("Sort", ["score", "date"], key="scan_sort_v4")
+        with a3:
+            period = st.selectbox("Window", ["7 days", "30 days", "90 days", "All"], key="scan_period_v4")
+        b1, b2, b3, b4 = st.columns(4)
+        with b1:
+            favorites_only = st.checkbox("Favorites only", key="scan_favorites_only_v4")
+        with b2:
+            saved_only = st.checkbox("Saved only", key="scan_saved_only_v4")
+        with b3:
+            if st.button("Shortlist preset", key="mode_qualified_v4"):
                 st.session_state["scan_min_score_v4"] = 40
                 st.session_state["scan_scope_v4"] = "Active pipeline"
                 st.session_state["scan_period_v4"] = "30 days"
                 st.session_state["scan_sort_v4"] = "score"
                 st.rerun()
-        with m3:
-            if st.button("Priority", key="mode_decision_v4", use_container_width=True):
-                st.session_state["scan_min_score_v4"] = 70
-                st.session_state["scan_scope_v4"] = "Active pipeline"
-                st.session_state["scan_period_v4"] = "90 days"
-                st.session_state["scan_sort_v4"] = "score"
-                st.rerun()
-        with m4:
-            if st.button("Clear", key="mode_clear_v4", use_container_width=True):
-                st.session_state["scan_query_v4"] = ""
-                st.session_state["scan_min_score_v4"] = 0
-                st.session_state["scan_scope_v4"] = "Active pipeline"
-                st.session_state["scan_sort_v4"] = "score"
-                st.session_state["scan_period_v4"] = "30 days"
-                st.session_state["scan_favorites_only_v4"] = False
-                st.session_state["scan_saved_only_v4"] = False
+        with b4:
+            if st.button("Reset", key="mode_clear_v4"):
+                for k, v in [("scan_query_v4", ""), ("scan_min_score_v4", 0), ("scan_scope_v4", "Active pipeline"),
+                             ("scan_sort_v4", "score"), ("scan_period_v4", "30 days"),
+                             ("scan_favorites_only_v4", False), ("scan_saved_only_v4", False)]:
+                    st.session_state[k] = v
                 st.rerun()
 
-        f1, f2, f3, f4 = st.columns([2.1, 1, 1.1, 1])
-        with f1:
-            search = st.text_input(
-                "Search Intent",
-                placeholder="Try: records management, justice, donor-funded, cloud migration",
-                key="scan_query_v4",
-            )
-        with f2:
-            min_score = st.slider("Min Score", 0, 100, 0, key="scan_min_score_v4")
-        with f3:
-            scope = st.selectbox(
-                "Scope",
-                ["Active pipeline", "All statuses", "Locked only"],
-                key="scan_scope_v4",
-            )
-        with f4:
-            sort_by = st.selectbox("Rank by", ["score", "date"], key="scan_sort_v4")
+    # Read filter state (may not have been rendered in expander yet)
+    scope = st.session_state.get("scan_scope_v4", "Active pipeline")
+    sort_by = st.session_state.get("scan_sort_v4", "score")
+    favorites_only = st.session_state.get("scan_favorites_only_v4", False)
+    saved_only = st.session_state.get("scan_saved_only_v4", False)
+    period = st.session_state.get("scan_period_v4", "30 days")
 
-        with st.expander("Precision Filters", expanded=False):
-            p1, p2, p3 = st.columns(3)
-            with p1:
-                favorites_only = st.checkbox("Favorites only", key="scan_favorites_only_v4")
-            with p2:
-                saved_only = st.checkbox("Saved only", key="scan_saved_only_v4")
-            with p3:
-                period = st.selectbox("Time Window", ["7 days", "30 days", "90 days", "All"], key="scan_period_v4")
-
-    with right:
-        render_section_card("Live Insights", "Current filter posture at a glance.")
-        st.markdown(
-            f"""
-            <div class='insight-chip'>
-                <p class='insight-chip-k'>Mode signal</p>
-                <p class='insight-chip-v'>{scope}</p>
-            </div>
-            <div class='insight-chip'>
-                <p class='insight-chip-k'>Minimum fit threshold</p>
-                <p class='insight-chip-v'>{min_score}%</p>
-            </div>
-            <div class='insight-chip'>
-                <p class='insight-chip-k'>Window + sorting</p>
-                <p class='insight-chip-v'>{period} | {sort_by}</p>
-            </div>
-            <div class='insight-chip'>
-                <p class='insight-chip-k'>Current query</p>
-                <p class='insight-chip-v'>{(search.strip()[:34] + '...') if len(search.strip()) > 34 else (search.strip() or 'None')}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        st.markdown("##### Source Reliability")
-        health_rows = get_source_health_snapshot(limit=6)
-        if not health_rows:
-            st.caption("No source health data yet. Run a scan to populate this view.")
-        else:
-            for row in health_rows:
-                status = (row.last_status or "unknown").upper()
-                candidates = int(row.last_candidates or 0)
-                duration = float(row.last_duration_seconds or 0)
-                st.caption(f"{row.source_name or 'Unknown'} | {status} | {candidates} candidates | {duration:.1f}s")
-
-    status_map = {
-        "Active pipeline": "Open",
-        "All statuses": "All",
-        "Locked only": "Locked",
-    }
-
+    status_map = {"Active pipeline": "Open", "All statuses": "All", "Locked only": "Locked"}
     window_map = {"7 days": 7, "30 days": 30, "90 days": 90, "All": None}
     tenders = get_tenders(
         search=search,
@@ -1205,43 +1147,29 @@ elif page == "Scan & Results":
 
     shortlist_lane = [t for t in tenders if classify_tender_lane(t)[0] in {"HIGH PRIORITY", "GOOD FIT"}]
     watchlist_lane = [t for t in tenders if classify_tender_lane(t)[0] in {"CONDITIONAL", "REVIEW"}]
-    nogo_lane = [t for t in tenders if classify_tender_lane(t)[0] == "NO-GO"]
 
-    render_section_card(
-        "Decision Lanes",
-        f"{len(tenders)} matches | Today's shortlist {len(shortlist_lane)} | Watchlist {len(watchlist_lane)} | No-go {len(nogo_lane)}",
-    )
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Matches", len(tenders))
+    c2.metric("Shortlist", len(shortlist_lane))
+    c3.metric("Watchlist", len(watchlist_lane))
 
     if not tenders:
-        st.warning("No tenders match these filters. Try Broad mode or reduce Min Score.")
+        st.info("No tenders match these filters. Try lowering Min Score or go to **Scan** to run a scan.")
     else:
-        lane_shortlist, lane_watchlist, lane_nogo = st.tabs(
-            [
-                f"Today's Shortlist ({len(shortlist_lane)})",
-                f"Conditional / Watchlist ({len(watchlist_lane)})",
-                f"No-Go ({len(nogo_lane)})",
-            ]
+        tab_shortlist, tab_watchlist = st.tabs(
+            [f"Shortlist ({len(shortlist_lane)})", f"Watchlist ({len(watchlist_lane)})"]
         )
-
-        with lane_shortlist:
+        with tab_shortlist:
             if not shortlist_lane:
-                st.info("No strong-fit F2 opportunities yet. Run a broader scan or review the watchlist.")
+                st.info("No high-fit items yet. Run a scan or lower Min Score.")
             else:
                 for t in shortlist_lane[:80]:
                     render_tender_card(t)
-
-        with lane_watchlist:
+        with tab_watchlist:
             if not watchlist_lane:
-                st.info("No conditional items right now.")
+                st.info("No watchlist items right now.")
             else:
                 for t in watchlist_lane[:80]:
-                    render_tender_card(t)
-
-        with lane_nogo:
-            if not nogo_lane:
-                st.info("No notable no-go items in this filtered set.")
-            else:
-                for t in nogo_lane[:50]:
                     render_tender_card(t)
 
 elif page == "Sources":
