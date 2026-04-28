@@ -165,7 +165,7 @@ def score_text(
             elif priority == "MEDIUM" and combo_priority != "HIGH":
                 combo_priority = "MEDIUM"
 
-    if primary_domain_count == 0:
+    if primary_domain_count == 0 and not secondary_hits:
         breakdown = {
             "keywords_found": 0,
             "matched_keywords": [],
@@ -188,7 +188,7 @@ def score_text(
         }
         return 0, "", json.dumps(breakdown)
 
-    if negative_hits and primary_domain_count < 1:
+    if negative_hits and primary_domain_count < 1 and not secondary_hits:
         breakdown = {
             "keywords_found": len(matched_keywords),
             "matched_keywords": matched_keywords[:20],
@@ -219,7 +219,7 @@ def score_text(
     raw_score += 5 if procurement_hits else 0
     raw_score += 4 if len(domain_hits.get("Integration", [])) >= 2 else 0
     raw_score += 4 if primary_domain_count >= 3 else 0
-    raw_score -= min(24, len(negative_hits) * 8)
+    raw_score -= min(16, len(negative_hits) * 4)
 
     procurement_status = "open"
     requires_qualification = False
@@ -293,13 +293,7 @@ def score_text(
         likely_fit = "conditional"
         recommendation = "REVIEW"
         queue_bucket = "conditional_watchlist"
-    elif score >= 10 and primary_domain_count >= 1:
-        fit_classification = "WATCH"
-        priority = "LOW"
-        likely_fit = "discuss"
-        recommendation = "REVIEW"
-        queue_bucket = "secondary_review"
-    elif score >= 10:
+    elif score >= 5:
         fit_classification = "WATCH"
         priority = "LOW"
         likely_fit = "discuss"
@@ -328,7 +322,7 @@ def score_text(
         "base_score": raw_score,
         "domain_bonus": combo_bonus,
         "priority_bonus": 0,
-        "negative_penalty": -min(36, len(negative_hits) * 12),
+        "negative_penalty": -min(16, len(negative_hits) * 4),
         "raw_score": raw_score,
         "normalized_score": score,
         "match_percentage": score,
