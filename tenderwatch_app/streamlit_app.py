@@ -51,7 +51,7 @@ st.markdown(
     """
     <style>
     :root {
-        --bg: #f6f8fb;
+        --bg: #f3eadc;
         --panel: #ffffff;
         --text: #17212b;
         --muted: #657386;
