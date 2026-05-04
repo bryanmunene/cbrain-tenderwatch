@@ -55,20 +55,37 @@ st.markdown(
         --bg-soft: #f7efe4;
         --panel: #fff8f1;
         --panel-strong: #f4e6d7;
-        --text: #2b2119;
-        --muted: #665345;
-        --line: #d7c3ae;
+        --text: #1e140e;
+        --muted: #3f3027;
+        --line: #b99d84;
         --accent: #8f4a2f;
         --accent-strong: #6f3825;
         --accent-soft: #ead1c1;
-        --good: #3f5f35;
-        --watch: #80521f;
-        --bad: #8d3e31;
+        --good: #29451f;
+        --watch: #5c360d;
+        --bad: #6f241c;
     }
 
     html, body, .stApp, [class*="css"] {
         font-family: Inter, "Segoe UI", Arial, sans-serif;
-        color: var(--text);
+        color: var(--text) !important;
+    }
+
+    p, span, label, li, div, h1, h2, h3, h4, h5, h6,
+    [data-testid="stMarkdownContainer"],
+    [data-testid="stCaptionContainer"],
+    [data-testid="stMetricLabel"],
+    [data-testid="stMetricValue"],
+    [data-testid="stWidgetLabel"],
+    [data-testid="stSidebar"] * {
+        color: var(--text) !important;
+    }
+
+    [data-testid="stCaptionContainer"],
+    [data-testid="stCaptionContainer"] *,
+    .stCaption,
+    small {
+        color: var(--muted) !important;
     }
 
     .stApp {
@@ -101,7 +118,7 @@ st.markdown(
 
     .app-subtitle {
         margin: 0 0 1.1rem;
-        color: var(--muted);
+        color: var(--muted) !important;
         font-size: 0.94rem;
         line-height: 1.5;
     }
@@ -122,7 +139,7 @@ st.markdown(
 
     .section-subtitle {
         margin: 0;
-        color: var(--muted);
+        color: var(--muted) !important;
         font-size: 0.86rem;
         line-height: 1.45;
     }
@@ -144,7 +161,7 @@ st.markdown(
 
     .tender-meta {
         margin-top: 0.45rem;
-        color: var(--muted);
+        color: var(--muted) !important;
         font-size: 0.82rem;
         line-height: 1.45;
     }
@@ -160,10 +177,10 @@ st.markdown(
         background: #f6eadf;
     }
 
-    .badge-good { color: var(--good); background: #e4eadb; border-color: #c4d0b7; }
-    .badge-watch { color: var(--watch); background: #f4e4cf; border-color: #ddc19a; }
-    .badge-bad { color: var(--bad); background: #f1ddd7; border-color: #d9b7ad; }
-    .badge-neutral { color: #4b392c; background: var(--accent-soft); border-color: #d7b8a7; }
+    .badge-good { color: var(--good) !important; background: #e4eadb; border-color: #9ead8c; }
+    .badge-watch { color: var(--watch) !important; background: #f4e4cf; border-color: #c59d68; }
+    .badge-bad { color: var(--bad) !important; background: #f1ddd7; border-color: #c4978c; }
+    .badge-neutral { color: #2f2118 !important; background: var(--accent-soft); border-color: #bd947e; }
 
     .stButton > button {
         border-radius: 8px;
@@ -178,6 +195,31 @@ st.markdown(
         background: var(--accent);
         border-color: var(--accent-strong);
         color: #fff8f1;
+    }
+
+    .stButton > button[kind="primary"] *,
+    .stButton > button[kind="primary"] p,
+    .stButton > button[kind="primary"] span {
+        color: #fff8f1 !important;
+    }
+
+    input, textarea, select,
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="base-input"] {
+        background: #fffaf5 !important;
+        color: var(--text) !important;
+        border-color: var(--line) !important;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+        color: #6c5848 !important;
+        opacity: 1 !important;
+    }
+
+    button[data-baseweb="tab"],
+    button[data-baseweb="tab"] * {
+        color: var(--text) !important;
     }
 
     [data-testid="stMetric"] {

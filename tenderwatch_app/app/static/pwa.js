@@ -38,7 +38,7 @@ function showInstallBanner() {
   banner.className = 'alert alert-dismissible fade show position-fixed bottom-0 start-0 end-0 m-3 shadow-lg';
   banner.style.zIndex = '9999';
   banner.style.background = '#fff8f1';
-  banner.style.color = '#2b2119';
+  banner.style.color = '#1e140e';
   banner.style.border = '1px solid #d7c3ae';
   banner.innerHTML = `
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
