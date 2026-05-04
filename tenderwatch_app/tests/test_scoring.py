@@ -48,6 +48,42 @@ def test_score_text_flags_microsoft_platform_lock():
     assert score < 70
 
 
+def test_score_text_rejects_generic_ict_and_digital_portal_noise():
+    examples = [
+        (
+            "UN City Copenhagen ICT Incident Response Agreement",
+            "Information technology response, support and maintenance services.",
+        ),
+        (
+            "Campaign for Digital Financial Literacy and E-Wallet Onboarding",
+            "Public awareness campaign and mobile wallet adoption support.",
+        ),
+        (
+            "E-procurement portal",
+            "Supplier registration and general procurement website access.",
+        ),
+    ]
+
+    for title, text in examples:
+        score, _, breakdown_json = score_text(title, text)
+        breakdown = json.loads(breakdown_json)
+
+        assert score == 0
+        assert breakdown.get("recommendation") == "NO-GO"
+        assert breakdown.get("likely_fit_for_F2") == "no-go"
+
+
+def test_score_text_requires_core_f2_signal_for_service_portal():
+    score, _, breakdown_json = score_text(
+        "Citizen engagement portal",
+        "The buyer wants a public-facing portal and campaign website.",
+    )
+    breakdown = json.loads(breakdown_json)
+
+    assert score == 0
+    assert breakdown.get("recommendation") == "NO-GO"
+
+
 def test_classify_tender_excludes_close_deadline_and_old_notice():
     result = classify_prompt_fit(
         "Records management and workflow automation for ministry",

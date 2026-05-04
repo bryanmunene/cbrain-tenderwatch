@@ -1071,7 +1071,7 @@ def scan_source(
                 broad_hits = _broad_discovery_hits(base_combined)
                 allow_broad_capture = has_tender_term or has_ref_code or has_detail_url or (manual_like and keyword_hint)
                 broad_quality_ok = _broad_hits_pass_quality(broad_hits) or (has_tender_term and len(broad_hits) >= 1) or (manual_like and keyword_hint and len(broad_hits) >= 1)
-                if allow_broad_capture and broad_quality_ok:
+                if allow_broad_capture and broad_quality_ok and not bool(breakdown.get("excluded", False)):
                     fit_score = max(float(fit_score or 0), 18.0 if manual_like else 16.0)
                     keywords_found = len(broad_hits)
                     matched = ", ".join([f"broad:{h}" for h in broad_hits[:4]])
@@ -1080,8 +1080,6 @@ def scan_source(
                     breakdown["broad_capture"] = True
                     if breakdown.get("likely_fit_for_F2", "uncertain") == "uncertain":
                         breakdown["likely_fit_for_F2"] = "discuss"
-                    if breakdown.get("recommendation", "REVIEW") == "NO-GO":
-                        breakdown["recommendation"] = "REVIEW"
                     scoring_breakdown = json_lib.dumps(breakdown)
                     likely_fit = breakdown.get("likely_fit_for_F2", "discuss")
                     procurement_status = breakdown.get("procurement_status", "open")
@@ -1090,11 +1088,11 @@ def scan_source(
                     ranking_score = float(breakdown.get("ranking_score", fit_score) or fit_score)
                 else:
                     continue
-            if likely_fit in {"excluded", "no-go"} and not manual_like:
+            if likely_fit in {"excluded", "no-go"}:
                 continue
-            if recommendation == "NO-GO" and not manual_like:
+            if recommendation == "NO-GO":
                 continue
-            if procurement_status in {"locked", "conditional_nogo"} and (not source.favorite) and (not manual_like):
+            if procurement_status in {"locked", "conditional_nogo"}:
                 continue
             # Keep more exploratory matches in F2-ranked mode; final quality is handled in UI filters.
             if likely_fit == "uncertain" and fit_score < 10 and not manual_like:
@@ -1414,7 +1412,7 @@ def _discover_rows(
 
                 # Keep broad discovery opportunities only when there is at least one
                 # concrete broad hit; title/link tender hints alone are too noisy.
-                if len(broad_hits) >= 1:
+                if len(broad_hits) >= 1 and not bool(breakdown.get("excluded", False)):
                     fit_score = max(float(fit_score or 0), 24.0)
                     if broad_hits:
                         matched = ", ".join([f"broad:{h}" for h in broad_hits[:4]])
@@ -1423,8 +1421,6 @@ def _discover_rows(
                     breakdown["broad_capture"] = True
                     if breakdown.get("likely_fit_for_F2", "uncertain") == "uncertain":
                         breakdown["likely_fit_for_F2"] = "discuss"
-                    if breakdown.get("recommendation", "REVIEW") == "NO-GO":
-                        breakdown["recommendation"] = "REVIEW"
                     scoring_breakdown = json_lib.dumps(breakdown)
                     recommendation = breakdown.get("recommendation", "REVIEW")
                     queue_bucket = breakdown.get("queue_bucket", "secondary_review")

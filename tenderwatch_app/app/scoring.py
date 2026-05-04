@@ -30,9 +30,49 @@ PRIMARY_DOMAINS = {
     "ServiceDelivery",
     "Licensing",
     "ProcurementRecords",
-    "Integration",
 }
-SUPPORTING_DOMAINS = {"Gov", "Forms", "Pipeline"}
+CORE_F2_DOMAINS = {
+    "EDMS",
+    "Records",
+    "Workflow",
+    "Case",
+    "ECM",
+    "Licensing",
+    "ProcurementRecords",
+}
+SUPPORTING_DOMAINS = {"Gov", "Forms", "Pipeline", "Integration"}
+
+
+def _no_go_breakdown(
+    *,
+    matched_keywords: List[str],
+    matched_domains: set[str],
+    primary_hits: List[str],
+    secondary_hits: List[str],
+    negative_hits: List[str],
+    timing: Dict[str, Any],
+    reason: str,
+) -> Dict[str, Any]:
+    return {
+        "keywords_found": len(matched_keywords),
+        "matched_keywords": matched_keywords[:20],
+        "domains_matched": sorted(matched_domains),
+        "primary_hits": primary_hits,
+        "secondary_hits": secondary_hits,
+        "irrelevant_signals": negative_hits,
+        "priority": "LOW",
+        "fit_classification": "NO-GO",
+        "likely_fit_for_F2": "no-go",
+        "procurement_status": "open",
+        "requires_qualification": False,
+        "qualification_reason": reason,
+        "qualification_questions": [],
+        "timing": timing,
+        "recommendation": "NO-GO",
+        "queue_bucket": "no_go",
+        "final_score": 0,
+        "excluded": True,
+    }
 
 
 def _normalize(text: str) -> str:
@@ -145,7 +185,16 @@ def score_text(
     procurement_hits = _collect_hits(combined, OPEN_PROCUREMENT_SIGNALS, max_hits=5)
     timing = _timing_breakdown(publication_date=publication_date, deadline=deadline)
 
-    primary_domain_count = len(matched_domains & PRIMARY_DOMAINS)
+    core_f2_domains = matched_domains & CORE_F2_DOMAINS
+    service_delivery_only = "ServiceDelivery" in matched_domains and not core_f2_domains
+    service_delivery_is_primary = "ServiceDelivery" in matched_domains and bool(
+        core_f2_domains & {"Workflow", "Case", "Records", "EDMS", "Licensing"}
+    )
+    effective_primary_domains = set(core_f2_domains)
+    if service_delivery_is_primary:
+        effective_primary_domains.add("ServiceDelivery")
+
+    primary_domain_count = len(effective_primary_domains)
     supporting_domain_count = len(matched_domains & SUPPORTING_DOMAINS)
     government_context = 1 if "Gov" in matched_domains else 0
 
@@ -165,50 +214,31 @@ def score_text(
             elif priority == "MEDIUM" and combo_priority != "HIGH":
                 combo_priority = "MEDIUM"
 
-    if primary_domain_count == 0 and not secondary_hits:
-        breakdown = {
-            "keywords_found": 0,
-            "matched_keywords": [],
-            "domains_matched": sorted(matched_domains),
-            "primary_hits": [],
-            "secondary_hits": secondary_hits,
-            "irrelevant_signals": negative_hits,
-            "priority": "LOW",
-            "fit_classification": "NO-GO",
-            "likely_fit_for_F2": "no-go",
-            "procurement_status": "open",
-            "requires_qualification": False,
-            "qualification_reason": "No core F2 workflow/records/case/platform signals found",
-            "qualification_questions": [],
-            "timing": timing,
-            "recommendation": "NO-GO",
-            "queue_bucket": "no_go",
-            "final_score": 0,
-            "excluded": True,
-        }
+    if not core_f2_domains:
+        reason = "No core F2 records, document, workflow, case, registry, licensing, or ECM signal found"
+        if service_delivery_only:
+            reason = "Service portal or public-sector wording appeared without a core F2 workflow, records, case, registry, licensing, or ECM need"
+        breakdown = _no_go_breakdown(
+            matched_keywords=matched_keywords,
+            matched_domains=matched_domains,
+            primary_hits=primary_hits,
+            secondary_hits=secondary_hits,
+            negative_hits=negative_hits,
+            timing=timing,
+            reason=reason,
+        )
         return 0, "", json.dumps(breakdown)
 
-    if negative_hits and primary_domain_count < 1 and not secondary_hits:
-        breakdown = {
-            "keywords_found": len(matched_keywords),
-            "matched_keywords": matched_keywords[:20],
-            "domains_matched": sorted(matched_domains),
-            "primary_hits": primary_hits,
-            "secondary_hits": secondary_hits,
-            "irrelevant_signals": negative_hits,
-            "priority": "LOW",
-            "fit_classification": "NO-GO",
-            "likely_fit_for_F2": "no-go",
-            "procurement_status": "open",
-            "requires_qualification": False,
-            "qualification_reason": "Scope is dominated by excluded hardware/infrastructure/construction signals with no core F2 signals",
-            "qualification_questions": [],
-            "timing": timing,
-            "recommendation": "NO-GO",
-            "queue_bucket": "no_go",
-            "final_score": 0,
-            "excluded": True,
-        }
+    if negative_hits and primary_domain_count < 2:
+        breakdown = _no_go_breakdown(
+            matched_keywords=matched_keywords,
+            matched_domains=matched_domains,
+            primary_hits=primary_hits,
+            secondary_hits=secondary_hits,
+            negative_hits=negative_hits,
+            timing=timing,
+            reason="Scope is dominated by excluded hardware/infrastructure/construction or other non-F2 signals",
+        )
         return 0, ", ".join(primary_hits[:5]), json.dumps(breakdown)
 
     raw_score = 0
@@ -217,7 +247,7 @@ def score_text(
     raw_score += combo_bonus
     raw_score += 6 if government_context else 0
     raw_score += 5 if procurement_hits else 0
-    raw_score += 4 if len(domain_hits.get("Integration", [])) >= 2 else 0
+    raw_score += 3 if len(domain_hits.get("Integration", [])) >= 2 and primary_domain_count >= 2 else 0
     raw_score += 4 if primary_domain_count >= 3 else 0
     raw_score -= min(16, len(negative_hits) * 4)
 
@@ -287,18 +317,12 @@ def score_text(
         likely_fit = "true"
         recommendation = "PURSUE"
         queue_bucket = "main_shortlist"
-    elif score >= 35:
+    elif score >= 35 and primary_domain_count >= 1:
         fit_classification = "CONDITIONAL"
         priority = "CONDITIONAL"
         likely_fit = "conditional"
         recommendation = "REVIEW"
         queue_bucket = "conditional_watchlist"
-    elif score >= 5:
-        fit_classification = "WATCH"
-        priority = "LOW"
-        likely_fit = "discuss"
-        recommendation = "REVIEW"
-        queue_bucket = "secondary_review"
 
     breakdown = {
         "keywords_found": len(matched_keywords),
