@@ -4,8 +4,8 @@
   "description": "Intelligent tender scanning and monitoring for cBrain F2 Tenderwatch",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1e3a8a",
+  "background_color": "#efe2d3",
+  "theme_color": "#8f4a2f",
   "orientation": "portrait-primary",
   "scope": "/",
   "icons": [

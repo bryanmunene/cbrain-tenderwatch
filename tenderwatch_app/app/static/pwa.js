@@ -35,8 +35,11 @@ window.addEventListener('beforeinstallprompt', (e) => {
 function showInstallBanner() {
   const banner = document.createElement('div');
   banner.id = 'install-banner';
-  banner.className = 'alert alert-info alert-dismissible fade show position-fixed bottom-0 start-0 end-0 m-3 shadow-lg';
+  banner.className = 'alert alert-dismissible fade show position-fixed bottom-0 start-0 end-0 m-3 shadow-lg';
   banner.style.zIndex = '9999';
+  banner.style.background = '#fff8f1';
+  banner.style.color = '#2b2119';
+  banner.style.border = '1px solid #d7c3ae';
   banner.innerHTML = `
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     <div class="d-flex align-items-center">
@@ -45,7 +48,7 @@ function showInstallBanner() {
         <strong>Install TenderWatch</strong>
         <p class="mb-0 small">Install this app on your device for quick access and offline support!</p>
       </div>
-      <button class="btn btn-primary ms-3" id="install-banner-button">
+      <button class="btn ms-3" id="install-banner-button" style="background:#8f4a2f;color:#fff8f1;border-color:#6f3825;">
         <i class="fas fa-download"></i> Install
       </button>
     </div>

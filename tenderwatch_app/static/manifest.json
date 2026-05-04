@@ -4,8 +4,8 @@
   "description": "Automated tender scanning for cBrain F2 platform opportunities",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#2563eb",
+  "background_color": "#efe2d3",
+  "theme_color": "#8f4a2f",
   "orientation": "portrait-primary",
   "icons": [
     {

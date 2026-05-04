@@ -41,7 +41,7 @@ st.markdown(
     """
 <link rel="manifest" href="/static/manifest.json">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
-<meta name="theme-color" content="#f8fafc">
+<meta name="theme-color" content="#efe2d3">
 <script src="/static/pwa.js" defer></script>
     """,
     unsafe_allow_html=True,
@@ -51,16 +51,19 @@ st.markdown(
     """
     <style>
     :root {
-        --bg: #f3eadc;
-        --panel: #ffffff;
-        --text: #17212b;
-        --muted: #657386;
-        --line: #d8e0ea;
-        --accent: #285f8f;
-        --accent-soft: #e8f1f8;
-        --good: #166534;
-        --watch: #8a5a10;
-        --bad: #9f2f2f;
+        --bg: #efe2d3;
+        --bg-soft: #f7efe4;
+        --panel: #fff8f1;
+        --panel-strong: #f4e6d7;
+        --text: #2b2119;
+        --muted: #665345;
+        --line: #d7c3ae;
+        --accent: #8f4a2f;
+        --accent-strong: #6f3825;
+        --accent-soft: #ead1c1;
+        --good: #3f5f35;
+        --watch: #80521f;
+        --bad: #8d3e31;
     }
 
     html, body, .stApp, [class*="css"] {
@@ -73,12 +76,12 @@ st.markdown(
     }
 
     [data-testid="stHeader"] {
-        background: rgba(246, 248, 251, 0.96);
+        background: rgba(247, 239, 228, 0.96);
         border-bottom: 1px solid var(--line);
     }
 
     [data-testid="stSidebar"] {
-        background: #eef3f8;
+        background: #e7d6c4;
         border-right: 1px solid var(--line);
     }
 
@@ -126,7 +129,7 @@ st.markdown(
 
     .tender-card {
         border: 1px solid var(--line);
-        background: #fff;
+        background: var(--panel);
         border-radius: 8px;
         padding: 0.95rem 1rem;
         margin-bottom: 0.75rem;
@@ -154,29 +157,32 @@ st.markdown(
         margin-right: 0.35rem;
         font-size: 0.74rem;
         font-weight: 720;
-        background: #f8fafc;
+        background: #f6eadf;
     }
 
-    .badge-good { color: var(--good); background: #edf8f0; border-color: #c8e7d0; }
-    .badge-watch { color: var(--watch); background: #fff7e8; border-color: #f2dfb8; }
-    .badge-bad { color: var(--bad); background: #fff0f0; border-color: #eccaca; }
-    .badge-neutral { color: #30485f; background: var(--accent-soft); border-color: #c8dbea; }
+    .badge-good { color: var(--good); background: #e4eadb; border-color: #c4d0b7; }
+    .badge-watch { color: var(--watch); background: #f4e4cf; border-color: #ddc19a; }
+    .badge-bad { color: var(--bad); background: #f1ddd7; border-color: #d9b7ad; }
+    .badge-neutral { color: #4b392c; background: var(--accent-soft); border-color: #d7b8a7; }
 
     .stButton > button {
         border-radius: 8px;
-        border: 1px solid #b8c7d7;
+        border: 1px solid #c6ad96;
+        background: #fff8f1;
+        color: var(--text);
         min-height: 2.3rem;
         font-weight: 700;
     }
 
     .stButton > button[kind="primary"] {
         background: var(--accent);
-        border-color: var(--accent);
+        border-color: var(--accent-strong);
+        color: #fff8f1;
     }
 
     [data-testid="stMetric"] {
         border: 1px solid var(--line);
-        background: #fff;
+        background: var(--panel);
         border-radius: 8px;
         padding: 0.85rem;
     }

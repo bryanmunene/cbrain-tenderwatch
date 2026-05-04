@@ -163,7 +163,7 @@
                         <small class="metric-label" style="margin-bottom: 0;">{{ item.day }}</small>
                         <p style="margin: 10px 0 8px;">Runs: {{ item.runs }} | Errors: {{ item.errors }} | Saved: {{ item.saved }}</p>
                         <div style="height: 10px; background: rgba(24,24,24,0.08); border-radius: 999px; overflow: hidden;">
-                            <div style="height: 10px; width: {{ item.success_rate }}%; background: linear-gradient(90deg, #5b8bb5, #2f79b4);"></div>
+                            <div style="height: 10px; width: {{ item.success_rate }}%; background: linear-gradient(90deg, #b6633f, #8f4a2f);"></div>
                         </div>
                         <p class="muted" style="margin: 8px 0 0;">Success rate: {{ "%.1f"|format(item.success_rate) }}%</p>
                     </div>
@@ -186,7 +186,7 @@
                         <small class="metric-label" style="margin-bottom: 0;">{{ row.name }}</small>
                         <p style="margin: 10px 0 8px;">Runs: {{ row.runs }} | Success: {{ row.success }} | Failure: {{ row.failure }}</p>
                         <div style="height: 10px; background: rgba(24,24,24,0.08); border-radius: 999px; overflow: hidden;">
-                            <div style="height: 10px; width: {{ row.success_rate }}%; background: linear-gradient(90deg, #6b8a56, #4f6d3a);"></div>
+                            <div style="height: 10px; width: {{ row.success_rate }}%; background: linear-gradient(90deg, #6c7752, #4e5a3a);"></div>
                         </div>
                         <p class="muted" style="margin: 8px 0 0;">Success rate: {{ "%.1f"|format(row.success_rate) }}%</p>
                     </div>

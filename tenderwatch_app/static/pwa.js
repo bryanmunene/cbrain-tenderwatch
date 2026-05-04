@@ -242,7 +242,7 @@
           border-radius: 50%;
           border: none;
           cursor: pointer;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          box-shadow: 0 4px 12px rgba(67,49,36,0.24);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -251,22 +251,22 @@
         }
         .pwa-btn:hover {
           transform: scale(1.1);
-          box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+          box-shadow: 0 6px 16px rgba(67,49,36,0.3);
         }
         #pwa-install-btn {
-          background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
-          color: white;
+          background: linear-gradient(135deg, #8f4a2f 0%, #6f3825 100%);
+          color: #fff8f1;
           display: none;
         }
         #pwa-notify-btn {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-          color: white;
+          background: linear-gradient(135deg, #6c7752 0%, #4e5a3a 100%);
+          color: #fff8f1;
         }
         .pwa-tooltip {
           position: absolute;
           right: 70px;
-          background: #1e293b;
-          color: white;
+          background: #2b2119;
+          color: #fff8f1;
           padding: 8px 12px;
           border-radius: 8px;
           font-size: 12px;
