@@ -50,3 +50,43 @@ def test_min_score_zero_does_not_force_twenty():
         scores = [float(x.score or 0) for x in state["results"]]
         assert 10.0 in scores
         assert 60.0 in scores
+
+
+def test_shortlist_scope_filters_are_case_insensitive():
+    app = _make_app()
+
+    with app.app_context():
+        if not AppSettings.query.first():
+            db.session.add(AppSettings())
+            db.session.commit()
+
+        africa = TenderResult(
+            title="Africa scope item",
+            link="https://example.com/africa-scope",
+            score=30,
+            recommendation="REVIEW",
+            geographic_scope="Africa",
+            africa_priority_flag=False,
+        )
+        global_item = TenderResult(
+            title="Global scope item",
+            link="https://example.com/global-scope",
+            score=30,
+            recommendation="REVIEW",
+            geographic_scope="Global",
+            africa_priority_flag=False,
+        )
+        db.session.add(africa)
+        db.session.add(global_item)
+        db.session.commit()
+
+        settings = AppSettings.query.first()
+        assert settings is not None
+
+        with app.test_request_context("/scan?shortlist_mode=africa&sort=fit_score"):
+            africa_state = _filtered_tenders_from_request(TenderResult.query, settings)
+        with app.test_request_context("/scan?shortlist_mode=global&sort=fit_score"):
+            global_state = _filtered_tenders_from_request(TenderResult.query, settings)
+
+        assert [x.link for x in africa_state["results"]] == ["https://example.com/africa-scope"]
+        assert [x.link for x in global_state["results"]] == ["https://example.com/global-scope"]

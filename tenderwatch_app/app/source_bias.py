@@ -32,16 +32,10 @@ SOURCE_BIAS = {
     "ifmis": 10,
     "mygov": 8,
     
-    # East Africa (secondary market)
-    "uganda": 5,
-    "tanzania": 5,
-    "rwanda": 5,
-    "ethiopia": 5,
-    
-    # Other African countries
-    "nigeria": 4,
-    "ghana": 4,
-    "south africa": 4,
+    # Multilateral donors active in Kenya (high-value sources)
+    "trademark africa": 8,
+    "east african development bank": 7,
+    "eadb": 7,
     "ketraco": 10,  # Kenya Electricity Transmission Company
     "kemsa": 10,    # Kenya Medical Supplies Authority
     "kpa": 10,      # Kenya Ports Authority
@@ -85,17 +79,12 @@ COUNTRY_MAP = {
     "ifmis": "Kenya",
     "mygov": "Kenya",
     "tenders.go.ke": "Kenya",
-    "uganda": "Uganda",
-    "tanzania": "Tanzania",
-    "rwanda": "Rwanda",
-    "ethiopia": "Ethiopia",
-    "nigeria": "Nigeria",
-    "ghana": "Ghana",
-    "south africa": "South Africa",
-    "undp": "Global",
-    "world bank": "Global",
-    "afdb": "Global",
-    "un": "Global",
+    "undp": "Kenya",
+    "world bank": "Kenya",
+    "afdb": "Kenya",
+    "un": "Kenya",
+    "trademark africa": "Kenya",
+    "eadb": "Kenya",
 }
 
 COUNTRY_MAP.update({

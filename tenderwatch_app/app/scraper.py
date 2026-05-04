@@ -409,8 +409,8 @@ def _country_from_url(url: str) -> str:
         if host.endswith(suffix):
             return country
 
-    if "afdb.org" in host or "trademarkafrica.com" in host:
-        return "Africa Regional"
+    if "afdb.org" in host or "trademarkafrica.com" in host or "eadb.org" in host:
+        return "Kenya"
     return ""
 
 
@@ -426,7 +426,7 @@ def _source_country(source_name: str, url: str):
     for key, country in COUNTRY_MAP.items():
         if key in haystack:
             return country
-    return "Global"
+    return "Kenya"
 
 
 def _source_bias_bonus(source_name: str, url: str):

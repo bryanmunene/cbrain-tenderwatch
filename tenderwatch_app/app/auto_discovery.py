@@ -24,18 +24,27 @@ logger = logging.getLogger(__name__)
 ALLOW_INSECURE_TLS = (os.getenv("ALLOW_INSECURE_TLS", "") or "").strip().lower() in {"1", "true", "yes", "on"}
 
 NO_KEY_SEED_URLS = [
-    # Kenya + Africa priority
+    # Kenya - National Government
     "https://tenders.go.ke/website/tenders/all",
     "https://icta.go.ke/tenders/",
     "https://www.kemsa.co.ke/tenders/",
-    "https://www.etenders.gov.za/",
-    "https://www.ppda.go.ug/",
-    "https://www.ppra.go.tz/",
-    "https://trademarkafrica.com/procurement/",
-    # Global institutions
+    "https://www.kra.go.ke/en/tenders",
+    "https://www.kaa.go.ke/business-opportunities/procurement/",
+    "https://kpa.co.ke/procurement/",
+    "https://ntsa.go.ke/tenders/",
+    "https://cak.go.ke/tenders",
+    "https://www.centralbank.go.ke/tenders/",
+    "https://www.epra.go.ke/tenders/",
+    "https://ca.go.ke/tenders/",
+    "https://www.psc.go.ke/tenders/",
+    # Kenya - State Corporations
+    "https://www.kplc.co.ke/content/item/1/tenders",
+    "https://www.kenha.co.ke/index.php/procurement/tenders",
+    "https://nairobi.go.ke/tenders/",
+    # Multilateral donors active in Kenya
     "https://procurement-notices.undp.org/",
     "https://www.ungm.org/Public/Notice",
-    "https://www.unops.org/business-opportunities",
+    "https://trademarkafrica.com/procurement/",
 ]
 
 TENDER_HINTS = (
@@ -527,24 +536,24 @@ class SearchAPIManager:
 class TenderDiscovery:
     """Main auto-discovery engine that coordinates searches and processes results."""
     
-    # Default search queries targeting official F2-fit public-sector opportunities
+    # Default search queries targeting Kenya public-sector opportunities
     DEFAULT_QUERIES = [
-        'official procurement portal records management system tender',
-        'official government document management system tender',
-        'electronic records management public sector tender',
-        'case management system ministry tender',
-        'workflow automation government rfp',
-        'business process management public administration tender',
-        'citizen services portal workflow tender',
-        'grievance complaints handling system tender',
-        'licensing permit management system tender',
-        'registry correspondence management tender',
-        'digitization and archiving records tender',
-        'procurement records management system tender',
-        'configurable process platform public sector tender',
-        'UNDP records workflow tender',
-        'African Development Bank digital government tender',
-        'EU funding records workflow platform tender'
+        'Kenya government records management system tender',
+        'Kenya government document management system tender site:tenders.go.ke OR site:.go.ke',
+        'Kenya electronic records management public sector tender',
+        'Kenya case management system ministry tender',
+        'Kenya workflow automation government rfp',
+        'Kenya business process management public administration tender',
+        'Kenya citizen services portal workflow tender',
+        'Kenya grievance complaints handling system tender',
+        'Kenya licensing permit management system tender',
+        'Kenya registry correspondence management tender',
+        'Kenya digitization archiving records tender',
+        'Kenya EDMS electronic document management tender',
+        'UNDP Kenya records workflow tender',
+        'World Bank Kenya digital government tender',
+        'AfDB Kenya ICT procurement tender',
+        'Kenya county government ICT system tender',
     ]
     
     def __init__(self, search_manager):

@@ -32,7 +32,7 @@ BASE_DIR = Path(__file__).resolve().parent
 app = create_app(start_scheduler=False)
 
 st.set_page_config(
-    page_title="TenderWatch - cBrain F2",
+    page_title="TenderWatch Kenya - cBrain F2",
     page_icon="TW",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -49,7 +49,7 @@ st.markdown(
 <meta name="theme-color" content="#1ea7ff">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TenderWatch">
+<meta name="apple-mobile-web-app-title" content="TenderWatch Kenya">
 <meta name="mobile-web-app-capable" content="yes">
 <script src="/static/pwa.js" defer></script>
     """,
@@ -1047,8 +1047,8 @@ with st.sidebar:
     st.markdown(
         """
         <div class='sidebar-brand'>
-            <p class='sidebar-brand-title'>TenderWatch</p>
-            <div class='sidebar-brand-sub'>Navigation and workspace controls</div>
+            <p class='sidebar-brand-title'>TenderWatch Kenya</p>
+            <div class='sidebar-brand-sub'>Kenya government &amp; donor tenders</div>
         </div>
         """,
         unsafe_allow_html=True,

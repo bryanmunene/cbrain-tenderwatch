@@ -181,15 +181,15 @@ def _filtered_tenders_from_request(base_query, settings: AppSettings, paginate: 
         query = query.filter(
             or_(
                 TenderResult.africa_priority_flag.is_(True),
-                TenderResult.geographic_scope == "africa",
+                db.func.lower(TenderResult.geographic_scope) == "africa",
             )
         )
     elif shortlist_mode == "global":
         query = query.filter(
             or_(
-                TenderResult.geographic_scope.in_(["global", "other region"]),
+                db.func.lower(TenderResult.geographic_scope).in_(["global", "other region"]),
                 and_(
-                    TenderResult.geographic_scope == "unknown",
+                    db.func.lower(TenderResult.geographic_scope) == "unknown",
                     TenderResult.africa_priority_flag.is_(False),
                 ),
             )
