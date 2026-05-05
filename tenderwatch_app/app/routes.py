@@ -111,6 +111,32 @@ def _deadline_sort_expr():
     )
 
 
+def _region_filter_expr(region: str):
+    normalized = (region or "").strip().lower()
+    return or_(
+        db.func.lower(TenderResult.region) == normalized,
+        db.func.lower(TenderResult.buyer_region) == normalized,
+        db.func.lower(TenderResult.implementation_region) == normalized,
+        db.func.lower(TenderResult.target_beneficiary_region) == normalized,
+    )
+
+
+def _distinct_region_options():
+    values = set()
+    for column in (
+        TenderResult.region,
+        TenderResult.buyer_region,
+        TenderResult.implementation_region,
+        TenderResult.target_beneficiary_region,
+    ):
+        rows = db.session.query(column).distinct().all()
+        for (value,) in rows:
+            cleaned = (value or "").strip()
+            if cleaned:
+                values.add(cleaned)
+    return sorted(values, key=lambda value: value.lower())
+
+
 def _filtered_tenders_from_request(base_query, settings: AppSettings, paginate: bool = True):
     sort_by = request.args.get("sort", "recommended")
     category = request.args.get("category", "")
@@ -122,6 +148,7 @@ def _filtered_tenders_from_request(base_query, settings: AppSettings, paginate: 
         shortlist_mode = _shortlist_default_mode(settings)
 
     geographic_scope = request.args.get("geographic_scope", "").strip()
+    region_filter = request.args.get("region", "").strip()
     africa_priority_flag = request.args.get("africa_priority_flag", "").strip()
     donor_flag = request.args.get("donor_or_multilateral_flag", "").strip()
     implementation_region = request.args.get("implementation_region", "").strip()
@@ -152,6 +179,9 @@ def _filtered_tenders_from_request(base_query, settings: AppSettings, paginate: 
 
     if geographic_scope:
         query = query.filter(TenderResult.geographic_scope == geographic_scope)
+
+    if region_filter:
+        query = query.filter(_region_filter_expr(region_filter))
 
     if africa_priority_flag in {"true", "false"}:
         query = query.filter(TenderResult.africa_priority_flag == (africa_priority_flag == "true"))
@@ -238,6 +268,7 @@ def _filtered_tenders_from_request(base_query, settings: AppSettings, paginate: 
         "recent_days": recent_days,
         "shortlist_mode": shortlist_mode,
         "geographic_scope": geographic_scope,
+        "region_filter": region_filter,
         "africa_priority_flag": africa_priority_flag,
         "donor_or_multilateral_flag": donor_flag,
         "implementation_region": implementation_region,
@@ -551,6 +582,7 @@ def scan():
     categories = db.session.query(TenderResult.category).distinct().all()
     categories = [c[0] for c in categories if c[0]]
     geographic_scopes = [row[0] for row in db.session.query(TenderResult.geographic_scope).distinct().all() if row[0]]
+    region_options = _distinct_region_options()
     implementation_regions = [row[0] for row in db.session.query(TenderResult.implementation_region).distinct().all() if row[0]]
     buyer_regions = [row[0] for row in db.session.query(TenderResult.buyer_region).distinct().all() if row[0]]
     secondary_review_count = TenderResult.query.filter(
@@ -570,6 +602,7 @@ def scan():
         categories=categories,
         shortlist_mode=filter_state["shortlist_mode"],
         geographic_scope=filter_state["geographic_scope"],
+        region_filter=filter_state["region_filter"],
         africa_priority_flag=filter_state["africa_priority_flag"],
         donor_or_multilateral_flag=filter_state["donor_or_multilateral_flag"],
         implementation_region=filter_state["implementation_region"],
@@ -577,6 +610,7 @@ def scan():
         recommendation_filter=filter_state["recommendation_filter"],
         queue_bucket=filter_state["queue_bucket"],
         geographic_scopes=geographic_scopes,
+        region_options=region_options,
         implementation_regions=implementation_regions,
         buyer_regions=buyer_regions,
         settings=settings,
@@ -862,6 +896,7 @@ def saved():
         categories=[],
         shortlist_mode="combined",
         geographic_scope="",
+        region_filter="",
         africa_priority_flag="",
         donor_or_multilateral_flag="",
         implementation_region="",
@@ -869,6 +904,7 @@ def saved():
         recommendation_filter="SHORTLIST",
         queue_bucket="",
         geographic_scopes=[],
+        region_options=[],
         implementation_regions=[],
         buyer_regions=[],
         settings=settings,
@@ -900,6 +936,7 @@ def favorites():
         categories=[],
         shortlist_mode="combined",
         geographic_scope="",
+        region_filter="",
         africa_priority_flag="",
         donor_or_multilateral_flag="",
         implementation_region="",
@@ -907,6 +944,7 @@ def favorites():
         recommendation_filter="SHORTLIST",
         queue_bucket="",
         geographic_scopes=[],
+        region_options=[],
         implementation_regions=[],
         buyer_regions=[],
         settings=settings,

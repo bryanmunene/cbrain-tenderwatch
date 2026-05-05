@@ -90,3 +90,72 @@ def test_shortlist_scope_filters_are_case_insensitive():
 
         assert [x.link for x in africa_state["results"]] == ["https://example.com/africa-scope"]
         assert [x.link for x in global_state["results"]] == ["https://example.com/global-scope"]
+
+
+def test_region_filter_matches_all_region_fields():
+    app = _make_app()
+
+    with app.app_context():
+        if not AppSettings.query.first():
+            db.session.add(AppSettings())
+            db.session.commit()
+
+        tenders = [
+            TenderResult(
+                title="Primary region item",
+                link="https://example.com/primary-region",
+                score=30,
+                recommendation="REVIEW",
+                geographic_scope="Global",
+                region="East Africa",
+            ),
+            TenderResult(
+                title="Buyer region item",
+                link="https://example.com/buyer-region",
+                score=30,
+                recommendation="REVIEW",
+                geographic_scope="Global",
+                buyer_region="East Africa",
+            ),
+            TenderResult(
+                title="Implementation region item",
+                link="https://example.com/implementation-region",
+                score=30,
+                recommendation="REVIEW",
+                geographic_scope="Global",
+                implementation_region="East Africa",
+            ),
+            TenderResult(
+                title="Beneficiary region item",
+                link="https://example.com/beneficiary-region",
+                score=30,
+                recommendation="REVIEW",
+                geographic_scope="Global",
+                target_beneficiary_region="East Africa",
+            ),
+            TenderResult(
+                title="Different region item",
+                link="https://example.com/different-region",
+                score=30,
+                recommendation="REVIEW",
+                geographic_scope="Global",
+                region="West Africa",
+            ),
+        ]
+        db.session.add_all(tenders)
+        db.session.commit()
+
+        settings = AppSettings.query.first()
+        assert settings is not None
+
+        with app.test_request_context("/scan?shortlist_mode=combined&region=East%20Africa&sort=newest"):
+            state = _filtered_tenders_from_request(TenderResult.query, settings)
+
+        links = {x.link for x in state["results"]}
+        assert links == {
+            "https://example.com/primary-region",
+            "https://example.com/buyer-region",
+            "https://example.com/implementation-region",
+            "https://example.com/beneficiary-region",
+        }
+        assert state["region_filter"] == "East Africa"

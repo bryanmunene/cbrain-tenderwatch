@@ -4,7 +4,7 @@
 
 {% block content %}
 {% set collection_view = title is defined and title %}
-{% set advanced_filters_active = geographic_scope or africa_priority_flag or donor_or_multilateral_flag or implementation_region or buyer_region or queue_bucket %}
+{% set advanced_filters_active = geographic_scope or region_filter or africa_priority_flag or donor_or_multilateral_flag or implementation_region or buyer_region or queue_bucket %}
 
 <section class="page-heading">
     <div>
@@ -25,7 +25,7 @@
     </div>
     <div class="header-actions">
         {% if not collection_view and results %}
-            <a class="btn btn-outline-secondary" href="{{ url_for('main.export_csv', sort=sort_by, category=category, min_score=min_score, search=search, recent_days=recent_days, shortlist_mode=shortlist_mode, geographic_scope=geographic_scope, africa_priority_flag=africa_priority_flag, donor_or_multilateral_flag=donor_or_multilateral_flag, implementation_region=implementation_region, buyer_region=buyer_region, recommendation=recommendation_filter, queue_bucket=queue_bucket) }}">
+            <a class="btn btn-outline-secondary" href="{{ url_for('main.export_csv', sort=sort_by, category=category, min_score=min_score, search=search, recent_days=recent_days, shortlist_mode=shortlist_mode, geographic_scope=geographic_scope, region=region_filter, africa_priority_flag=africa_priority_flag, donor_or_multilateral_flag=donor_or_multilateral_flag, implementation_region=implementation_region, buyer_region=buyer_region, recommendation=recommendation_filter, queue_bucket=queue_bucket) }}">
                 <i class="fa-solid fa-file-arrow-down"></i>
                 Export CSV
             </a>
@@ -130,6 +130,15 @@
                             <option value="">All scopes</option>
                             {% for scope in geographic_scopes %}
                                 <option value="{{ scope }}" {% if geographic_scope == scope %}selected{% endif %}>{{ scope }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="region">Region</label>
+                        <select class="form-select" id="region" name="region">
+                            <option value="">All regions</option>
+                            {% for region_name in region_options %}
+                                <option value="{{ region_name }}" {% if region_filter == region_name %}selected{% endif %}>{{ region_name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -309,6 +318,7 @@
                         recent_days=recent_days,
                         shortlist_mode=shortlist_mode,
                         geographic_scope=geographic_scope,
+                        region=region_filter,
                         africa_priority_flag=africa_priority_flag,
                         donor_or_multilateral_flag=donor_or_multilateral_flag,
                         implementation_region=implementation_region,
@@ -328,6 +338,7 @@
                         recent_days=recent_days,
                         shortlist_mode=shortlist_mode,
                         geographic_scope=geographic_scope,
+                        region=region_filter,
                         africa_priority_flag=africa_priority_flag,
                         donor_or_multilateral_flag=donor_or_multilateral_flag,
                         implementation_region=implementation_region,
