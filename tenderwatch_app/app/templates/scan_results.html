@@ -56,6 +56,29 @@
                 <a class="pill {% if queue_bucket == 'secondary_review' %}active{% endif %}" href="{{ url_for('main.scan', shortlist_mode='combined', queue_bucket='secondary_review', recommendation='REVIEW', sort=sort_by, category=category, min_score=min_score, search=search, recent_days=recent_days) }}">Secondary review</a>
             {% endif %}
         </div>
+        <form class="toolbar-filter" method="get">
+            <input type="hidden" name="shortlist_mode" value="{{ shortlist_mode }}">
+            <input type="hidden" name="sort" value="{{ sort_by }}">
+            <input type="hidden" name="category" value="{{ category }}">
+            <input type="hidden" name="min_score" value="{{ min_score }}">
+            <input type="hidden" name="search" value="{{ search }}">
+            <input type="hidden" name="recent_days" value="{{ recent_days }}">
+            <input type="hidden" name="per_page" value="{{ per_page }}">
+            <input type="hidden" name="geographic_scope" value="{{ geographic_scope }}">
+            <input type="hidden" name="africa_priority_flag" value="{{ africa_priority_flag }}">
+            <input type="hidden" name="donor_or_multilateral_flag" value="{{ donor_or_multilateral_flag }}">
+            <input type="hidden" name="implementation_region" value="{{ implementation_region }}">
+            <input type="hidden" name="buyer_region" value="{{ buyer_region }}">
+            <input type="hidden" name="recommendation" value="{{ recommendation_filter }}">
+            <input type="hidden" name="queue_bucket" value="{{ queue_bucket }}">
+            <label for="toolbar_region">Region</label>
+            <select class="form-select" id="toolbar_region" name="region" onchange="this.form.submit()">
+                <option value="">All regions</option>
+                {% for region_name in region_options %}
+                    <option value="{{ region_name }}" {% if region_filter == region_name %}selected{% endif %}>{{ region_name }}</option>
+                {% endfor %}
+            </select>
+        </form>
     </div>
 
     <details class="section-card details-card" {% if search or category or min_score or advanced_filters_active %}open{% endif %}>
@@ -134,8 +157,8 @@
                         </select>
                     </div>
                     <div class="field">
-                        <label for="region">Region</label>
-                        <select class="form-select" id="region" name="region">
+                        <label for="region_filter">Region</label>
+                        <select class="form-select" id="region_filter" name="region">
                             <option value="">All regions</option>
                             {% for region_name in region_options %}
                                 <option value="{{ region_name }}" {% if region_filter == region_name %}selected{% endif %}>{{ region_name }}</option>

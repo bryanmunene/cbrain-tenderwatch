@@ -430,6 +430,23 @@
             box-shadow: var(--shadow-soft);
         }
 
+        .toolbar-filter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 260px;
+            margin: 0;
+        }
+
+        .toolbar-filter label {
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        .toolbar-filter .form-select {
+            min-width: 180px;
+        }
+
         .pill {
             display: inline-flex;
             align-items: center;
@@ -951,10 +968,19 @@
 
             .nav-links,
             .header-actions,
+            .toolbar-filter,
             .table-actions,
             .action-row {
                 width: 100%;
                 justify-content: flex-start;
+            }
+
+            .toolbar-filter {
+                align-items: stretch;
+            }
+
+            .toolbar-filter .form-select {
+                min-width: 0;
             }
 
             .nav-links {

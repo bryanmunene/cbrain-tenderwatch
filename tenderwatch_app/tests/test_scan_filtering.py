@@ -159,3 +159,26 @@ def test_region_filter_matches_all_region_fields():
             "https://example.com/beneficiary-region",
         }
         assert state["region_filter"] == "East Africa"
+
+
+def test_scan_page_renders_visible_region_dropdown():
+    app = _make_app()
+
+    with app.app_context():
+        db.session.add(
+            TenderResult(
+                title="Visible region option",
+                link="https://example.com/visible-region",
+                score=30,
+                recommendation="REVIEW",
+                geographic_scope="Global",
+                region="East Africa",
+            )
+        )
+        db.session.commit()
+
+    response = app.test_client().get("/scan?shortlist_mode=combined")
+
+    assert response.status_code == 200
+    assert b'id="toolbar_region"' in response.data
+    assert b"East Africa" in response.data
