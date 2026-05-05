@@ -339,7 +339,29 @@ SOURCE_SCAN_TUNING: Dict[str, Dict[str, int | bool]] = {
     "Kenya PPIP": {"max_anchors": 150, "detail_fetch_max": 7, "per_source_cap": 12},
     "Kenya Public Procurement Portal": {"max_anchors": 150, "detail_fetch_max": 7, "per_source_cap": 12},
     "UNDP Procurement Notices": {"max_anchors": 180, "detail_fetch_max": 8, "per_source_cap": 14},
+    "UN Global Marketplace": {"max_anchors": 0, "detail_fetch_max": 10, "per_source_cap": 18},
 }
+
+
+UNGM_BASE_URL = "https://www.ungm.org"
+UNGM_SEARCH_URL = f"{UNGM_BASE_URL}/Public/Notice/Search"
+UNGM_NOTICE_URL = f"{UNGM_BASE_URL}/Public/Notice"
+UNGM_PAGE_SIZE = 15
+UNGM_MAX_SEARCH_REQUESTS = int(os.getenv("UNGM_MAX_SEARCH_REQUESTS", "13") or 13)
+UNGM_QUERY_TERMS = [
+    "document management",
+    "records management",
+    "workflow",
+    "case management",
+    "digital government",
+    "digital transformation",
+    "registry management",
+    "information management",
+    "service delivery portal",
+    "licensing system",
+    "enterprise content management",
+    "automation",
+]
 
 
 def _source_scan_tuning(source: SourceInfo) -> Dict[str, int | bool]:
@@ -824,6 +846,370 @@ def _detail_context(link: str, session: requests.Session) -> Dict[str, str]:
     return out
 
 
+def _is_ungm_source(source: SourceInfo) -> bool:
+    parsed = urlparse(source.url or "")
+    host = (parsed.netloc or "").lower()
+    path = (parsed.path or "").lower()
+    haystack = f"{source.name} {source.url}".lower()
+    return (
+        "ungm.org" in host
+        and "/public/notice" in path
+    ) or "un global marketplace" in haystack
+
+
+def _clean_ungm_text(value: str) -> str:
+    text = (value or "").replace("\xa0", " ")
+    text = re.sub(r"\b\d+\.\d{6,}\b", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _ungm_date(value: str) -> str:
+    text = _clean_ungm_text(value)
+    return parse_deadline(text) or ""
+
+
+def _parse_ungm_notice_rows(html: str) -> List[Dict[str, str]]:
+    """Parse UNGM /Public/Notice/Search HTML rows into structured notices."""
+
+    if not html:
+        return []
+
+    try:
+        soup = BeautifulSoup(html, "lxml")
+    except Exception:
+        soup = BeautifulSoup(html, "html.parser")
+
+    notices: List[Dict[str, str]] = []
+    for row in soup.select(".dataRow"):
+        cells = row.select(".tableCell")
+        if len(cells) < 8:
+            continue
+
+        notice_id = (row.get("data-noticeid") or row.get("data-notice-id") or "").strip()
+        title_cell = row.select_one(".resultTitle") or cells[1]
+        title = _clean_ungm_text(title_cell.get_text(" ", strip=True))
+        title = re.sub(r"\bOpen in a new window\b", " ", title, flags=re.IGNORECASE)
+        title = _clean_title(_clean_ungm_text(title))
+        if not title:
+            continue
+
+        link = ""
+        for a in title_cell.find_all("a", href=True):
+            href = (a.get("href") or "").strip()
+            if "/Public/Notice/" in href:
+                link = urljoin(UNGM_BASE_URL, href)
+                if not notice_id:
+                    m = re.search(r"/Public/Notice/(\d+)", link)
+                    notice_id = m.group(1) if m else ""
+                break
+        if not link and notice_id:
+            link = f"{UNGM_NOTICE_URL}/{notice_id}"
+        if not link:
+            continue
+
+        deadline_text = _clean_ungm_text(cells[2].get_text(" ", strip=True))
+        published_text = _clean_ungm_text(cells[3].get_text(" ", strip=True))
+        agency = _clean_ungm_text(cells[4].get_text(" ", strip=True))
+        notice_type = _clean_ungm_text(cells[5].get_text(" ", strip=True))
+        reference = _clean_ungm_text(cells[6].get_text(" ", strip=True))
+        country = _clean_ungm_text(cells[7].get_text(" ", strip=True))
+
+        meta_parts = [
+            notice_type,
+            f"Reference: {reference}" if reference else "",
+            f"Beneficiary country or territory: {country}" if country else "",
+            f"Published on: {published_text}" if published_text else "",
+            f"Deadline on: {deadline_text}" if deadline_text else "",
+        ]
+        description = _clean_ungm_text(" ".join(part for part in meta_parts if part))
+
+        notices.append(
+            {
+                "notice_id": notice_id,
+                "title": title,
+                "link": link,
+                "description": description,
+                "deadline": _ungm_date(deadline_text),
+                "publication_date": _ungm_date(published_text),
+                "buyer": agency,
+                "country": country,
+                "notice_type": notice_type,
+                "reference": reference,
+            }
+        )
+
+    return notices
+
+
+def _ungm_search_payload(title: str = "", description: str = "", page_index: int = 0) -> Dict:
+    return {
+        "PageIndex": int(page_index or 0),
+        "PageSize": UNGM_PAGE_SIZE,
+        "Title": title or "",
+        "Description": description or "",
+        "Reference": "",
+        "PublishedFrom": "",
+        "PublishedTo": "",
+        "DeadlineFrom": "",
+        "DeadlineTo": "",
+        "Countries": [],
+        "Agencies": [],
+        "UNSPSCs": [],
+        "NoticeTypes": [],
+        "SortField": "DatePublished",
+        "SortAscending": False,
+        "isPicker": False,
+        "IsSustainable": False,
+        "IsActive": True,
+        "NoticeDisplayType": "",
+        "NoticeSearchTotalLabelId": "noticeSearchTotal",
+        "TypeOfCompetitions": [],
+    }
+
+
+def _ungm_search_specs(max_requests: int) -> List[Dict[str, str]]:
+    specs: List[Dict[str, str]] = []
+    for term in UNGM_QUERY_TERMS:
+        specs.append({"title": term, "description": "", "label": f"title:{term}"})
+        specs.append({"title": "", "description": term, "label": f"description:{term}"})
+
+    # A final recent pass catches newly posted UN opportunities whose title/short
+    # description uses unusual language. Scoring still decides whether to keep it.
+    specs.append({"title": "", "description": "", "label": "recent-active"})
+    return specs[: max(1, int(max_requests or 1))]
+
+
+def _post_ungm_search(session: requests.Session, payload: Dict) -> str:
+    headers = {
+        "Accept": "text/html, */*; q=0.01",
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer": UNGM_NOTICE_URL,
+    }
+    response = session.post(UNGM_SEARCH_URL, json=payload, headers=headers, timeout=HTTP_TIMEOUT)
+    response.raise_for_status()
+    return response.text or ""
+
+
+def _ungm_notice_to_row(
+    notice: Dict[str, str],
+    source: SourceInfo,
+    pipeline_mode: str,
+    geo_settings,
+) -> Optional[Dict]:
+    import json as json_lib
+
+    title = _clean_title(notice.get("title", ""))
+    if not title or len(title) < 8:
+        return None
+
+    link = (notice.get("link") or "").strip()
+    if not link:
+        return None
+
+    base_description = _clean_ungm_text(notice.get("description", ""))
+    detail_text = _clean_ungm_text(notice.get("detail_text", ""))
+    description = _clean_ungm_text(f"{base_description} {detail_text}")[:DETAIL_TEXT_MAX_CHARS]
+    deadline = (notice.get("deadline") or "").strip() or (parse_deadline(description) or "")
+    publication_date = (notice.get("publication_date") or "").strip()
+    buyer = (notice.get("buyer") or "").strip() or "UNGM"
+    country = (notice.get("country") or "").strip()
+
+    context = f"{title} {description} {link}".strip()
+    lifecycle_status = _classify_lifecycle(context)
+    if _is_closed_award(context) or _looks_expired_or_stale(context, deadline, lifecycle_status):
+        return None
+
+    fit_score, matched, scoring_breakdown, ranking_score = score_tender(
+        title,
+        description,
+        buyer=buyer,
+        country=country or _source_country(source.name, link),
+        source_name=source.name,
+        source_url=source.url,
+        source_group=source.source_group,
+        source_tags=parse_source_tags(source.source_tags),
+        pipeline_mode=pipeline_mode,
+        settings=geo_settings,
+        publication_date=publication_date,
+        deadline=deadline,
+    )
+
+    try:
+        breakdown = json_lib.loads(scoring_breakdown)
+    except Exception:
+        breakdown = {}
+
+    keywords_found = int(breakdown.get("keywords_found", 0) or 0)
+    if fit_score <= 0 or keywords_found == 0:
+        broad_hits = _broad_discovery_hits(context)
+        has_tender_hint = any(term in context.lower() for term in TENDER_TERMS)
+        if broad_hits and has_tender_hint and not bool(breakdown.get("excluded", False)):
+            fit_score = max(float(fit_score or 0), 22.0)
+            matched = ", ".join([f"broad:{h}" for h in broad_hits[:4]])
+            breakdown["keywords_found"] = max(1, len(broad_hits))
+            breakdown["matched_phrases"] = broad_hits[:8]
+            breakdown["broad_capture"] = True
+            if breakdown.get("likely_fit_for_F2", "uncertain") == "uncertain":
+                breakdown["likely_fit_for_F2"] = "discuss"
+            scoring_breakdown = json_lib.dumps(breakdown)
+            ranking_score = float(breakdown.get("ranking_score", fit_score) or fit_score)
+        else:
+            return None
+
+    likely_fit = breakdown.get("likely_fit_for_F2", "uncertain")
+    procurement_status = breakdown.get("procurement_status", "open")
+    recommendation = breakdown.get("recommendation", "REVIEW")
+    queue_bucket = breakdown.get("queue_bucket", "secondary_review")
+    if likely_fit in {"excluded", "no-go"}:
+        return None
+    if recommendation == "NO-GO":
+        return None
+    if procurement_status in {"locked", "conditional_nogo"}:
+        return None
+    if geo_settings and getattr(geo_settings, "africa_only_mode", False) and not bool(breakdown.get("africa_priority_flag", False)):
+        return None
+
+    domains_matched = breakdown.get("domains_matched", []) or []
+    category, _, confidence = categorize(title, description, source_name=source.name)
+    inferred_country = breakdown.get("country") or country or _source_country(source.name, link)
+
+    return {
+        "title": title,
+        "title_translated": title,
+        "link": link,
+        "description": description,
+        "description_translated": description,
+        "score": float(fit_score),
+        "ranking_score": float(ranking_score),
+        "keywords_matched": matched,
+        "scoring_breakdown": scoring_breakdown,
+        "category": category,
+        "confidence": confidence,
+        "deadline": deadline,
+        "publication_date": publication_date,
+        "buyer": buyer,
+        "country": inferred_country,
+        "inferred_domains": json_lib.dumps(domains_matched),
+        "priority_level": breakdown.get("priority", "LOW"),
+        "likely_fit_for_f2": likely_fit,
+        "procurement_status": procurement_status,
+        "source_group": breakdown.get("source_group", source.source_group),
+        "scan_pipeline": pipeline_mode,
+        "geographic_scope": breakdown.get("geographic_scope", "Unknown"),
+        "region": breakdown.get("region", ""),
+        "africa_priority_flag": bool(breakdown.get("africa_priority_flag", False)),
+        "donor_or_multilateral_flag": bool(breakdown.get("donor_or_multilateral_flag", False)),
+        "target_beneficiary_region": breakdown.get("target_beneficiary_region", ""),
+        "buyer_region": breakdown.get("buyer_region", ""),
+        "implementation_region": breakdown.get("implementation_region", ""),
+        "recommendation": recommendation,
+        "queue_bucket": queue_bucket,
+        "requires_qualification": bool(breakdown.get("requires_qualification", False)),
+        "qualification_reason": breakdown.get("qualification_reason", ""),
+        "platform_commitment_signals": json_lib.dumps(breakdown.get("microsoft_commitment_signals", [])),
+        "timing_status": lifecycle_status,
+        "discovery_method": "manual",
+        "search_query": notice.get("search_query", ""),
+        "search_source": source.name,
+        "source_id": source.id,
+    }
+
+
+def _scan_ungm_source(
+    source: SourceInfo,
+    existing_links: Optional[Iterable[str]] = None,
+    max_new_per_source: int = MAX_NEW_TENDERS_PER_SOURCE,
+    pipeline_mode: str = "global_discovery",
+    geo_settings=None,
+) -> List[Dict]:
+    """Scan UNGM's public procurement search across all agencies."""
+
+    import time
+
+    t0 = time.time()
+    session = _make_http_session()
+    session.headers.update(
+        {
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "text/html, */*; q=0.01",
+            "Accept-Language": "en-US,en;q=0.9",
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": UNGM_NOTICE_URL,
+        }
+    )
+    existing = existing_links if isinstance(existing_links, set) else set(existing_links or ())
+    tuning = _source_scan_tuning(source)
+    detail_fetch_limit = int(tuning.get("detail_fetch_max", DETAIL_FETCH_MAX_PER_SOURCE) or DETAIL_FETCH_MAX_PER_SOURCE)
+    per_source_cap = max(1, int(tuning.get("per_source_cap", max_new_per_source) or max_new_per_source))
+    max_requests = max(1, min(30, UNGM_MAX_SEARCH_REQUESTS))
+    candidate_limit = max(20, min(60, per_source_cap * 4))
+
+    try:
+        session.get(UNGM_NOTICE_URL, timeout=HTTP_TIMEOUT)
+    except Exception as e:
+        logger.debug("UNGM initial page fetch failed; continuing with search endpoint: %s", str(e)[:120])
+
+    notices: List[Dict[str, str]] = []
+    seen_links: set[str] = set()
+    for spec in _ungm_search_specs(max_requests):
+        payload = _ungm_search_payload(title=spec.get("title", ""), description=spec.get("description", ""))
+        try:
+            html = _post_ungm_search(session, payload)
+        except Exception as e:
+            logger.debug("UNGM search failed for %s: %s", spec.get("label", ""), str(e)[:160])
+            continue
+
+        for notice in _parse_ungm_notice_rows(html):
+            link = notice.get("link", "")
+            if not link or link in existing or link in seen_links:
+                continue
+            notice["search_query"] = spec.get("label", "")
+            notices.append(notice)
+            seen_links.add(link)
+            if len(notices) >= candidate_limit:
+                break
+        if len(notices) >= candidate_limit:
+            break
+
+    rows: List[Dict] = []
+    detail_fetch_count = 0
+    for notice in notices:
+        if detail_fetch_count < detail_fetch_limit:
+            try:
+                detail = _detail_context(notice.get("link", ""), session=session)
+                detail_text = detail.get("text", "") or ""
+                if detail_text:
+                    notice["detail_text"] = detail_text
+                if not notice.get("deadline") and detail.get("deadline"):
+                    notice["deadline"] = detail.get("deadline", "")
+                detail_fetch_count += 1
+            except Exception:
+                detail_fetch_count += 1
+
+        row = _ungm_notice_to_row(
+            notice,
+            source=source,
+            pipeline_mode=pipeline_mode,
+            geo_settings=geo_settings,
+        )
+        if row:
+            rows.append(row)
+            if len(rows) >= per_source_cap:
+                break
+
+    rows.sort(
+        key=lambda r: (
+            float(r.get("score", 0) or 0),
+            1 if (r.get("deadline") or "").strip() else 0,
+        ),
+        reverse=True,
+    )
+    logger.info("Source %s produced %d UNGM candidates in %.1fs", source.name, len(rows), time.time() - t0)
+    return rows[:per_source_cap]
+
+
 def cleanup_irrelevant_tenders():
     """Remove tenders that are awards/results, expired, or stale."""
     one_month_ago = _utcnow() - timedelta(days=30)
@@ -860,6 +1246,15 @@ def scan_source(
 
     t0 = time.time()
     session = _make_http_session()
+
+    if _is_ungm_source(source):
+        return _scan_ungm_source(
+            source,
+            existing_links=existing_links,
+            max_new_per_source=max_new_per_source,
+            pipeline_mode=pipeline_mode,
+            geo_settings=geo_settings,
+        )
 
     try:
         html = _fetch_html(source.url, session)
