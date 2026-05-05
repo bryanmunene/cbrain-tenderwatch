@@ -211,6 +211,46 @@ st.markdown(
         border-color: var(--line) !important;
     }
 
+    div[data-baseweb="select"] *,
+    div[data-baseweb="base-input"] *,
+    div[data-baseweb="select"] svg {
+        color: var(--text) !important;
+        fill: var(--muted) !important;
+    }
+
+    div[data-baseweb="popover"],
+    div[data-baseweb="popover"] > div,
+    div[data-baseweb="menu"],
+    ul[role="listbox"],
+    div[role="listbox"] {
+        background: var(--panel) !important;
+        border-color: var(--line) !important;
+        color: var(--text) !important;
+        box-shadow: 0 12px 28px rgba(70, 48, 32, 0.18) !important;
+    }
+
+    div[data-baseweb="popover"] *,
+    div[data-baseweb="menu"] *,
+    ul[role="listbox"] *,
+    div[role="listbox"] *,
+    li[role="option"],
+    div[role="option"] {
+        color: var(--text) !important;
+    }
+
+    li[role="option"],
+    div[role="option"] {
+        background: var(--panel) !important;
+    }
+
+    li[role="option"]:hover,
+    div[role="option"]:hover,
+    li[role="option"][aria-selected="true"],
+    div[role="option"][aria-selected="true"] {
+        background: var(--accent-soft) !important;
+        color: var(--text) !important;
+    }
+
     input::placeholder,
     textarea::placeholder {
         color: #6c5848 !important;
