@@ -367,10 +367,28 @@ def get_stats() -> dict[str, int]:
         }
 
 
+def get_region_options() -> list[str]:
+    with app.app_context():
+        values = set()
+        for column in (
+            TenderResult.region,
+            TenderResult.buyer_region,
+            TenderResult.implementation_region,
+            TenderResult.target_beneficiary_region,
+        ):
+            rows = db.session.query(column).distinct().all()
+            for (value,) in rows:
+                cleaned = (value or "").strip()
+                if cleaned:
+                    values.add(cleaned)
+        return sorted(values, key=lambda value: value.lower())
+
+
 def get_tenders(
     *,
     lane: str = "Active",
     search: str = "",
+    region_filter: str = "",
     min_score: float = 0,
     days_window: int | None = 90,
     saved_only: bool = False,
@@ -391,6 +409,14 @@ def get_tenders(
                 | TenderResult.description.ilike(term)
                 | TenderResult.buyer.ilike(term)
                 | TenderResult.keywords_matched.ilike(term)
+            )
+        if region_filter:
+            region = region_filter.strip().lower()
+            query = query.filter(
+                (func.lower(TenderResult.region) == region)
+                | (func.lower(TenderResult.buyer_region) == region)
+                | (func.lower(TenderResult.implementation_region) == region)
+                | (func.lower(TenderResult.target_beneficiary_region) == region)
             )
         rows = (
             query.order_by(TenderResult.score.desc(), TenderResult.ranking_score.desc(), TenderResult.created_at.desc())
@@ -654,7 +680,16 @@ elif page == "Scan":
             )
 
     render_panel("Latest active results", "Fresh qualified and watchlist tenders appear below.")
-    render_tender_list(get_tenders(lane="Active", days_window=90, limit=20))
+    region_options = ["All regions"] + get_region_options()
+    selected_region = st.selectbox("Region", region_options, index=0)
+    render_tender_list(
+        get_tenders(
+            lane="Active",
+            region_filter="" if selected_region == "All regions" else selected_region,
+            days_window=90,
+            limit=20,
+        )
+    )
 
     health_rows = get_health_rows()
     if health_rows:
