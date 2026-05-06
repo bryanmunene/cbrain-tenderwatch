@@ -22,7 +22,7 @@ Local URL: `http://localhost:8501`
 5. Set the main file path to:
 
 ```text
-streamlit_app.py
+streamlit_cloud/app.py
 ```
 
 6. In **Advanced settings**, paste secrets based on:
@@ -35,11 +35,9 @@ At minimum, set `SECRET_KEY`. For durable storage, also set `DATABASE_URL` to a 
 
 7. Click **Deploy**.
 
-## Entrypoints
+## Why Use `streamlit_cloud/app.py`?
 
-The main app still lives at `tenderwatch_app/streamlit_app.py`. The repository-root `streamlit_app.py` is a small wrapper so Streamlit Cloud's default form works cleanly.
-
-`streamlit_cloud/app.py` is kept as an alternate wrapper. Both wrappers use the slim cloud dependency set in `streamlit_cloud/requirements.txt`, which avoids installing heavy optional ML packages during the free cloud build.
+The main app still lives at `tenderwatch_app/streamlit_app.py`. The cloud wrapper points Streamlit Cloud to the real app while using `streamlit_cloud/requirements.txt`, which avoids installing heavy optional ML packages during the free cloud build.
 
 ## Recommended Secrets
 
