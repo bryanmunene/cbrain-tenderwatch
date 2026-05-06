@@ -1,154 +1,61 @@
-# 🚀 TenderWatch - Streamlit Quick Start
+# TenderWatch Streamlit Deployment Guide
 
-## ⚡ Run Locally (3 Steps)
+This is the recommended free hosting path for TenderWatch.
 
-### 1. Install Dependencies
-```bash
+## Local Run
+
+```powershell
 cd tenderwatch_app
 pip install -r requirements.txt
-```
-
-### 2. Initialize Database
-```bash
 python init_sources.py
-```
-
-### 3. Run Streamlit App
-```bash
 streamlit run streamlit_app.py
 ```
 
-**Your app opens automatically at:** `http://localhost:8501`
+Local URL: `http://localhost:8501`
 
----
+## Deploy On Streamlit Community Cloud
 
-## 🌐 Deploy Online (1-Click - Even Easier Than Flask!)
+1. Push this repository to GitHub.
+2. Go to `https://share.streamlit.io` and sign in with GitHub.
+3. Choose **Create app**.
+4. Select this repository and branch.
+5. Set the main file path to:
 
-### ⭐ Streamlit Cloud (Recommended - Free Forever)
-
-**Why Streamlit Cloud:** Built specifically for Streamlit apps, 100% free, instant deployment.
-
-1. **Push to GitHub:**
-   ```bash
-   git add .
-   git commit -m "Convert to Streamlit"
-   git push
-   ```
-
-2. **Go to [streamlit.io/cloud](https://streamlit.io/cloud)** and sign in with GitHub
-
-3. **Click "New app"**
-
-4. **Configure:**
-   - Repository: `your-username/cbrain_tenderwatch`
-   - Branch: `main`
-   - Main file path: `tenderwatch_app/streamlit_app.py`
-
-5. **Click "Deploy"**
-
-6. **Done!** Get URL: `https://your-app.streamlit.app`
-
-**That's it!** No configuration files, no build commands, no complex setup.
-
----
-
-### Alternative: Railway (Also Works with Streamlit)
-
-1. **Go to [railway.app](https://railway.app)** → Sign in with GitHub
-
-2. **New Project** → Deploy from GitHub → Select repo
-
-3. **Add Start Command:**
-   ```
-   streamlit run tenderwatch_app/streamlit_app.py --server.port=$PORT
-   ```
-
-4. **Deploy** → Get URL: `https://your-app.railway.app`
-
----
-
-## 🎯 What Changed (Flask → Streamlit)
-
-### Before (Flask):
-- ❌ Multiple files: routes.py, templates/*.html, static/*, __init__.py
-- ❌ Need to learn: Jinja2, HTML, CSS, Flask routing
-- ❌ 1000+ lines across many files
-- ❌ Complex deployment configuration
-
-### After (Streamlit):
-- ✅ **One file:** `streamlit_app.py` (600 lines, everything included)
-- ✅ **Pure Python:** No HTML, CSS, or templates
-- ✅ **Auto UI:** Widgets generated automatically
-- ✅ **1-click deploy:** Built-in Streamlit Cloud hosting
-- ✅ **Live reload:** Changes appear instantly
-
----
-
-## 📱 Features
-
-All original features preserved:
-- ✅ Dashboard with statistics
-- ✅ Tender scanning & results
-- ✅ Source management (add/edit/delete)
-- ✅ Favorites & saved tenders
-- ✅ Filtering & sorting
-- ✅ Scoring breakdown
-- ✅ cBrain branding (blue/teal theme)
-- ✅ Settings configuration
-
-**Plus new benefits:**
-- 🎨 Cleaner, more modern UI
-- 📊 Built-in charts and metrics
-- 🔄 Instant page updates
-- 📱 Better mobile experience
-- ⚡ Faster development
-
----
-
-## 🆚 Flask vs Streamlit: Side-by-Side
-
-| Feature | Flask (Old) | Streamlit (New) |
-|---------|-------------|-----------------|
-| **Setup** | 5+ files | 1 file |
-| **Code Complexity** | High | Low |
-| **HTML/CSS Needed** | Yes | No |
-| **Deployment** | Manual config | 1-click |
-| **Learning Curve** | Steep | Gentle |
-| **Dev Speed** | Slower | Faster |
-| **Live Reload** | Manual | Automatic |
-| **Built-in Widgets** | None | Many |
-
----
-
-## 🔄 Switching Between Versions
-
-**To use Streamlit (new):**
-```bash
-streamlit run streamlit_app.py
+```text
+streamlit_cloud/app.py
 ```
 
-**To use Flask (old):**
-```bash
-python run.py
+6. In **Advanced settings**, paste secrets based on:
+
+```text
+streamlit_cloud/secrets.toml.example
 ```
 
-Both work! Choose what you prefer.
+At minimum, set `SECRET_KEY`. For durable storage, also set `DATABASE_URL` to a hosted Postgres URL such as Neon.
 
----
+7. Click **Deploy**.
 
-## 📚 Learn More
+## Why Use `streamlit_cloud/app.py`?
 
-- **Streamlit Docs:** https://docs.streamlit.io
-- **Deployment Guide:** https://docs.streamlit.io/streamlit-community-cloud
-- **Gallery:** https://streamlit.io/gallery (see what's possible)
+The main app still lives at `tenderwatch_app/streamlit_app.py`. The cloud wrapper points Streamlit Cloud to the real app while using `streamlit_cloud/requirements.txt`, which avoids installing heavy optional ML packages during the free cloud build.
 
----
+## Recommended Secrets
 
-## 💡 Next Steps
+```toml
+SECRET_KEY = "replace-with-a-long-random-secret"
+TW_ENV = "production"
+DATABASE_URL = "postgresql://user:password@host/database?sslmode=require"
+```
 
-1. **Test locally:** Run `streamlit run streamlit_app.py`
-2. **Deploy:** Push to GitHub → Deploy on Streamlit Cloud
-3. **Customize:** Edit `streamlit_app.py` (it's just Python!)
-4. **Share:** Send your `https://your-app.streamlit.app` URL to anyone
+Discovery keys are optional:
 
-**Questions?** The entire app is in one file - just read `streamlit_app.py`!
+```toml
+GOOGLE_API_KEY = ""
+GOOGLE_CX = ""
+BING_API_KEY = ""
+SERPAPI_API_KEY = ""
+```
+
+## Free-Tier Notes
+
+Streamlit Community Cloud is suitable for a public pilot or demo. Apps can sleep after inactivity, and the local filesystem is not a reliable database. Use an external Postgres database if scan results and favorites need to persist across restarts.

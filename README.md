@@ -99,9 +99,10 @@ streamlit run streamlit_app.py    # Opens automatically at http://localhost:8501
 
 **Deploy Online (1-Click):**
 1. Push to GitHub
-2. Go to [streamlit.io/cloud](https://streamlit.io/cloud)
-3. Click "New app" → Select your repo → Deploy
-4. Done! Get: `https://your-app.streamlit.app`
+2. Go to [Streamlit Community Cloud](https://share.streamlit.io)
+3. Click "Create app" and select your repo
+4. Use main file path: `streamlit_cloud/app.py`
+5. Add `SECRET_KEY` in Streamlit secrets, then deploy
 
 **📖 Full guide:** [STREAMLIT_GUIDE.md](STREAMLIT_GUIDE.md)
 

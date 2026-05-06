@@ -11,6 +11,9 @@ dist/
 build/
 .env
 .venv
+.streamlit/secrets.toml
+streamlit_cloud/.streamlit/secrets.toml
+tenderwatch_app/.streamlit/secrets.toml
 instance/*.db
 *.log
 .DS_Store

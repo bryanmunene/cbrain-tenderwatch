@@ -9,12 +9,45 @@ import html
 import json
 import os
 import time
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
 import streamlit as st
 from sqlalchemy import func
+
+st.set_page_config(
+    page_title="TenderWatch - cBrain F2",
+    page_icon="TW",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+
+def _load_streamlit_secrets_into_env() -> None:
+    """Expose Streamlit Cloud secrets to the existing Flask-style env config."""
+    try:
+        secrets_items = st.secrets.items()
+    except Exception:
+        return
+
+    def set_env(name: object, value: object) -> None:
+        key = str(name).strip()
+        if not key or key in os.environ or value is None:
+            return
+        os.environ[key] = str(value)
+
+    for key, value in secrets_items:
+        if isinstance(value, Mapping):
+            if str(key).strip().lower() == "env":
+                for nested_key, nested_value in value.items():
+                    set_env(nested_key, nested_value)
+            continue
+        set_env(key, value)
+
+
+_load_streamlit_secrets_into_env()
 
 from app import create_app  # type: ignore[attr-defined]
 from app.extensions import db  # type: ignore[attr-defined]
@@ -29,13 +62,6 @@ except Exception:
 
 BASE_DIR = Path(__file__).resolve().parent
 app = create_app(start_scheduler=False)
-
-st.set_page_config(
-    page_title="TenderWatch - cBrain F2",
-    page_icon="TW",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
 
 st.markdown(
     """
