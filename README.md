@@ -101,7 +101,7 @@ streamlit run streamlit_app.py    # Opens automatically at http://localhost:8501
 1. Push to GitHub
 2. Go to [Streamlit Community Cloud](https://share.streamlit.io)
 3. Click "Create app" and select your repo
-4. Use main file path: `streamlit_cloud/app.py`
+4. Use main file path: `streamlit_app.py`
 5. Add `SECRET_KEY` in Streamlit secrets, then deploy
 
 **📖 Full guide:** [STREAMLIT_GUIDE.md](STREAMLIT_GUIDE.md)
